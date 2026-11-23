@@ -26,8 +26,8 @@ dsh lee `AGENTS.md` y `CLAUDE.md` del workspace y los inyecta en el prompt.
       tamaño y precedencia documentada)
 - [x] `PromptBuilder` incluye las instrucciones del proyecto en el system prompt
 - [x] `AgentLoop` acepta un cargador inyectable y lo usa en cada turno
-- [x] Tests: límite de tamaño e inclusión en el prompt (CI tests verde;
-      ampliar cobertura de precedencia continúa pendiente)
+- [x] Tests: precedencia, límite de tamaño e inclusión en el prompt (240 tests
+      pasaron en CI, run `45288494058`)
 
 ## Fase 2 — Plan mode real
 
@@ -37,8 +37,8 @@ Hoy `exit_plan_mode` solo devuelve texto: el loop **no se detiene**.
 - [x] `AgentLoop` intercepta `exit_plan_mode`: emite el evento, espera la
       decisión del usuario y, si se rechaza, cierra el turno con `rejected`
 - [x] UI: hoja de plan con el Markdown del plan y botones Aprobar/Rechazar
-- [ ] Tests explícitos: aprobación continúa y rechazo detiene el turno (CI
-      compila y pasa; estos casos aún no están cubiertos)
+- [x] Tests explícitos: aprobación continúa, rechazo detiene el turno y sin
+      handler se rechaza por defecto (240 tests pasaron en CI, run `45288494058`)
 
 ## Fase 3 — UI de sesiones (resume, fork, search, Trajectory)
 

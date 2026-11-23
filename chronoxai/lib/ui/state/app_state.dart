@@ -24,9 +24,10 @@ import '../../platform/android_runtime_channel.dart';
 
 /// Ajustes del proveedor de modelo.
 ///
-/// Se guardan en memoria por ahora; la persistencia (y el cifrado de la clave)
-/// llega con la pantalla de Ajustes. La clave **nunca** va al log ni al
-/// historial de la sesión.
+/// Se persisten en `shared_preferences` por el notifier del estado global. La
+/// clave **nunca** va al log ni al historial de la sesión; `shared_preferences`
+/// no cifra secretos, por lo que la migración a almacenamiento seguro queda
+/// pendiente como requisito de seguridad antes de una publicación amplia.
 class ProviderSettings {
   const ProviderSettings({
     this.baseUrl = 'https://api.deepseek.com/v1',

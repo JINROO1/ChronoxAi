@@ -4,6 +4,30 @@ import 'package:flutter/widgets.dart';
 
 import '../agent/agent_events.dart';
 import '../agent/tool_registry.dart';
+import 'seams.dart';
+
+/// Bus de eventos tipado.
+///
+/// Equivalente a los eventos tipados de Cordis: quien publica no conoce a quien
+/// escucha, y cancelar la suscripción no deja restos.
+class AgentEventBus {
+  final StreamController<AgentEvent> _controller =
+      StreamController<AgentEvent>.broadcast();
+
+  /// Emite un evento. Si nadie escucha, no pasa nada.
+  void emit(final AgentEvent event) {
+    if (!_controller.isClosed) _controller.add(event);
+  }
+
+  /// Stream filtrado por tipo.
+  Stream<T> of<T extends AgentEvent>() =>
+      _controller.stream.where((final e) => e is T).cast<T>();
+
+  /// Todos los eventos.
+  Stream<AgentEvent> get all => _controller.stream;
+
+  Future<void> dispose() => _controller.close();
+}
 
 /// Tipo de plugin. Determina qué puede registrar.
 enum PluginKind {

@@ -60,7 +60,7 @@ jobs:
           git config user.name "chronox-format-bot"
           git config user.email "bot@chronoxai.app"
           git add -A
-          git commit -m "style: aplicar dart format [skip ci]"
+          git commit -m "style: aplicar dart format"
           git push
           echo "### Formato: aplicado y commiteado" >> "$GITHUB_STEP_SUMMARY"
 

@@ -324,12 +324,15 @@ class _TerminalPlugin extends ChronoxPlugin {
           if (terminals.isEmpty) {
             return const ToolOutcome(content: 'No hay terminales abiertas.');
           }
-          return ToolOutcome(
-            content: terminals.map((final t) {
-              final state = t.isAlive ? 'activa' : 'cerrada';
-              return '${t.id} · ${t.title} · $state · ${t.bytesProduced} bytes';
-            }).join('\n'),
-          );
+          final lines = <String>[];
+          for (final terminal in terminals) {
+            final state = terminal.isAlive ? 'activa' : 'cerrada';
+            lines.add(
+              '${terminal.id} · ${terminal.title} · $state · '
+              '${terminal.bytesProduced} bytes',
+            );
+          }
+          return ToolOutcome(content: lines.join('\n'));
         },
       ),
     );

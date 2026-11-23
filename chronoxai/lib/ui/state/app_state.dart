@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/llm/anthropic_client.dart';
+import '../../data/network/http_network_seam.dart';
 import '../../data/llm/gemini_client.dart';
 import '../../data/llm/openai_compatible_client.dart';
 import '../../data/runtime/local_runtime.dart';
@@ -38,12 +39,14 @@ class ProviderSettings {
     this.baseUrl = 'https://api.deepseek.com/v1',
     this.model = 'deepseek-chat',
     this.apiKey = '',
+    this.mcpServerUrl = '',
   });
 
   final ProviderKind kind;
   final String baseUrl;
   final String model;
   final String apiKey;
+  final String mcpServerUrl;
 
   bool get isConfigured => apiKey.trim().isNotEmpty && model.trim().isNotEmpty;
 
@@ -52,12 +55,14 @@ class ProviderSettings {
     final String? baseUrl,
     final String? model,
     final String? apiKey,
+    final String? mcpServerUrl,
   }) =>
       ProviderSettings(
         kind: kind ?? this.kind,
         baseUrl: baseUrl ?? this.baseUrl,
         model: model ?? this.model,
         apiKey: apiKey ?? this.apiKey,
+        mcpServerUrl: mcpServerUrl ?? this.mcpServerUrl,
       );
 }
 
@@ -152,6 +157,7 @@ class ProviderSettingsNotifier extends StateNotifier<ProviderSettings> {
   static const String _kBaseUrl = 'provider.baseUrl';
   static const String _kModel = 'provider.model';
   static const String _kApiKey = 'provider.apiKey';
+  static const String _kMcpServerUrl = 'mcp.serverUrl';
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -164,6 +170,7 @@ class ProviderSettingsNotifier extends StateNotifier<ProviderSettings> {
       baseUrl: prefs.getString(_kBaseUrl) ?? state.baseUrl,
       model: prefs.getString(_kModel) ?? state.model,
       apiKey: prefs.getString(_kApiKey) ?? state.apiKey,
+      mcpServerUrl: prefs.getString(_kMcpServerUrl) ?? state.mcpServerUrl,
     );
   }
 
@@ -179,6 +186,7 @@ class ProviderSettingsNotifier extends StateNotifier<ProviderSettings> {
     await prefs.setString(_kBaseUrl, settings.baseUrl);
     await prefs.setString(_kModel, settings.model);
     await prefs.setString(_kApiKey, settings.apiKey);
+    await prefs.setString(_kMcpServerUrl, settings.mcpServerUrl);
   }
 }
 
@@ -262,6 +270,7 @@ class SessionBootstrap {
     required this.workspaceDir,
     this.terminals,
     this.network,
+    this.mcpServerUrl = '',
   });
 
   final LlmProvider provider;
@@ -270,6 +279,7 @@ class SessionBootstrap {
   final Directory workspaceDir;
   final TerminalsSeam? terminals;
   final NetworkSeam? network;
+  final String mcpServerUrl;
 }
 
 /// Arranca una sesión completa: log, registro de herramientas, plugins y motor.
@@ -307,7 +317,7 @@ Future<SessionRuntime> startSession(
     shell: bootstrap.shell,
     terminals: bootstrap.terminals,
     llm: _ProviderAsSeam(bootstrap.provider),
-    network: bootstrap.network,
+    network: bootstrap.network ?? HttpNetworkSeam(),
   );
 
   final host = PluginHost(services: services, events: events);
@@ -331,6 +341,7 @@ Future<SessionRuntime> startSession(
           .toList(),
     },
     host: host,
+    mcpServerUrl: bootstrap.mcpServerUrl,
     pluginLister: () => host.plugins
         .map((final p) => <String, Object?>{
               'id': p.manifest.id,

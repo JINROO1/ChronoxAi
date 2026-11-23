@@ -81,6 +81,15 @@ class SettingsScreen extends ConsumerWidget {
                   accent: ChronoxColors.accent,
                   onTap: () => _editModel(context, ref, settings),
                 ),
+                const Divider(height: 1, color: ChronoxColors.border),
+                SettingsRow(
+                  icon: Icons.hub_outlined,
+                  title: 'Servidor MCP (Streamable HTTP)',
+                  subtitle: settings.mcpServerUrl.isEmpty
+                      ? 'No configurado'
+                      : settings.mcpServerUrl,
+                  onTap: () => _editMcpUrl(context, ref, settings),
+                ),
               ],
             ),
           ),
@@ -353,6 +362,23 @@ class SettingsScreen extends ConsumerWidget {
     if (value == null || value.trim().isEmpty) return;
     ref.read(providerSettingsProvider.notifier).state =
         settings.copyWith(baseUrl: value.trim());
+  }
+
+  Future<void> _editMcpUrl(
+    final BuildContext context,
+    final WidgetRef ref,
+    final ProviderSettings settings,
+  ) async {
+    final value = await _prompt(
+      context,
+      title: 'Servidor MCP',
+      hint: 'https://example.com/mcp',
+      initial: settings.mcpServerUrl,
+      helper: 'Chronox conecta por HTTP(S); stdio no está disponible en Android.',
+    );
+    if (value == null) return;
+    ref.read(providerSettingsProvider.notifier).state =
+        settings.copyWith(mcpServerUrl: value.trim());
   }
 
   Future<void> _editModel(
@@ -674,6 +700,7 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
             hostWorkspace: runtime.hostWorkspace,
           ),
           workspaceDir: Directory(runtime.hostWorkspace),
+          mcpServerUrl: settings.mcpServerUrl,
         ),
         mode: mode,
         approvalLevel: level,

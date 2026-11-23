@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'plugin_api.dart';
+import 'mcp_http_client.dart';
 import 'plugin_runtime.dart';
 import 'web_search_parser.dart';
 
@@ -657,6 +658,56 @@ class _WebPlugin extends ChronoxPlugin {
 }
 
 // ---------------------------------------------------------------------------
+// core-mcp
+// ---------------------------------------------------------------------------
+
+class _McpPlugin extends ChronoxPlugin {
+  _McpPlugin(this.serverUrl);
+
+  final String? serverUrl;
+
+  @override
+  Future<void> mount(final PluginContext context) async {
+    final configured = serverUrl?.trim() ?? '';
+    if (configured.isEmpty) return;
+    final endpoint = Uri.tryParse(configured);
+    if (endpoint == null ||
+        (endpoint.scheme != 'https' && endpoint.scheme != 'http') ||
+        endpoint.host.isEmpty) {
+      throw const FormatException('La URL del servidor MCP debe ser HTTP(S).');
+    }
+    final client = McpHttpClient(
+      network: context.services.network,
+      endpoint: endpoint,
+    );
+    final tools = await client.listTools();
+    for (final remote in tools) {
+      final remoteName = (remote['name'] as String?)?.trim() ?? '';
+      if (remoteName.isEmpty) continue;
+      final safeName = 'mcp_${remoteName.replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '_')}';
+      final schema = remote['inputSchema'];
+      final inputSchema = schema is Map<String, Object?>
+          ? schema
+          : <String, Object?>{'type': 'object', 'properties': <String, Object?>{}};
+      final description = (remote['description'] as String?) ?? 'MCP: $remoteName';
+      context.provideTool(PluginTool(
+        name: safeName,
+        description: description,
+        inputSchema: inputSchema,
+        requiresApproval: true,
+        execute: (final args) async {
+          try {
+            return ToolOutcome(content: await client.callTool(remoteName, args));
+          } catch (error) {
+            return ToolOutcome.error('Error en la herramienta MCP $remoteName: $error');
+          }
+        },
+      ));
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // core-subagent
 // ---------------------------------------------------------------------------
 
@@ -953,6 +1004,7 @@ List<BuiltinPlugin> builtinPlugins({
   Map<String, Object?> Function()? inspectProvider,
   PluginHost? host,
   List<Map<String, Object?>> Function()? pluginLister,
+  String? mcpServerUrl,
 }) {
   PluginManifest manifest({
     required final String id,
@@ -1075,6 +1127,17 @@ List<BuiltinPlugin> builtinPlugins({
         icon: 'globe',
       ),
       create: _WebPlugin.new,
+    ),
+    BuiltinPlugin(
+      manifest: manifest(
+        id: 'core-mcp',
+        name: 'MCP remoto',
+        description: 'Herramientas de servidor MCP por Streamable HTTP',
+        kind: PluginKind.tool,
+        capabilities: const <PluginCapability>[PluginCapability.network],
+        icon: 'hub',
+      ),
+      create: () => _McpPlugin(mcpServerUrl),
     ),
     BuiltinPlugin(
       manifest: manifest(

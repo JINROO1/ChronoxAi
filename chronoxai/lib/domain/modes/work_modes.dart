@@ -27,6 +27,7 @@ abstract final class WorkModes {
       'core-plan',
       'core-subagent',
       'core-web',
+      'core-mcp',
     ],
     code: <String>[
       'core-fs',
@@ -38,6 +39,7 @@ abstract final class WorkModes {
       'core-plan',
       'core-subagent',
       'core-web',
+      'core-mcp',
       'code-mode',
     ],
     minimal: <String>[
@@ -54,6 +56,7 @@ abstract final class WorkModes {
       'core-plan',
       'core-subagent',
       'core-web',
+      'core-mcp',
       'creator-inspect',
       'creator-plugin-manager',
     ],
@@ -76,6 +79,7 @@ abstract final class WorkModes {
         'core-plan',
         'core-subagent',
         'core-web',
+      'core-mcp',
       ],
       icon: 'auto_awesome',
     ),
@@ -96,6 +100,7 @@ abstract final class WorkModes {
         'core-plan',
         'core-subagent',
         'core-web',
+      'core-mcp',
         'code-mode',
       ],
       systemPromptPrefix:
@@ -134,6 +139,7 @@ abstract final class WorkModes {
         'core-plan',
         'core-subagent',
         'core-web',
+      'core-mcp',
         'creator-inspect',
         'creator-plugin-manager',
       ],

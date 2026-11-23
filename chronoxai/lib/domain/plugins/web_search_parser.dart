@@ -55,16 +55,18 @@ abstract final class WebSearchParser {
     return '';
   }
 
-  static String _text(final String html) => _decode(
-        html
-            .replaceAll(
-              RegExp(r'<script[\s\S]*?</script>', caseSensitive: false),
-              ' ',
-            )
-            .replaceAll(RegExp(r'<[^>]+>'), ' ')
-            .replaceAll(RegExp(r'\s+'), ' ')
-            .trim(),
-      );
+  static String _text(final String html) {
+    final decoded = _decode(html);
+    final withoutMarkup = decoded
+        .replaceAll(
+          RegExp(r'<script[\s\S]*?</script>', caseSensitive: false),
+          ' ',
+        )
+        .replaceAll(RegExp(r'<[^>]+>'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return _decode(withoutMarkup);
+  }
 
   static String _decode(String text) => text
       .replaceAll('&amp;', '&')

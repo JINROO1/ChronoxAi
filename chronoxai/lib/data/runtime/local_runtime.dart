@@ -295,32 +295,40 @@ class WorkspaceFileSystemSeam implements FileSystemSeam {
   final String hostWorkspace;
 
   String resolve(final String path) {
-    final root = p.normalize(p.absolute(hostWorkspace));
+    final root = Directory(hostWorkspace).absolute.path;
 
-    // Solo se aceptan rutas relativas o rutas del contenedor bajo /workspace.
-    // Traducir cualquier ruta absoluta ("/etc/shadow" → workspace/etc/shadow)
-    // haría que el agente creyera estar leyendo el sistema cuando en realidad
-    // escribe en otro sitio: un error silencioso es peor que uno visible.
-    final String guest;
+    // La traducción se hace a mano, segmento a segmento, en lugar de confiar en
+    // `p.join`: su tratamiento de las rutas absolutas como segundo argumento
+    // cambia el resultado y aquí un fallo significa leer fuera del workspace.
+    final String relative;
     if (path == '/workspace' || path.startsWith('/workspace/')) {
-      guest = path.substring('/workspace'.length);
-    } else if (p.isAbsolute(path)) {
+      relative = path.substring('/workspace'.length);
+    } else if (path.startsWith('/')) {
       throw RuntimeException(
         'La ruta "$path" es absoluta y está fuera de /workspace. Usa rutas '
         'dentro de /workspace o relativas a él.',
       );
     } else {
-      guest = path;
+      relative = path;
     }
 
-    final host = p.normalize(p.join(root, guest));
-    if (!p.equals(root, host) && !host.startsWith('$root${p.separator}')) {
-      throw RuntimeException(
-        'La ruta "$path" está fuera del workspace. Solo puedes trabajar dentro '
-        'de /workspace.',
-      );
+    final segments = <String>[];
+    for (final segment in relative.split('/')) {
+      if (segment.isEmpty || segment == '.') continue;
+      if (segment == '..') {
+        if (segments.isEmpty) {
+          throw RuntimeException(
+            'La ruta "$path" intenta salir del workspace. Solo puedes trabajar '
+            'dentro de /workspace.',
+          );
+        }
+        segments.removeLast();
+        continue;
+      }
+      segments.add(segment);
     }
-    return host;
+
+    return <String>[root, ...segments].join(Platform.pathSeparator);
   }
 
   @override

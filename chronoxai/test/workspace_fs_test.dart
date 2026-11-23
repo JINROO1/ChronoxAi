@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:chronoxai/data/runtime/local_runtime.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 void main() {
   late Directory workspace;
@@ -19,11 +20,15 @@ void main() {
   group('WorkspaceFileSystemSeam — confinamiento', () {
     test('traduce /workspace a la ruta del dispositivo', () {
       final resolved = fs.resolve('/workspace/lib/main.dart');
-      expect(resolved, '${workspace.path}/lib/main.dart');
+      expect(resolved, p.join(Directory(workspace.path).absolute.path,
+          'lib', 'main.dart'));
     });
 
     test('acepta rutas relativas dentro del workspace', () {
-      expect(fs.resolve('lib/a.dart'), '${workspace.path}/lib/a.dart');
+      expect(
+        fs.resolve('lib/a.dart'),
+        p.join(Directory(workspace.path).absolute.path, 'lib', 'a.dart'),
+      );
     });
 
     test('rechaza salir del workspace con ..', () {
@@ -60,7 +65,13 @@ void main() {
 
     test('crea los directorios intermedios al escribir', () async {
       await fs.writeFile('/workspace/a/b/c/d.txt', 'x');
-      expect(File('${workspace.path}/a/b/c/d.txt').existsSync(), isTrue);
+      expect(
+        File(
+          p.join(Directory(workspace.path).absolute.path, 'a', 'b', 'c',
+              'd.txt'),
+        ).existsSync(),
+        isTrue,
+      );
     });
 
     test('lista el contenido con rutas del contenedor', () async {

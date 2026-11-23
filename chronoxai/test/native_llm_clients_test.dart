@@ -33,7 +33,9 @@ const _tools = <Map<String, Object?>>[
       'description': 'Read a file',
       'parameters': <String, Object?>{
         'type': 'object',
-        'properties': <String, Object?>{'path': <String, Object?>{'type': 'string'}},
+        'properties': <String, Object?>{
+          'path': <String, Object?>{'type': 'string'}
+        },
         'required': <String>['path'],
       },
     },
@@ -41,7 +43,8 @@ const _tools = <Map<String, Object?>>[
 ];
 
 void main() {
-  test('Anthropic maps messages/tools and streams text and tool input', () async {
+  test('Anthropic maps messages/tools and streams text and tool input',
+      () async {
     final transport = _Transport([
       'event: message_start\ndata: {"message":{"usage":{"input_tokens":8}}}\n\n',
       'event: content_block_start\ndata: {"index":0,"content_block":{"type":"text","text":""}}\n\n',
@@ -57,7 +60,10 @@ void main() {
     );
 
     final chunks = await client.stream(
-      messages: const <LlmMessage>[LlmMessage.system('rules'), LlmMessage.user('hi')],
+      messages: const <LlmMessage>[
+        LlmMessage.system('rules'),
+        LlmMessage.user('hi')
+      ],
       tools: _tools,
     ).toList();
 
@@ -67,9 +73,11 @@ void main() {
     expect(tool.id, 'tu1');
     expect(transport.request!.url.path, '/v1/messages');
     expect(transport.request!.headers['anthropic-version'], '2023-06-01');
-    final body = jsonDecode((transport.request! as http.Request).body) as Map<String, Object?>;
+    final body = jsonDecode((transport.request! as http.Request).body)
+        as Map<String, Object?>;
     expect(body['system'], 'rules');
-    expect((body['tools'] as List<Object?>).single, containsPair('name', 'read_file'));
+    expect((body['tools'] as List<Object?>).single,
+        containsPair('name', 'read_file'));
   });
 
   test('Gemini maps text, function calls, usage and endpoint', () async {
@@ -83,7 +91,10 @@ void main() {
     );
 
     final chunks = await client.stream(
-      messages: const <LlmMessage>[LlmMessage.system('rules'), LlmMessage.user('hi')],
+      messages: const <LlmMessage>[
+        LlmMessage.system('rules'),
+        LlmMessage.user('hi')
+      ],
       tools: _tools,
     ).toList();
 
@@ -94,6 +105,7 @@ void main() {
     final done = chunks.whereType<DoneChunk>().single;
     expect(done.usage.inputTokens, 5);
     expect(done.usage.outputTokens, 2);
-    expect(transport.request!.url.path, contains('gemini-test:streamGenerateContent'));
+    expect(transport.request!.url.path,
+        contains('gemini-test:streamGenerateContent'));
   });
 }

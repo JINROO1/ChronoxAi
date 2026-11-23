@@ -24,7 +24,9 @@ Future<void> selectProvider(
         children: <Widget>[
           for (final kind in ProviderKind.values)
             ListTile(
-              leading: Icon(kind == current.kind ? Icons.radio_button_checked : Icons.radio_button_off),
+              leading: Icon(kind == current.kind
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_off),
               title: Text(providerLabel(kind)),
               onTap: () => Navigator.pop(context, kind),
             ),
@@ -34,9 +36,18 @@ Future<void> selectProvider(
   );
   if (selected == null) return;
   final defaults = switch (selected) {
-    ProviderKind.openAiCompatible => ('https://api.deepseek.com/v1', 'deepseek-chat'),
-    ProviderKind.anthropic => ('https://api.anthropic.com', 'claude-3-7-sonnet-latest'),
-    ProviderKind.gemini => ('https://generativelanguage.googleapis.com', 'gemini-2.5-flash'),
+    ProviderKind.openAiCompatible => (
+        'https://api.deepseek.com/v1',
+        'deepseek-chat'
+      ),
+    ProviderKind.anthropic => (
+        'https://api.anthropic.com',
+        'claude-3-7-sonnet-latest'
+      ),
+    ProviderKind.gemini => (
+        'https://generativelanguage.googleapis.com',
+        'gemini-2.5-flash'
+      ),
   };
   ref.read(providerSettingsProvider.notifier).state = current.copyWith(
     kind: selected,

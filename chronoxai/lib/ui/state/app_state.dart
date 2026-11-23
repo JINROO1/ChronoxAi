@@ -401,7 +401,8 @@ class _ProviderAsSeam implements LlmSeam {
 }
 
 /// Crea el cliente HTTP nativo seleccionado en Ajustes.
-LlmProvider clientFromSettings(final ProviderSettings settings) => switch (settings.kind) {
+LlmProvider clientFromSettings(final ProviderSettings settings) =>
+    switch (settings.kind) {
       ProviderKind.openAiCompatible => OpenAiCompatibleClient(
           baseUrl: settings.baseUrl,
           apiKey: settings.apiKey,

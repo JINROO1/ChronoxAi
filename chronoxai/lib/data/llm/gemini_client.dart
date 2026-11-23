@@ -42,7 +42,9 @@ class GeminiClient implements LlmProvider {
     final body = <String, Object?>{
       if (system.isNotEmpty)
         'systemInstruction': <String, Object?>{
-          'parts': <Object?>[<String, Object?>{'text': system}],
+          'parts': <Object?>[
+            <String, Object?>{'text': system}
+          ],
         },
       'contents': _contents(messages),
       if (tools.isNotEmpty)
@@ -71,8 +73,12 @@ class GeminiClient implements LlmProvider {
         try {
           client = _newClient();
           final root = baseUrl.replaceFirst(RegExp(r'/$'), '');
-          final uri = Uri.parse('$root/v1beta/models/$model:streamGenerateContent')
-              .replace(queryParameters: <String, String>{'alt': 'sse', 'key': apiKey});
+          final uri =
+              Uri.parse('$root/v1beta/models/$model:streamGenerateContent')
+                  .replace(queryParameters: <String, String>{
+            'alt': 'sse',
+            'key': apiKey
+          });
           final request = http.Request('POST', uri)
             ..headers.addAll(const <String, String>{
               'content-type': 'application/json',
@@ -112,10 +118,12 @@ class GeminiClient implements LlmProvider {
               for (final rawPart in parts) {
                 final part = rawPart as Map<String, Object?>;
                 final text = part['text'];
-                if (text is String && text.isNotEmpty) controller.add(TextChunk(text));
+                if (text is String && text.isNotEmpty)
+                  controller.add(TextChunk(text));
                 final call = part['functionCall'] as Map<String, Object?>?;
                 if (call != null) {
-                  final args = call['args'] as Map<String, Object?>? ?? const {};
+                  final args =
+                      call['args'] as Map<String, Object?>? ?? const {};
                   controller.add(ToolCallChunk(
                     index: nextToolIndex,
                     id: 'gemini-${nextToolIndex++}',
@@ -126,15 +134,18 @@ class GeminiClient implements LlmProvider {
               }
             }
             final usage = json['usageMetadata'] as Map<String, Object?>?;
-            inputTokens = (usage?['promptTokenCount'] as num?)?.toInt() ?? inputTokens;
-            outputTokens = (usage?['candidatesTokenCount'] as num?)?.toInt() ?? outputTokens;
+            inputTokens =
+                (usage?['promptTokenCount'] as num?)?.toInt() ?? inputTokens;
+            outputTokens = (usage?['candidatesTokenCount'] as num?)?.toInt() ??
+                outputTokens;
           }, onError: (final Object error, final StackTrace stack) {
             controller.addError(error, stack);
           }, onDone: () {
             if (controller.isClosed) return;
             controller
               ..add(DoneChunk(
-                usage: LlmUsage(inputTokens: inputTokens, outputTokens: outputTokens),
+                usage: LlmUsage(
+                    inputTokens: inputTokens, outputTokens: outputTokens),
                 stopReason: stopReason,
               ))
               ..close();
@@ -172,11 +183,13 @@ class GeminiClient implements LlmProvider {
             }
           ],
         });
-      } else if (message.role == MessageRole.assistant && message.toolCalls.isNotEmpty) {
+      } else if (message.role == MessageRole.assistant &&
+          message.toolCalls.isNotEmpty) {
         output.add(<String, Object?>{
           'role': 'model',
           'parts': <Object?>[
-            if (message.content.isNotEmpty) <String, Object?>{'text': message.content},
+            if (message.content.isNotEmpty)
+              <String, Object?>{'text': message.content},
             for (final call in message.toolCalls)
               <String, Object?>{
                 'functionCall': <String, Object?>{
@@ -189,7 +202,9 @@ class GeminiClient implements LlmProvider {
       } else {
         output.add(<String, Object?>{
           'role': message.role == MessageRole.assistant ? 'model' : 'user',
-          'parts': <Object?>[<String, Object?>{'text': message.content}],
+          'parts': <Object?>[
+            <String, Object?>{'text': message.content}
+          ],
         });
       }
     }
@@ -201,7 +216,8 @@ class GeminiClient implements LlmProvider {
     return <String, Object?>{
       'name': function['name'],
       'description': function['description'] ?? '',
-      'parameters': function['parameters'] ?? <String, Object?>{'type': 'object'},
+      'parameters':
+          function['parameters'] ?? <String, Object?>{'type': 'object'},
     };
   }
 }

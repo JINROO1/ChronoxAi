@@ -47,7 +47,8 @@ class SettingsScreen extends ConsumerWidget {
                   title: 'Tipo de proveedor',
                   subtitle: providerLabel(settings.kind),
                   onTap: () => selectProvider(context, ref, settings),
-                  trailing: const Icon(Icons.expand_more, color: ChronoxColors.textMuted),
+                  trailing: const Icon(Icons.expand_more,
+                      color: ChronoxColors.textMuted),
                 ),
                 const Divider(height: 1, color: ChronoxColors.border),
                 SettingsRow(

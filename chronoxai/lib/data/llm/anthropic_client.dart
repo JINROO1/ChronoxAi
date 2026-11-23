@@ -61,7 +61,8 @@ class AnthropicClient implements LlmProvider {
       onListen: () async {
         try {
           client = _newClient();
-          final uri = Uri.parse('${baseUrl.replaceFirst(RegExp(r'/$'), '')}/v1/messages');
+          final uri = Uri.parse(
+              '${baseUrl.replaceFirst(RegExp(r'/$'), '')}/v1/messages');
           final request = http.Request('POST', uri)
             ..headers.addAll(<String, String>{
               'content-type': 'application/json',
@@ -120,11 +121,13 @@ class AnthropicClient implements LlmProvider {
                 final delta = json['delta'] as Map<String, Object?>?;
                 stopReason = (delta?['stop_reason'] as String?) ?? stopReason;
                 final usage = json['usage'] as Map<String, Object?>?;
-                outputTokens = (usage?['output_tokens'] as num?)?.toInt() ?? outputTokens;
+                outputTokens =
+                    (usage?['output_tokens'] as num?)?.toInt() ?? outputTokens;
               case 'message_start':
                 final message = json['message'] as Map<String, Object?>?;
                 final usage = message?['usage'] as Map<String, Object?>?;
-                inputTokens = (usage?['input_tokens'] as num?)?.toInt() ?? inputTokens;
+                inputTokens =
+                    (usage?['input_tokens'] as num?)?.toInt() ?? inputTokens;
               case 'message_stop':
                 for (final entry in blocks.entries) {
                   final buffer = entry.value;
@@ -136,7 +139,8 @@ class AnthropicClient implements LlmProvider {
                   ));
                 }
                 controller.add(DoneChunk(
-                  usage: LlmUsage(inputTokens: inputTokens, outputTokens: outputTokens),
+                  usage: LlmUsage(
+                      inputTokens: inputTokens, outputTokens: outputTokens),
                   stopReason: stopReason,
                 ));
               default:
@@ -175,7 +179,8 @@ class AnthropicClient implements LlmProvider {
             }
           ],
         });
-      } else if (message.role == MessageRole.assistant && message.toolCalls.isNotEmpty) {
+      } else if (message.role == MessageRole.assistant &&
+          message.toolCalls.isNotEmpty) {
         output.add(<String, Object?>{
           'role': 'assistant',
           'content': <Object?>[
@@ -201,11 +206,13 @@ class AnthropicClient implements LlmProvider {
   }
 
   static Map<String, Object?> _tool(final Map<String, Object?> openAiTool) {
-    final function = openAiTool['function'] as Map<String, Object?>? ?? openAiTool;
+    final function =
+        openAiTool['function'] as Map<String, Object?>? ?? openAiTool;
     return <String, Object?>{
       'name': function['name'],
       'description': function['description'] ?? '',
-      'input_schema': function['parameters'] ?? <String, Object?>{'type': 'object'},
+      'input_schema':
+          function['parameters'] ?? <String, Object?>{'type': 'object'},
     };
   }
 }

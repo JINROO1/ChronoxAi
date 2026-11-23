@@ -24,7 +24,7 @@ jobs:
     name: Analyze & format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: subosito/flutter-action@v2
         with:
@@ -54,9 +54,33 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Ejecuta \`dart format lib test\` en \`${{ env.PROJECT_DIR }}/\`." >> "$GITHUB_STEP_SUMMARY"
 
+      # El resultado se publica como ANOTACIONES (file/line/col) además de en el
+      # log: así el error aparece señalado en el diff del PR y se puede leer por
+      # API sin descargar el log completo.
       - name: Análisis estático
+        id: analyze
+        continue-on-error: true
         working-directory: ${{ env.PROJECT_DIR }}
-        run: flutter analyze --fatal-infos
+        run: |
+          set +e
+          flutter analyze --fatal-infos > /tmp/analyze.txt 2>&1
+          rc=$?
+          cat /tmp/analyze.txt
+          # El script vive en tools/ci/ para no incrustar un heredoc dentro de
+          # un bloque YAML (las líneas del heredoc rompen la indentación).
+          python3 tools/ci/analyze_to_annotations.py /tmp/analyze.txt
+          {
+            echo "### Análisis estático"
+            echo ""
+            if [ $rc -eq 0 ]; then
+              echo "✅ Sin problemas."
+            else
+              echo '```'
+              tail -60 /tmp/analyze.txt
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $rc
 
   # ---------------------------------------------------------------------------
   # 2. Tests unitarios y de widget
@@ -65,7 +89,7 @@ jobs:
     name: Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: subosito/flutter-action@v2
         with:
@@ -78,8 +102,28 @@ jobs:
         run: flutter pub get
 
       - name: Tests con cobertura
+        id: tests
+        continue-on-error: true
         working-directory: ${{ env.PROJECT_DIR }}
-        run: flutter test --coverage --reporter expanded
+        run: |
+          set +e
+          flutter test --coverage --reporter expanded > /tmp/test.txt 2>&1
+          rc=$?
+          cat /tmp/test.txt
+          # Los fallos se publican como anotaciones para poder leerlos por API.
+          python3 tools/ci/test_to_annotations.py /tmp/test.txt
+          {
+            echo "### Tests"
+            echo ""
+            if [ $rc -eq 0 ]; then
+              echo "✅ Todos pasan."
+            else
+              echo '```'
+              grep -vE "^\s*$" /tmp/test.txt | tail -80
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $rc
 
       - name: Resumen de cobertura
         if: always()
@@ -106,7 +150,7 @@ jobs:
     name: Runtime Linux (proot)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Instalar dependencias del script
         run: sudo apt-get update && sudo apt-get install -y python3 xz-utils
@@ -146,7 +190,7 @@ jobs:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-java@v4
         with:

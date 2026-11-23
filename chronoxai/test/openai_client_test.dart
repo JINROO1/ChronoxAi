@@ -82,10 +82,10 @@ class _TransportProxy extends http.BaseClient {
 
 String chunk(final Map<String, Object?> delta, {final String? finish}) =>
     'data: ${jsonEncode(<String, Object?>{
-      'choices': <Object?>[
-        <String, Object?>{'delta': delta, 'finish_reason': finish},
-      ],
-    })}\n\n';
+          'choices': <Object?>[
+            <String, Object?>{'delta': delta, 'finish_reason': finish},
+          ],
+        })}\n\n';
 
 Future<List<LlmChunk>> drain(final Stream<LlmChunk> stream) => stream.toList();
 
@@ -157,7 +157,10 @@ void main() {
             <String, Object?>{
               'index': 0,
               'id': 'call_a',
-              'function': <String, Object?>{'name': 'read', 'arguments': '{"pa'},
+              'function': <String, Object?>{
+                'name': 'read',
+                'arguments': '{"pa'
+              },
             },
           ],
         }),
@@ -208,7 +211,10 @@ void main() {
             <String, Object?>{
               'index': 0,
               'id': 'call_a',
-              'function': <String, Object?>{'name': 'read', 'arguments': '{"path"'},
+              'function': <String, Object?>{
+                'name': 'read',
+                'arguments': '{"path"'
+              },
             },
           ],
         },
@@ -230,13 +236,15 @@ void main() {
       final sse = <String>[
         chunk(<String, Object?>{'content': 'ok'}, finish: 'stop'),
         'data: ${jsonEncode(<String, Object?>{
-          'choices': <Object?>[],
-          'usage': <String, Object?>{
-            'prompt_tokens': 1200,
-            'completion_tokens': 34,
-            'prompt_tokens_details': <String, Object?>{'cached_tokens': 900},
-          },
-        })}\n\n',
+              'choices': <Object?>[],
+              'usage': <String, Object?>{
+                'prompt_tokens': 1200,
+                'completion_tokens': 34,
+                'prompt_tokens_details': <String, Object?>{
+                  'cached_tokens': 900
+                },
+              },
+            })}\n\n',
       ].join();
 
       final done = (await drain(
@@ -254,8 +262,7 @@ void main() {
     });
 
     test('ignora comentarios y eventos que no son data', () async {
-      final sse =
-          ': keep-alive\n\nevent: ping\ndata: {"choices":[]}\n\n'
+      final sse = ': keep-alive\n\nevent: ping\ndata: {"choices":[]}\n\n'
           '${chunk(<String, Object?>{'content': 'fin'})}';
       final chunks = await drain(
         clientWith(sse).stream(
@@ -401,12 +408,10 @@ void main() {
       );
 
       var done = false;
-      final sub = client
-          .stream(
-            messages: const <LlmMessage>[LlmMessage.user('x')],
-            tools: const <Map<String, Object?>>[],
-          )
-          .listen((final _) {}, onDone: () => done = true);
+      final sub = client.stream(
+        messages: const <LlmMessage>[LlmMessage.user('x')],
+        tools: const <Map<String, Object?>>[],
+      ).listen((final _) {}, onDone: () => done = true);
 
       await Future<void>.delayed(const Duration(milliseconds: 20));
       await sub.cancel();

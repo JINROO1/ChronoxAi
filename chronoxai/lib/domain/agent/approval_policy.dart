@@ -17,22 +17,22 @@ enum ApprovalLevel {
   yolo;
 
   String get label => switch (this) {
-    ApprovalLevel.readOnly => 'Solo lectura',
-    ApprovalLevel.guarded => 'Con confirmación',
-    ApprovalLevel.yolo => 'Sin confirmación',
-  };
+        ApprovalLevel.readOnly => 'Solo lectura',
+        ApprovalLevel.guarded => 'Con confirmación',
+        ApprovalLevel.yolo => 'Sin confirmación',
+      };
 
   String get description => switch (this) {
-    ApprovalLevel.readOnly =>
-      'El agente puede leer ficheros y listar, pero no modificar nada ni '
-          'ejecutar comandos.',
-    ApprovalLevel.guarded =>
-      'Cada escritura y cada comando se muestran antes de ejecutarse. '
-          'Recomendado.',
-    ApprovalLevel.yolo =>
-      'Todo se ejecuta sin preguntar. Úsalo solo si confías por completo en la '
-          'tarea y en el modelo.',
-  };
+        ApprovalLevel.readOnly =>
+          'El agente puede leer ficheros y listar, pero no modificar nada ni '
+              'ejecutar comandos.',
+        ApprovalLevel.guarded =>
+          'Cada escritura y cada comando se muestran antes de ejecutarse. '
+              'Recomendado.',
+        ApprovalLevel.yolo =>
+          'Todo se ejecuta sin preguntar. Úsalo solo si confías por completo en la '
+              'tarea y en el modelo.',
+      };
 }
 
 /// Qué debe hacer el motor ante una herramienta concreta.
@@ -52,15 +52,14 @@ class ApprovalOutcome {
   const ApprovalOutcome(this.decision, {this.reason});
 
   const ApprovalOutcome.allow()
-    : decision = ApprovalDecision.allow,
-      reason = null;
+      : decision = ApprovalDecision.allow,
+        reason = null;
 
   const ApprovalOutcome.ask()
-    : decision = ApprovalDecision.ask,
-      reason = null;
+      : decision = ApprovalDecision.ask,
+        reason = null;
 
-  const ApprovalOutcome.deny(this.reason)
-    : decision = ApprovalDecision.deny;
+  const ApprovalOutcome.deny(this.reason) : decision = ApprovalDecision.deny;
 
   final ApprovalDecision decision;
   final String? reason;
@@ -80,8 +79,8 @@ class ApprovalPolicy {
     this.level = ApprovalLevel.guarded,
     final Set<String>? trustedTools,
     final Set<String>? deniedTools,
-  }) : _trusted = trustedTools ?? <String>{},
-       _denied = deniedTools ?? <String>{};
+  })  : _trusted = trustedTools ?? <String>{},
+        _denied = deniedTools ?? <String>{};
 
   ApprovalLevel level;
 

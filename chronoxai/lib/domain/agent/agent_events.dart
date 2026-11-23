@@ -486,6 +486,15 @@ class ApprovalRequestedEvent extends AgentEvent {
   final String? diff;
 }
 
+/// El modelo presentó un plan con `exit_plan_mode` y espera una decisión.
+/// Este evento es efímero; la respuesta se guarda como [PlanDecisionEvent].
+class PlanProposedEvent extends AgentEvent {
+  const PlanProposedEvent({required this.callId, required this.plan});
+
+  final String callId;
+  final String plan;
+}
+
 /// Estado de uso de tokens de la sesión.
 class UsageEvent extends AgentEvent {
   const UsageEvent({

@@ -33,11 +33,11 @@ void main() {
       );
     });
 
-    test('rechaza rutas absolutas del sistema', () {
-      expect(
-        () => fs.resolve('/etc/shadow'),
-        throwsA(isA<RuntimeException>()),
-      );
+    test('rechaza rutas absolutas fuera de /workspace', () {
+      // Traducirlas en silencio a workspace/etc/shadow haría creer al agente que
+      // lee el sistema cuando escribe en otro sitio.
+      expect(() => fs.resolve('/etc/shadow'), throwsA(isA<RuntimeException>()));
+      expect(() => fs.resolve('/tmp/x'), throwsA(isA<RuntimeException>()));
     });
 
     test('rechaza una ruta que empieza igual pero es hermana', () {

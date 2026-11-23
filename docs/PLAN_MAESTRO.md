@@ -81,12 +81,12 @@ Hoy solo existe el adaptador OpenAI-compatible.
 
 dsh trae cliente MCP; aquí no hay nada.
 
-- [ ] `McpClient` mínimo sobre Streamable HTTP: `initialize`, `tools/list`,
+- [x] `McpClient` mínimo sobre Streamable HTTP: `initialize`, `tools/list`,
       `tools/call`, sesión (`Mcp-Session-Id`), respuestas SSE
-- [ ] Plugin `core-mcp`: conecta con el servidor configurado y registra sus
-      herramientas como `mcp_<servidor>_<herramienta>`
-- [ ] Ajustes: URL del servidor MCP
-- [ ] Tests con servidor HTTP falso
+- [x] Plugin `core-mcp`: conecta con el servidor configurado y registra sus
+      herramientas como `mcp_<herramienta>` (un servidor por configuración)
+- [x] Ajustes: URL del servidor MCP
+- [x] Tests con servidor HTTP falso (248 tests en verde, CI `45291585423`)
 
 ## Fase 7 — Hooks (`hooks.json`)
 

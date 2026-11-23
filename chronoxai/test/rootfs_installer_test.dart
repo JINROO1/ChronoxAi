@@ -180,7 +180,7 @@ void main() {
   late LinuxPaths rutas;
   late List<int> capaBase;
 
-  setUp(() {
+  setUp(() async {
     raiz = await Directory.systemTemp.createTemp('instalador_test_');
     rutas = LinuxPaths(filesDir: raiz.path, distroId: 'debian-bookworm');
     await rutas.ensure();
@@ -193,7 +193,7 @@ void main() {
     );
   });
 
-  tearDown(() {
+  tearDown(() async {
     if (raiz.existsSync()) raiz.deleteSync(recursive: true);
   });
 

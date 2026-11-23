@@ -158,9 +158,12 @@ jobs:
         working-directory: ${{ env.PROJECT_DIR }}
         run: flutter pub get
 
+      # SIN continue-on-error a propósito. Lo tenía, y eso hacía que el job
+      # saliera en verde aunque hubiera tests fallando: las anotaciones decían
+      # "Some tests failed" mientras el check aparecía como éxito. Un verde que
+      # no significa verde es peor que un rojo.
       - name: Tests con cobertura
         id: tests
-        continue-on-error: true
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           set +e

@@ -118,11 +118,11 @@ class ConstructorTar {
 void main() {
   late Directory raiz;
 
-  setUp(() {
+  setUp(() async {
     raiz = await Directory.systemTemp.createTemp('tar_test_');
   });
 
-  tearDown(() {
+  tearDown(() async {
     if (raiz.existsSync()) raiz.deleteSync(recursive: true);
   });
 

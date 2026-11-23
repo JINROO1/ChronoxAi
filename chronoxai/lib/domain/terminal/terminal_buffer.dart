@@ -238,12 +238,13 @@ class TerminalBuffer {
     // Al bajar de la última línea se recorta por arriba: se guarda todo el
     // histórico hasta [rows] y a partir de ahí se descarta lo más viejo.
     if (_row >= rows - 1) {
-      final primerNoVacia =
-          _lines.indexWhere((final l) => l.any((final c) => c.char != ' '));
-      // Nunca se descarta la línea en curso.
-      if (primerNoVacia > 0 && primerNoVacia < _row) {
-        _lines.removeRange(0, primerNoVacia);
-        _row -= primerNoVacia;
+      // Se descarta un bloque de golpe, no línea a línea: con el historial
+      // lleno, mover la lista en cada salto de línea hace que `cat` de un
+      // fichero grande se arrastre.
+      final descartar = _row - (rows ~/ 2);
+      if (descartar > 0) {
+        _lines.removeRange(0, descartar);
+        _row -= descartar;
       }
     }
     _row++;
@@ -254,6 +255,11 @@ class TerminalBuffer {
   }
 
   void _putChar(final String char) {
+    // El salto de línea automático ocurre al escribir el carácter que ya no
+    // cabe, no al llenar la última columna: así el cursor reposa sobre la
+    // columna 80 hasta que llega el siguiente. Es lo que hacen los terminales
+    // reales y lo que esperan `nano` y `less` (que colocan el cursor con
+    // ESC[<col>G y luego borran la línea).
     if (_col >= columns) {
       if (_autoWrap) {
         _newLine();
@@ -266,13 +272,11 @@ class TerminalBuffer {
       cells.add(TerminalCell.vacia);
     }
     cells[_col] = TerminalCell(char: char, style: _style);
-    // En la última columna con autoWrap el cursor se queda ahí: el salto
-    // ocurre al escribir el carácter siguiente, como en un terminal real.
+    // En la última columna el cursor reposa ahí (con autoWrap se sale de la
+    // fila, que es la señal de «pendiente de envolver»).
     if (_col < columns - 1) {
       _col++;
-    } else if (!_autoWrap) {
-      _col = columns - 1;
-    } else {
+    } else if (_autoWrap) {
       _col = columns;
     }
   }
@@ -349,11 +353,15 @@ class TerminalBuffer {
 
   void _borrarLinea(final int modo) {
     final cells = _lines[_row];
+    // `_col` vale `columns` mientras el cursor reposa en la última columna; en
+    // ese caso no hay celda del cursor que borrar y el barrido no toca nada.
+    final desde = _col.clamp(0, columns - 1);
     switch (modo) {
       case 0: // desde el cursor hasta el final
-        if (_col < cells.length) cells.removeRange(_col, cells.length);
-      case 1: // desde el principio hasta el cursor
-        for (var i = 0; i <= _col && i < cells.length; i++) {
+        if (desde < cells.length) cells.removeRange(desde, cells.length);
+      case 1: // desde el principio, incluida la celda del cursor
+        final hasta = (_col < columns ? _col + 1 : columns);
+        for (var i = 0; i < hasta && i < cells.length; i++) {
           cells[i] = TerminalCell.vacia;
         }
       case 2: // línea completa
@@ -451,8 +459,10 @@ class TerminalBuffer {
   void _restoreCursor() {
     final guardado = _saved;
     if (guardado == null) return;
+    // Restaurar no debe sacar el cursor fuera del historial que existe: si la
+    // fila guardada ya se recortó por límite de buffer, se queda en la última.
     _asegurarLinea(guardado.row);
-    _row = guardado.row;
+    _row = guardado.row.clamp(0, _lines.length - 1);
     _col = guardado.col.clamp(0, columns);
     _style = guardado.style;
   }

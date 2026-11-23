@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 /// Descomprime `gzip` en streaming, con contrapresión.
@@ -59,7 +60,7 @@ Stream<List<int>> gunzip(final Stream<List<int>> input) {
             if (!controller.isClosed) controller.addError(error, stack);
           }
           pending.clear();
-          if (!controller.isClosed) controller.close();
+          if (!controller.isClosed) unawaited(controller.close());
         },
         cancelOnError: false,
       );

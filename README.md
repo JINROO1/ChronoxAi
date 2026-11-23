@@ -160,7 +160,7 @@ mal firmado fingiendo que es una release.
 
 * [`docs/INVESTIGACION.md`](docs/INVESTIGACION.md) — **evidencia y fuentes** de cada decisión técnica.
 * [`docs/PLAN.md`](docs/PLAN.md) — plan por fases con criterios de aceptación (checklist).
-* [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) — flujo del agente, protocolo de tools, ciclo de vida de proot.
+* [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) — flujo del agente, protocolo de tools, ciclo de vida de proot e instalación del rootfs (registro OCI, hashes, extracción en streaming).
 * [`docs/PLUGINS.md`](docs/PLUGINS.md) — escribir un plugin, capacidades, modos y pantallas propias.
 * [`docs/COMPATIBILIDAD.md`](docs/COMPATIBILIDAD.md) — qué dispositivos funcionan, por qué, y qué configurar en cada ROM.
 * [`docs/FIRMA.md`](docs/FIRMA.md) — clave de firma, backups y firma en CI.

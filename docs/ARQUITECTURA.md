@@ -165,3 +165,50 @@ UI (Flutter)  ──►  AgentController (state)  ──►  AgentLoop (plugin)
                                                    ├─ ctx.terminals→ ShellSession (PTY)
                                                    └─ ctx.sessions → JsonlSessionLog
 ```
+
+## 9. Instalación del sistema Linux
+
+El rootfs no viaja en el APK (una imagen de Debian ocupa más que la app entera y
+casi nadie la usaría en el 90 % de los arranques). Se descarga la primera vez
+desde Ajustes → *Contenedor Debian*.
+
+```
+Ajustes → InstallScreen
+             │
+             ▼
+        RootfsInstaller ──► OciRegistryClient ──► registry-1.docker.io
+             │                    │  índice multiarquitectura → variante del dispositivo
+             │                    ▼
+             │              capa N (tar.gz, ~120 MB en total)
+             │                    │
+             │        ┌───────────┴────────────┐
+             │        ▼                        ▼
+             │   sha256 en streaming      gunzip por trozos
+             │   (se compara con el       (dart:io,
+             │    digest del manifiesto)   startChunkedConversion)
+             │                                │
+             └────────────► TarExtractor ◄────┘
+                                 │  escribe en <rootfs>.partial
+                                 ▼
+                        rename atómico a <rootfs>/
+```
+
+Decisiones que no son obvias:
+
+| Decisión | Por qué |
+|---|---|
+| Se extrae en `.partial` y se renombra al final | Un corte de red a mitad no puede dejar un rootfs incompleto que `looksInstalled` dé por bueno. |
+| El `sha256` se verifica **mientras** se descarga | Guardar la capa en disco para comprobarla después duplicaría el espacio necesario y añadiría una lectura completa. |
+| `gzip` por trozos, no `gzip.decode` | `decode` exige la capa entera en memoria; una capa de 100 MB en un móvil termina en cierre por falta de memoria. |
+| Extractor de `tar` propio | Hay que rechazar rutas absolutas y `..` (las capas vienen de la red) y respetar los whiteouts de OCI. `package:archive` no expone ninguna de las dos cosas. |
+| Escritura de cada entrada por trozos de 128 KiB | Una `libc` de 20 MB no pasa por RAM. |
+| Whiteouts aplicados aunque la entrada traiga datos | Es como una capa borra ficheros de la anterior; ignorarlo deja ficheros fantasma. |
+| Cancelar aborta la petición HTTP y borra lo parcial | El botón tiene que dejar el dispositivo como estaba. |
+
+Al terminar se escribe `<rootfs>/.chronox-image.json` con repositorio, etiqueta,
+arquitectura, digests de las capas y fecha: sirve para el diagnóstico y para
+detectar actualizaciones sin volver a descargar la imagen.
+
+Pruebas: `test/gzip_stream_test.dart`, `test/tar_extractor_test.dart` y
+`test/rootfs_installer_test.dart` (este último contra un registro OCI falso, sin
+red, cubriendo hash incorrecto, imagen sin shell, cancelación y orden de capas).

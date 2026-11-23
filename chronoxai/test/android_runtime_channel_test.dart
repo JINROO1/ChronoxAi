@@ -50,7 +50,11 @@ void main() {
   });
 
   test('el dato medido manda sobre targetSdk', () async {
-    respond(<String, Object?>{'sdkInt': 35, 'targetSdk': 34, 'canExecuteFromData': true});
+    respond(<String, Object?>{
+      'sdkInt': 35,
+      'targetSdk': 34,
+      'canExecuteFromData': true
+    });
     final facts = await const AndroidRuntimeChannel().read();
     expect(facts.appDataExecBlocked, isFalse);
   });

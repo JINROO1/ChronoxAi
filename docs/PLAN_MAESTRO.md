@@ -59,10 +59,10 @@ El dominio ya tiene `fork`/`rewind`/`stats`; falta la superficie.
 
 dsh Standard incluye búsqueda web; aquí solo hay `web_fetch`.
 
-- [ ] Herramienta `web_search` sobre el endpoint HTML de DuckDuckGo (sin clave),
+- [x] Herramienta `web_search` sobre el endpoint HTML de DuckDuckGo (sin clave),
       con parseo de resultados a `título · URL · extracto`
-- [ ] Plugin `core-web` la registra junto a `web_fetch`
-- [ ] Tests con HTML de muestra
+- [x] Plugin `core-web` la registra junto a `web_fetch`
+- [x] Tests con HTML de muestra (244 tests pasaron; CI `45290083703`)
 
 ## Fase 5 — Proveedores nativos (Anthropic y Gemini)
 

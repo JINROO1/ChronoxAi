@@ -52,10 +52,10 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Publicar dependencias
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: flutter pub get
-
+      # No se hace `pub get` aquí a propósito: `dart format` no resuelve
+      # imports, así que no necesita dependencias, y este job es el primero en
+      # arrancar. Pedirlas lo hacía fallar de vez en cuando contra el registro
+      # de pub mientras los demás jobs (con el mismo pubspec) sí resolvían.
       - name: Aplicar formato
         working-directory: ${{ env.PROJECT_DIR }}
         run: dart format lib test

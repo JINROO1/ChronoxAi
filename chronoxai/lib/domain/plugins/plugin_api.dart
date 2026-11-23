@@ -199,7 +199,7 @@ class PluginContext {
   /// concedida o el servicio no existe. Así las herramientas no tienen que
   /// comprobar nulabilidad en cada llamada (era el origen de 10 errores de
   /// `unchecked_use_of_nullable_value`).
-  PluginServices get services => _services.forPlugin(manifest);
+  ScopedPluginServices get services => _services.forPlugin(manifest);
 
   /// Define una herramienta invocable por el modelo.
   Disposable provideTool(final PluginTool tool) {
@@ -267,11 +267,41 @@ class PluginServices {
   final NetworkSeam? network;
 
   /// Devuelve una vista filtrada para un plugin concreto (mínimo privilegio).
-  PluginServices forPlugin(final PluginManifest manifest) =>
+  ///
+  /// El tipo de retorno es la interfaz **no nula**: el filtrado lanza si la
+  /// capacidad no está concedida, así que devolver `T?` solo obligaría a cada
+  /// herramienta a comprobar nulabilidad que nunca se cumple.
+  ScopedPluginServices forPlugin(final PluginManifest manifest) =>
       _ScopedServices(parent: this, manifest: manifest);
 }
 
-class _ScopedServices extends PluginServices {
+/// Vista de servicios con garantía de no-nulidad.
+///
+/// `PluginServices` declara los seams como opcionales porque el host puede no
+/// tenerlos (por ejemplo, sin red). Un plugin, en cambio, solo debe ver los que
+/// declaró como capacidad, y si no están, recibir una excepción explicativa.
+abstract class ScopedPluginServices implements PluginServices {
+  @override
+  FileSystemSeam get fileSystem;
+
+  @override
+  ShellSeam get shell;
+
+  @override
+  TerminalsSeam get terminals;
+
+  @override
+  LlmSeam get llm;
+
+  @override
+  SessionSeam get session;
+
+  @override
+  NetworkSeam get network;
+}
+
+class _ScopedServices extends PluginServices
+    implements ScopedPluginServices {
   _ScopedServices({required this.parent, required this.manifest})
     : super(
         registry: parent.registry,

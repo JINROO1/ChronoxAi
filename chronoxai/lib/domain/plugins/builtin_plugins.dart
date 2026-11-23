@@ -598,7 +598,7 @@ class _SubagentPlugin extends ChronoxPlugin {
         execute: (final args) async {
           final run = runner;
           if (run == null) {
-            return ToolOutcome.error(
+            return const ToolOutcome.error(
               'El subagente no está disponible en este runtime.',
             );
           }

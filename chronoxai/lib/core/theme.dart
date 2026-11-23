@@ -194,10 +194,10 @@ abstract final class ChronoxTheme {
       chipTheme: const ChipThemeData(
         backgroundColor: ChronoxColors.surfaceHigh,
         selectedColor: ChronoxColors.primaryDim,
-        side: const BorderSide(color: ChronoxColors.border),
-        labelStyle: const TextStyle(color: ChronoxColors.textSecondary, fontSize: 12),
-        shape: const RoundedRectangleBorder(borderRadius: ChronoxRadius.pill),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        side: BorderSide(color: ChronoxColors.border),
+        labelStyle: TextStyle(color: ChronoxColors.textSecondary, fontSize: 12),
+        shape: RoundedRectangleBorder(borderRadius: ChronoxRadius.pill),
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith(

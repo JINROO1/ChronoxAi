@@ -245,7 +245,7 @@ class SessionLog {
     final buffer = StringBuffer()
       ..writeln('# $title')
       ..writeln()
-      ..writeln('_Sesión `${sessionId}` · ${_events.length} eventos_')
+      ..writeln('_Sesión `$sessionId` · ${_events.length} eventos_')
       ..writeln();
 
     for (final event in _events) {

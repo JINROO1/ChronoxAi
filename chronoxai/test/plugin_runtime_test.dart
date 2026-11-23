@@ -2,6 +2,7 @@ import 'package:chronoxai/domain/agent/agent_events.dart';
 import 'package:chronoxai/domain/agent/tool_registry.dart';
 import 'package:chronoxai/domain/plugins/plugin_api.dart';
 import 'package:chronoxai/domain/plugins/plugin_runtime.dart';
+import 'package:chronoxai/domain/plugins/seams.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Servicios mínimos para montar plugins en un test, sin tocar disco ni red.

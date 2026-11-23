@@ -86,7 +86,7 @@ void main() {
 
     test('emite --kernel-release y -L cuando se configuran', () {
       final argv = ProotCommandBuilder.build(
-        ProotConfig(
+        const ProotConfig(
           prootBinary: '/x/libproot.so',
           prootLoader: '/x/loader',
           rootfs: '/x/rootfs',
@@ -118,7 +118,7 @@ void main() {
 
     test('puede desactivar las extensiones problemáticas', () {
       final argv = ProotCommandBuilder.build(
-        ProotConfig(
+        const ProotConfig(
           prootBinary: '/x/libproot.so',
           prootLoader: '/x/loader',
           rootfs: '/x/rootfs',

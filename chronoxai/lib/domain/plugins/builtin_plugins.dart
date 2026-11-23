@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import '../agent/tool_registry.dart';
 import 'plugin_api.dart';
 import 'plugin_runtime.dart';
 
@@ -29,9 +28,6 @@ Map<String, Object?> _str(final String description) =>
 
 Map<String, Object?> _int(final String description) =>
     <String, Object?>{'type': 'integer', 'description': description};
-
-Map<String, Object?> _bool(final String description) =>
-    <String, Object?>{'type': 'boolean', 'description': description};
 
 // ---------------------------------------------------------------------------
 // core-fs: read, write, glob, grep
@@ -93,11 +89,10 @@ ChronoxPlugin fsPlugin() => _FsPlugin(
 
         final truncated = end < all.length;
         return ToolOutcome(
-          content: numbered.join('\n') +
-              (truncated
-                  ? '\n\n[truncado: quedan ${all.length - end} líneas. '
-                        'Usa offset=${end + 1}]'
-                  : ''),
+          content: truncated
+              ? '${numbered.join('\n')}\n\n[truncado: quedan '
+                    '${all.length - end} líneas. Usa offset=${end + 1}]'
+              : numbered.join('\n'),
           metadata: <String, Object?>{'lines': all.length, 'truncated': truncated},
         );
       },
@@ -183,7 +178,7 @@ ChronoxPlugin fsPlugin() => _FsPlugin(
 /// *política* y no solo código ejecutable. Al desmontarlo, los límites vuelven a
 /// su valor por defecto (composabilidad temporal).
 class _SearchPolicyPlugin extends ChronoxPlugin {
-  const _SearchPolicyPlugin();
+  _SearchPolicyPlugin();
 
   /// Carpetas que nunca interesan al modelo y que quemarían contexto.
   static const List<String> defaultExcludes = <String>[
@@ -219,7 +214,7 @@ class _SearchPolicyPlugin extends ChronoxPlugin {
 // ---------------------------------------------------------------------------
 
 class _ShellPlugin extends ChronoxPlugin {
-  const _ShellPlugin();
+  _ShellPlugin();
 
   @override
   Future<void> mount(final PluginContext context) async {
@@ -260,7 +255,7 @@ class _ShellPlugin extends ChronoxPlugin {
 // ---------------------------------------------------------------------------
 
 class _TerminalPlugin extends ChronoxPlugin {
-  const _TerminalPlugin();
+  _TerminalPlugin();
 
   @override
   Future<void> mount(final PluginContext context) async {
@@ -330,14 +325,10 @@ class _TerminalPlugin extends ChronoxPlugin {
             return const ToolOutcome(content: 'No hay terminales abiertas.');
           }
           return ToolOutcome(
-            content: terminals
-                .map(
-                  (final t) =>
-                      '${t.id} · ${t.title} · '
-                      '${t.isAlive ? "activa" : "cerrada"} · '
-                      '${t.bytesProduced} bytes',
-                )
-                .join('\n'),
+            content: terminals.map((final t) {
+              final state = t.isAlive ? 'activa' : 'cerrada';
+              return '${t.id} · ${t.title} · $state · ${t.bytesProduced} bytes';
+            }).join('\n'),
           );
         },
       ),
@@ -363,7 +354,7 @@ class _TerminalPlugin extends ChronoxPlugin {
 // ---------------------------------------------------------------------------
 
 class _EditingPlugin extends ChronoxPlugin {
-  const _EditingPlugin();
+  _EditingPlugin();
 
   @override
   Future<void> mount(final PluginContext context) async {
@@ -444,7 +435,7 @@ class _EditingPlugin extends ChronoxPlugin {
 // ---------------------------------------------------------------------------
 
 class _TodoPlugin extends ChronoxPlugin {
-  const _TodoPlugin();
+  _TodoPlugin();
 
   @override
   Future<void> mount(final PluginContext context) async {
@@ -495,7 +486,7 @@ class _TodoPlugin extends ChronoxPlugin {
 }
 
 class _PlanPlugin extends ChronoxPlugin {
-  const _PlanPlugin();
+  _PlanPlugin();
 
   @override
   Future<void> mount(final PluginContext context) async {
@@ -523,7 +514,7 @@ class _PlanPlugin extends ChronoxPlugin {
 // ---------------------------------------------------------------------------
 
 class _WebPlugin extends ChronoxPlugin {
-  const _WebPlugin();
+  _WebPlugin();
 
   @override
   Future<void> mount(final PluginContext context) async {
@@ -583,7 +574,7 @@ class _WebPlugin extends ChronoxPlugin {
 /// circular); si no está disponible, la herramienta informa en vez de fallar
 /// de forma opaca.
 class _SubagentPlugin extends ChronoxPlugin {
-  const _SubagentPlugin(this.runner);
+  _SubagentPlugin(this.runner);
 
   final Future<String> Function(String prompt, String? description)? runner;
 
@@ -624,7 +615,7 @@ class _SubagentPlugin extends ChronoxPlugin {
 // ---------------------------------------------------------------------------
 
 class _CodeModePlugin extends ChronoxPlugin {
-  const _CodeModePlugin();
+  _CodeModePlugin();
 
   @override
   Future<void> mount(final PluginContext context) async {
@@ -769,7 +760,7 @@ class _PluginManagerPlugin extends ChronoxPlugin {
 // ---------------------------------------------------------------------------
 
 class _BaseShellPlugin extends ChronoxPlugin {
-  const _BaseShellPlugin();
+  _BaseShellPlugin();
 
   @override
   Future<void> mount(final PluginContext context) async {
@@ -794,7 +785,7 @@ class _BaseShellPlugin extends ChronoxPlugin {
 }
 
 class _BaseEditorPlugin extends ChronoxPlugin {
-  const _BaseEditorPlugin();
+  _BaseEditorPlugin();
 
   @override
   Future<void> mount(final PluginContext context) async {
@@ -900,7 +891,7 @@ List<BuiltinPlugin> builtinPlugins({
         requires: <String>['core-fs'],
         icon: 'terminal',
       ),
-      create: () => const _ShellPlugin(),
+      create: _ShellPlugin.new,
     ),
     BuiltinPlugin(
       manifest: manifest(
@@ -912,7 +903,7 @@ List<BuiltinPlugin> builtinPlugins({
         requires: <String>['core-shell'],
         icon: 'tab',
       ),
-      create: () => const _TerminalPlugin(),
+      create: _TerminalPlugin.new,
     ),
     BuiltinPlugin(
       manifest: manifest(
@@ -927,7 +918,7 @@ List<BuiltinPlugin> builtinPlugins({
         requires: <String>['core-fs'],
         icon: 'edit',
       ),
-      create: () => const _EditingPlugin(),
+      create: _EditingPlugin.new,
     ),
     BuiltinPlugin(
       manifest: manifest(
@@ -937,7 +928,7 @@ List<BuiltinPlugin> builtinPlugins({
         kind: PluginKind.tool,
         icon: 'checklist',
       ),
-      create: () => const _TodoPlugin(),
+      create: _TodoPlugin.new,
     ),
     BuiltinPlugin(
       manifest: manifest(
@@ -947,7 +938,7 @@ List<BuiltinPlugin> builtinPlugins({
         kind: PluginKind.tool,
         icon: 'map',
       ),
-      create: () => const _PlanPlugin(),
+      create: _PlanPlugin.new,
     ),
     // `core-search` no aporta herramientas nuevas: declara la *política* de
     // búsqueda (límites, exclusiones) que `core-fs` consulta. Separarlo permite
@@ -963,7 +954,7 @@ List<BuiltinPlugin> builtinPlugins({
         requires: <String>['core-fs'],
         icon: 'search',
       ),
-      create: () => const _SearchPolicyPlugin(),
+      create: _SearchPolicyPlugin.new,
     ),
     BuiltinPlugin(
       manifest: manifest(
@@ -974,7 +965,7 @@ List<BuiltinPlugin> builtinPlugins({
         capabilities: const <PluginCapability>[PluginCapability.network],
         icon: 'globe',
       ),
-      create: () => const _WebPlugin(),
+      create: _WebPlugin.new,
     ),
     BuiltinPlugin(
       manifest: manifest(
@@ -1000,7 +991,7 @@ List<BuiltinPlugin> builtinPlugins({
         requires: <String>['core-shell'],
         icon: 'integration_instructions',
       ),
-      create: () => const _CodeModePlugin(),
+      create: _CodeModePlugin.new,
     ),
     BuiltinPlugin(
       manifest: manifest(
@@ -1032,7 +1023,7 @@ List<BuiltinPlugin> builtinPlugins({
         capabilities: const <PluginCapability>[PluginCapability.shell],
         icon: 'terminal',
       ),
-      create: () => const _BaseShellPlugin(),
+      create: _BaseShellPlugin.new,
     ),
     BuiltinPlugin(
       manifest: manifest(
@@ -1043,7 +1034,7 @@ List<BuiltinPlugin> builtinPlugins({
         capabilities: fsCaps,
         icon: 'edit',
       ),
-      create: () => const _BaseEditorPlugin(),
+      create: _BaseEditorPlugin.new,
     ),
   ];
 }

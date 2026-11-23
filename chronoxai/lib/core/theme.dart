@@ -138,7 +138,7 @@ abstract final class ChronoxTheme {
         ),
         iconTheme: IconThemeData(color: ChronoxColors.textSecondary),
       ),
-      cardTheme: const CardThemeData(
+      cardTheme: const CardTheme(
         color: ChronoxColors.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -207,7 +207,7 @@ abstract final class ChronoxTheme {
         ),
         trackColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.selected)
-              ? ChronoxColors.primaryDim.withValues(alpha: 0.5)
+              ? ChronoxColors.primaryDim.withOpacity(0.5)
               : ChronoxColors.surfaceHigh,
         ),
       ),
@@ -217,7 +217,7 @@ abstract final class ChronoxTheme {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: ChronoxRadius.card),
       ),
-      dialogTheme: const DialogThemeData(
+      dialogTheme: const DialogTheme(
         backgroundColor: ChronoxColors.backgroundElevated,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: ChronoxRadius.cardLarge),

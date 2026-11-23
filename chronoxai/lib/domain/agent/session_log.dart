@@ -119,14 +119,9 @@ class SessionLog {
   /// Se detiene en el último evento de compactación: lo anterior se sustituye
   /// por el resumen, que es exactamente el efecto buscado al compactar.
   List<SessionEvent> modelVisibleHistory() {
-    var start = 0;
-    for (var i = _events.length - 1; i >= 0; i--) {
-      if (_events[i] is CompactionEvent) {
-        start = i;
-        break;
-      }
-    }
-    return _events.sublist(start);
+    // Índice de la última compactación (0 si no hay ninguna).
+    final start = _events.lastIndexWhere((final e) => e is CompactionEvent);
+    return _events.sublist(start < 0 ? 0 : start);
   }
 
   /// Telemetría agregada, equivalente al panel *Trajectory* de dsh.
@@ -277,7 +272,7 @@ class SessionLog {
             ..writeln();
         case ToolResultEvent(:final name, :final content, :final isError):
           buffer
-            ..writeln('**Resultado de `$name`**${isError ? ' (error)' : ''}')
+            ..writeln('**Resultado de `$name`** ${isError ? '(error)' : ''}')
             ..writeln()
             ..writeln('```')
             ..writeln(content)

@@ -13,6 +13,7 @@ import '../chat/approval_sheet.dart';
 import '../state/app_state.dart';
 import '../widgets/chronox_widgets.dart';
 import 'diagnostics_screen.dart';
+import 'install_screen.dart';
 
 /// Ajustes: proveedor de modelo, modo de trabajo, permisos y estado del runtime.
 ///
@@ -161,6 +162,27 @@ class SettingsScreen extends ConsumerWidget {
                   },
                 ),
               ],
+            ),
+          ),
+          const SectionLabel('Sistema Linux'),
+          GlassPanel(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            child: SettingsRow(
+              icon: Icons.terminal_rounded,
+              title: 'Contenedor Debian',
+              subtitle:
+                  'Descarga el sistema Linux que ejecuta los comandos del '
+                  'agente. Ocupa unos 300 MB ya instalado.',
+              accent: ChronoxColors.accent,
+              onTap: () => Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  builder: (final context) => const InstallScreen(),
+                ),
+              ),
+              trailing: const Icon(
+                Icons.chevron_right_rounded,
+                color: ChronoxColors.textMuted,
+              ),
             ),
           ),
           const SectionLabel('Compatibilidad'),

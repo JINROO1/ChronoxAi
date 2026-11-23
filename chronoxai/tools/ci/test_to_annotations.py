@@ -19,10 +19,11 @@ import sys
 FAILED = re.compile(r"^\d{2}:\d{2}\s+\+\d+(?:\s+-\d+)?:\s*(.*?)\s*\[E\]$")
 # "  lib/domain/x.dart 12:5  main.<fn>"  -> ubicación del fallo
 LOCATION = re.compile(r"^\s*((?:test|lib)/\S+\.dart)\s+(\d+):(\d+)\s")
-# Líneas que no aportan al resumen
+# Líneas que no aportan al resumen. `Expected`/`Actual` SÍ se conservan: son lo
+# único que explica el fallo cuando no hay fichero ni línea (afirmaciones sobre
+# valores). Filtrarlas dejaba anotaciones del tipo "test fallido sin detalle".
 NOISE = re.compile(
-    r"^(package:|dart:|═|─|Expected:|Actual:|Which:|  Actual:|  Expected:|"
-    r"\s*$|\d{2}:\d{2}\s+\+\d+)"
+    r"^(package:|dart:|═|─|\s*$|\d{2}:\d{2}\s+\+\d+)"
 )
 
 

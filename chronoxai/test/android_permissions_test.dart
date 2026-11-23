@@ -1,8 +1,11 @@
 import 'package:chronoxai/platform/android_permissions.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  tearDown(() => AndroidPermissions.debugTargetPlatform = null);
+
   // Sin binding, `MethodChannel` no tiene mensajero y lanza una excepción
   // distinta a la que capturan los métodos: el test pasaría a comprobar otra
   // cosa. Con el binding inicializado, el camino es el real (MissingPluginException).
@@ -15,6 +18,7 @@ void main() {
     const permissions = AndroidPermissions();
 
     setUp(() {
+      AndroidPermissions.debugTargetPlatform = TargetPlatform.android;
       // Sin este simulacro, `invokeMethod` propaga un `AssertionError` sobre el
       // binding en lugar de un `MissingPluginException`, y se estaría probando
       // un camino que no existe en la app real.

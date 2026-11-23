@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 /// Permisos y ajustes del sistema que la app necesita para funcionar de verdad.
@@ -17,6 +18,13 @@ import 'package:flutter/services.dart';
 class AndroidPermissions {
   const AndroidPermissions([this._channel = _defaultChannel]);
 
+  /// Permite forzar el camino de Android en los tests (ver
+  /// `AndroidRuntimeChannel.debugTargetPlatform`).
+  static TargetPlatform? debugTargetPlatform;
+
+  static bool get _isAndroid =>
+      debugTargetPlatform == TargetPlatform.android || Platform.isAndroid;
+
   static const MethodChannel _defaultChannel =
       MethodChannel('app.chronoxai/permissions');
 
@@ -27,7 +35,7 @@ class AndroidPermissions {
   /// En versiones anteriores devuelve `true` sin mostrar nada: el permiso no
   /// existe y pedirlo sería un no-op confuso.
   Future<bool> requestNotifications() async {
-    if (!Platform.isAndroid) return true;
+    if (!_isAndroid) return true;
     try {
       final granted = await _channel.invokeMethod<bool>('requestNotifications');
       return granted ?? false;
@@ -40,7 +48,7 @@ class AndroidPermissions {
 
   /// `true` si la app está excluida de la optimización de batería.
   Future<bool> isBatteryUnrestricted() async {
-    if (!Platform.isAndroid) return true;
+    if (!_isAndroid) return true;
     try {
       final value = await _channel.invokeMethod<bool>('isBatteryUnrestricted');
       return value ?? false;
@@ -57,7 +65,7 @@ class AndroidPermissions {
   /// "sin restricciones" es distinta en cada ROM (MIUI, RedMagic OS, One UI…) y
   /// adivinar el nombre del paquete de ajustes no es fiable.
   Future<void> requestBatteryUnrestricted() async {
-    if (!Platform.isAndroid) return;
+    if (!_isAndroid) return;
     try {
       await _channel.invokeMethod<void>('requestBatteryUnrestricted');
     } on MissingPluginException {
@@ -70,7 +78,7 @@ class AndroidPermissions {
   /// Arranca el servicio en primer plano que mantiene viva la sesión.
   Future<bool> startTerminalService(
       {final String title = 'Sesión activa'}) async {
-    if (!Platform.isAndroid) return false;
+    if (!_isAndroid) return false;
     try {
       final started = await _channel.invokeMethod<bool>(
         'startTerminalService',
@@ -86,7 +94,7 @@ class AndroidPermissions {
 
   /// Detiene el servicio en primer plano.
   Future<void> stopTerminalService() async {
-    if (!Platform.isAndroid) return;
+    if (!_isAndroid) return;
     try {
       await _channel.invokeMethod<void>('stopTerminalService');
     } on MissingPluginException {

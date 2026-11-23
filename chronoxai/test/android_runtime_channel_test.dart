@@ -1,4 +1,5 @@
 import 'package:chronoxai/platform/android_runtime_channel.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -17,7 +18,12 @@ void main() {
         .setMockMethodCallHandler(channel, (final call) async => payload);
   }
 
-  setUp(() => respond(<String, Object?>{}));
+  setUp(() {
+    respond(<String, Object?>{});
+    AndroidRuntimeChannel.debugTargetPlatform = TargetPlatform.android;
+  });
+
+  tearDown(() => AndroidRuntimeChannel.debugTargetPlatform = null);
 
   test('interpreta una respuesta completa', () async {
     respond(<String, Object?>{

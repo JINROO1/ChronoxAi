@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -93,6 +94,13 @@ class PlatformFacts {
 class AndroidRuntimeChannel {
   const AndroidRuntimeChannel([this._channel = _defaultChannel]);
 
+  /// Permite forzar el camino de Android en los tests.
+  ///
+  /// Sin esto, `Platform.isAndroid` es siempre `false` bajo `flutter test` y el
+  /// código que traduce la respuesta del canal nunca se ejecutaría en las
+  /// pruebas: se estaría midiendo el camino de escritorio.
+  static TargetPlatform? debugTargetPlatform;
+
   static const MethodChannel _defaultChannel =
       MethodChannel('app.chronoxai/platform');
 
@@ -103,7 +111,9 @@ class AndroidRuntimeChannel {
   Future<PlatformFacts> read() async {
     final filesDir = await _resolveFilesDir();
 
-    if (!Platform.isAndroid) {
+    final isAndroid =
+        debugTargetPlatform == TargetPlatform.android || Platform.isAndroid;
+    if (!isAndroid) {
       return PlatformFacts(
         isAndroid: false,
         sdkInt: 0,

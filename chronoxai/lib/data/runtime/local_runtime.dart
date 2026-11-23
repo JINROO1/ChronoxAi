@@ -79,11 +79,10 @@ class RuntimeStatus {
               'ejecutar comandos.',
         RuntimeProblem.unavailable =>
           detail.isEmpty ? 'El runtime no está disponible.' : detail,
-        RuntimeProblem.pageSizeMismatch =>
-          detail.isEmpty
-              ? 'Los binarios de proot no están alineados al tamaño de página de '
-                    'este dispositivo (16 KB) y no se pueden cargar.'
-              : detail,
+        RuntimeProblem.pageSizeMismatch => detail.isEmpty
+            ? 'Los binarios de proot no están alineados al tamaño de página de '
+                'este dispositivo (16 KB) y no se pueden cargar.'
+            : detail,
       };
 }
 

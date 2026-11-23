@@ -290,7 +290,10 @@ jobs:
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           set +e
-          flutter build apk --release --split-per-abi > /tmp/build.txt 2>&1
+          # Sin --split-per-abi: build.gradle ya fija `ndk.abiFilters`, y Gradle
+          # rechaza combinar abiFilters con splits ("Conflicting configuration").
+          # El APK único incluye las dos ABIs que declara el proyecto.
+          flutter build apk --release > /tmp/build.txt 2>&1
           rc=$?
           cat /tmp/build.txt
           # El log de Actions no siempre se puede descargar: los errores de

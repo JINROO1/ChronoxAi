@@ -91,11 +91,15 @@ class SessionRuntime {
 }
 
 /// Directorio donde viven las sesiones.
-final appSupportDirProvider = FutureProvider<Directory>((final ref) async {
+Future<Directory> appSessionsDirectory() async {
   final base = await getApplicationSupportDirectory();
   final dir = Directory('${base.path}/sessions');
   if (!dir.existsSync()) await dir.create(recursive: true);
   return dir;
+}
+
+final appSupportDirProvider = FutureProvider<Directory>((final ref) async {
+  return appSessionsDirectory();
 });
 
 /// Runtime Linux del dispositivo.

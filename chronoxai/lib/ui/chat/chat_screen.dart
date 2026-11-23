@@ -7,6 +7,7 @@ import '../settings/settings_screen.dart';
 import '../state/app_state.dart';
 import '../widgets/chronox_widgets.dart';
 import 'message_bubble.dart';
+import 'sessions_browser.dart';
 
 /// Pantalla de sesión: la conversación con el agente.
 ///
@@ -110,6 +111,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               session: session,
               view: view,
               onOpenTerminal: () => openTerminalSheet(context),
+              onOpenSessions: () => showSessionsBrowser(context),
             ),
             const Divider(height: 1, color: ChronoxColors.border),
             Expanded(
@@ -157,11 +159,13 @@ class _SessionHeader extends StatelessWidget {
     required this.session,
     required this.view,
     required this.onOpenTerminal,
+    required this.onOpenSessions,
   });
 
   final SessionRuntime session;
   final AgentViewState view;
   final VoidCallback onOpenTerminal;
+  final VoidCallback onOpenSessions;
 
   @override
   Widget build(final BuildContext context) {
@@ -236,6 +240,12 @@ class _SessionHeader extends StatelessWidget {
                 ),
               ),
             ),
+          IconButton(
+            onPressed: onOpenSessions,
+            icon: const Icon(Icons.history_rounded),
+            color: ChronoxColors.textSecondary,
+            tooltip: 'Sesiones y Trajectory',
+          ),
           IconButton(
             onPressed: onOpenTerminal,
             icon: const Icon(Icons.terminal_rounded),

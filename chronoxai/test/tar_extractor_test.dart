@@ -88,6 +88,10 @@ class ConstructorTar {
   void directorioOpaco(final String directorio) =>
       _cabecera(nombre: '$directorio/.wh..wh..opq', tipo: '0');
 
+  /// Vuelca el tar a un fichero, para poder abrirlo con `tar` del sistema y
+  /// comprobar que el formato que genera esta clase es el estándar.
+  void volcar(final String ruta) => File(ruta).writeAsBytesSync(terminar());
+
   /// Entrada PAX con una ruta que no cabe en los 100 bytes de la cabecera.
   void ficheroConRutaLarga(final String nombre, final String contenido) {
     final datos = utf8.encode(contenido);
@@ -209,9 +213,16 @@ void main() {
 
     await extractor(destino).extract(tar.flujo());
 
-    expect(File(p.join(destino.path, 'viejo.txt')).existsSync(), isFalse);
     expect(
-        Directory(p.join(destino.path, 'var', 'cache')).existsSync(), isFalse);
+      File(p.join(destino.path, 'viejo.txt')).existsSync(),
+      isFalse,
+      reason: 'el whiteout de primer nivel no borró viejo.txt',
+    );
+    expect(
+      Directory(p.join(destino.path, 'var', 'cache')).existsSync(),
+      isFalse,
+      reason: 'el whiteout dentro de un subdirectorio no borró var/cache',
+    );
   });
 
   test('el directorio opaco vacía su contenido previo', () async {

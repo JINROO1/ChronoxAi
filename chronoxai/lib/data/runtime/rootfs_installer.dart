@@ -223,7 +223,9 @@ class RootfsInstaller {
               // Solo se reporta de vez en cuando: un rootfs tiene decenas de
               // miles de entradas y notificar cada una satura la UI.
               entries++;
-              if (entries % 64 == 0) {
+              // Se reporta la primera entrada (para que la UI muestre la fase
+              // aunque la capa traiga pocos ficheros) y luego cada 64.
+              if (entries == 1 || entries % 64 == 0) {
                 report(
                   InstallProgress(
                     phase: InstallPhase.extracting,

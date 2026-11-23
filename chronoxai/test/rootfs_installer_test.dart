@@ -23,6 +23,10 @@ class RegistroFalso {
   final String arquitectura;
 
   /// Si se cambia a `true`, el blob servido se altera tras calcular el digest.
+  ///
+  /// Se añaden bytes al final en lugar de tocar el contenido: la capa sigue
+  /// siendo gzip válido (el decodificador lo acepta), pero el sha256 ya no
+  /// coincide, que es justo lo que se quiere comprobar.
   bool corromperCapa = false;
 
   int peticionesBlob = 0;
@@ -112,7 +116,15 @@ class _ClienteFalso extends http.BaseClient {
       }
       var datos = registro.capas[indice];
       if (registro.corromperCapa && indice == 0) {
-        datos = Uint8List.fromList(datos)..[datos.length - 5] ^= 0xFF;
+        // Ataque realista: el servidor devuelve una imagen **válida** pero
+        // distinta de la anunciada. El gzip se descomprime sin error y el tar
+        // se extrae sin problema; lo único que delata el cambio es el hash.
+        // Si la verificación no existiera, esto instalaría código ajeno.
+        datos = gzip.encode(
+          construirTar(<String, String>{
+            'bin/sh': '#!/bin/sh\necho comprometido\n',
+          }),
+        );
       }
       return http.StreamedResponse(
         Stream<List<int>>.fromIterable(<List<int>>[
@@ -271,7 +283,17 @@ void main() {
     final resultado = await instalador(registro).install(architecture: 'arm64');
 
     expect(resultado.success, isFalse);
-    expect(resultado.message, contains('no coincide con su hash'));
+    expect(
+      resultado.message,
+      contains('no coincide con su hash'),
+      reason: 'el hash que no cuadra debe abortar antes de activar nada',
+    );
+    // Y sobre todo: el shell servido no debe haber llegado al rootfs.
+    expect(
+      File('${rutas.rootfsDir}/bin/sh').existsSync(),
+      isFalse,
+      reason: 'se activó contenido que no coincidía con el hash',
+    );
     // Nada activado: el rootfs definitivo no existe.
     expect(rutas.looksInstalled, isFalse);
     expect(Directory('${rutas.rootfsDir}.partial').existsSync(), isFalse);

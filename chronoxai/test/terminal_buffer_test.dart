@@ -45,7 +45,9 @@ void main() {
 
   group('secuencias ANSI', () {
     test('ESC[K borra desde el cursor', () {
-      final buffer = TerminalBuffer()..writeText('abcdef\r\x1B[3D\x1B[K');
+      // ESC[3D sin CR previo: el cursor retrocede tres desde la columna 6 y
+      // borra de ahí al final.
+      final buffer = TerminalBuffer()..writeText('abcdef\x1B[3D\x1B[K');
       expect(buffer.lines.first.text, 'abc');
     });
 
@@ -115,9 +117,10 @@ void main() {
 
     test('guardar y restaurar el cursor', () {
       final buffer = TerminalBuffer()..writeText('abc\x1B7XY\x1B8Z');
-      // Se guarda tras escribir "abc", se escribe "XY" encima y se restaura:
-      // la "Z" cae en la posición guardada.
-      expect(buffer.lines.first.text, 'abcZ');
+      // Tras "abc" se guarda el cursor (columna 3), se escribe "XY" encima y se
+      // restaura: la "Z" pisa la "X" pero la "Y" sigue ahí, igual que en un
+      // terminal real (restaurar el cursor no borra lo escrito).
+      expect(buffer.lines.first.text, 'abcZY');
     });
   });
 

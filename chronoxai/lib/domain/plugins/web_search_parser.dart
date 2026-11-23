@@ -69,13 +69,13 @@ abstract final class WebSearchParser {
   }
 
   static String _decode(String text) => text
-      .replaceAll('&amp;', '&')
-      .replaceAll('&quot;', '"')
-      .replaceAll('&#39;', "'")
-      .replaceAll('&lt;', '<')
-      .replaceAll('&gt;', '>')
-      .replaceAll('&nbsp;', ' ')
-      .replaceAllMapped(RegExp(r'&#(\d+);'), (final match) {
+          .replaceAll('&amp;', '&')
+          .replaceAll('&quot;', '"')
+          .replaceAll('&#39;', "'")
+          .replaceAll('&lt;', '<')
+          .replaceAll('&gt;', '>')
+          .replaceAll('&nbsp;', ' ')
+          .replaceAllMapped(RegExp(r'&#(\d+);'), (final match) {
         final code = int.tryParse(match.group(1) ?? '');
         return code == null ? match.group(0)! : String.fromCharCode(code);
       });

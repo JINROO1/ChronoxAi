@@ -575,10 +575,12 @@ class _WebPlugin extends ChronoxPlugin {
         ]),
         execute: (final args) async {
           final query = (args['query'] ?? '').toString().trim();
-          if (query.isEmpty) return ToolOutcome.error('La consulta está vacía.');
+          if (query.isEmpty)
+            return ToolOutcome.error('La consulta está vacía.');
           final requested = (args['limit'] as num?)?.toInt() ?? 5;
           final limit = requested.clamp(1, 8).toInt();
-          final uri = Uri.https('html.duckduckgo.com', '/html/', <String, String>{
+          final uri =
+              Uri.https('html.duckduckgo.com', '/html/', <String, String>{
             'q': query,
           });
           final response = await context.services.network.get(
@@ -589,7 +591,8 @@ class _WebPlugin extends ChronoxPlugin {
             },
           );
           if (!response.isSuccess) {
-            return ToolOutcome.error('Búsqueda web: HTTP ${response.statusCode}.');
+            return ToolOutcome.error(
+                'Búsqueda web: HTTP ${response.statusCode}.');
           }
           final results = WebSearchParser.parse(response.body, limit: limit);
           if (results.isEmpty) {

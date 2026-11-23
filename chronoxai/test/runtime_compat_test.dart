@@ -12,23 +12,22 @@ PlatformFacts facts({
   String manufacturer = 'Google',
   String model = 'Pixel',
   bool isAndroid = true,
-}) =>
-    PlatformFacts(
-      isAndroid: isAndroid,
-      sdkInt: sdkInt,
-      abi: abi,
-      pageSize: pageSize,
-      nativeLibraryDir: '/data/app/lib/arm64',
-      filesDir: '/data/data/app.chronoxai/files',
-      cacheDir: '/data/data/app.chronoxai/cache',
-      selinuxEnforcing: true,
-      targetSdk: targetSdk,
-      selinuxDomain: selinuxDomain,
-      canExecuteFromData: canExecuteFromData,
-      manufacturer: manufacturer,
-      model: model,
-      release: '15',
-    );
+}) => PlatformFacts(
+  isAndroid: isAndroid,
+  sdkInt: sdkInt,
+  abi: abi,
+  pageSize: pageSize,
+  nativeLibraryDir: '/data/app/lib/arm64',
+  filesDir: '/data/data/app.chronoxai/files',
+  cacheDir: '/data/data/app.chronoxai/cache',
+  selinuxEnforcing: true,
+  targetSdk: targetSdk,
+  selinuxDomain: selinuxDomain,
+  canExecuteFromData: canExecuteFromData,
+  manufacturer: manufacturer,
+  model: model,
+  release: '15',
+);
 
 void main() {
   group('RuntimeCompatibility — permiso de ejecución', () {
@@ -144,8 +143,7 @@ void main() {
       final issues = RuntimeCompatibility.evaluate(
         facts(manufacturer: 'nubia'),
       );
-      final issue =
-          issues.singleWhere((final i) => i.title.contains('segundo'));
+      final issue = issues.singleWhere((final i) => i.title.toLowerCase().contains('segundo'));
       expect(issue.severity, CompatSeverity.warning);
       expect(issue.detail, contains('RedMagic OS'));
       expect(issue.advice, contains('batería'));
@@ -155,10 +153,9 @@ void main() {
 
     test('también reconoce Xiaomi, OPPO y Samsung', () {
       for (final vendor in <String>['Xiaomi', 'OPPO', 'samsung', 'OnePlus']) {
-        final issues =
-            RuntimeCompatibility.evaluate(facts(manufacturer: vendor));
+        final issues = RuntimeCompatibility.evaluate(facts(manufacturer: vendor));
         expect(
-          issues.any((final i) => i.title.contains('segundo')),
+          issues.any((final i) => i.title.toLowerCase().contains('segundo')),
           isTrue,
           reason: 'no avisó para $vendor',
         );
@@ -169,7 +166,7 @@ void main() {
       final issues = RuntimeCompatibility.evaluate(
         facts(manufacturer: 'Fairphone'),
       );
-      expect(issues.any((final i) => i.title.contains('segundo')), isFalse);
+      expect(issues.any((final i) => i.title.toLowerCase().contains('segundo')), isFalse);
     });
 
     test('ordena los bloqueantes antes que los avisos', () {

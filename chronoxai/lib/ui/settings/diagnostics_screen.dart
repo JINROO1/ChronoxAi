@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
-import '../../data/runtime/local_runtime.dart';
 import '../../domain/terminal/runtime_compat.dart';
 import '../../platform/android_permissions.dart';
 import '../state/app_state.dart';

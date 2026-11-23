@@ -1,4 +1,5 @@
 import 'package:chronoxai/platform/android_permissions.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -12,6 +13,19 @@ void main() {
   // `await` sobre un MethodChannel que nunca responde.
   group('AndroidPermissions — degradación sin canal', () {
     const permissions = AndroidPermissions();
+
+    setUp(() {
+      // Sin este simulacro, `invokeMethod` propaga un `AssertionError` sobre el
+      // binding en lugar de un `MissingPluginException`, y se estaría probando
+      // un camino que no existe en la app real.
+      TestDefaultBinaryMessengerBinding
+          .instance
+          .defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('app.chronoxai/permissions'),
+            (final call) async => null,
+          );
+    });
 
     test('requestNotifications no concede sin canal', () async {
       expect(await permissions.requestNotifications(), isFalse);

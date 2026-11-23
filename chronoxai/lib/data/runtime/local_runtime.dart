@@ -56,6 +56,7 @@ class RuntimeStatus {
         RuntimeProblem.missingBinaries => 'Faltan los binarios de proot',
         RuntimeProblem.missingRootfs => 'Falta el sistema Linux',
         RuntimeProblem.unavailable => 'Runtime no disponible',
+        RuntimeProblem.pageSizeMismatch => 'Binarios incompatibles con Android',
       };
 
   /// `true` si los comandos fallarán pero el resto de la sesión funciona.
@@ -78,6 +79,11 @@ class RuntimeStatus {
               'ejecutar comandos.',
         RuntimeProblem.unavailable =>
           detail.isEmpty ? 'El runtime no está disponible.' : detail,
+        RuntimeProblem.pageSizeMismatch =>
+          detail.isEmpty
+              ? 'Los binarios de proot no están alineados al tamaño de página de '
+                    'este dispositivo (16 KB) y no se pueden cargar.'
+              : detail,
       };
 }
 

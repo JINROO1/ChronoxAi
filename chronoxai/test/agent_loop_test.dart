@@ -622,6 +622,50 @@ void main() {
     });
   });
 
+  group('AgentLoop — plan mode', () {
+    setUp(() => registry.add(tool('exit_plan_mode', requiresApproval: false)));
+
+    FakeProvider providerForPlan() => FakeProvider(<LlmResponse>[
+          const LlmResponse(
+            content: '',
+            toolCalls: <LlmToolCall>[
+              LlmToolCall(
+                id: 'plan-1',
+                name: 'exit_plan_mode',
+                arguments: <String, Object?>{'plan': '1. Leer archivos'},
+              ),
+            ],
+          ),
+          const LlmResponse(content: 'Empiezo.'),
+        ]);
+
+    test('aprobado continúa y persiste la decisión', () async {
+      final loop = makeLoop(
+        providerForPlan(),
+        planHandler: (final _) async => const ApprovalAnswer(approved: true),
+      );
+
+      expect(await loop.runTurn('hazlo'), 'completed');
+      expect(log.events.whereType<PlanDecisionEvent>().single.approved, isTrue);
+    });
+
+    test('rechazado cierra el turno y persiste la decisión', () async {
+      final loop = makeLoop(
+        providerForPlan(),
+        planHandler: (final _) async => const ApprovalAnswer.denied(),
+      );
+
+      expect(await loop.runTurn('hazlo'), 'rejected');
+      expect(log.events.whereType<PlanDecisionEvent>().single.approved, isFalse);
+      expect(log.events.whereType<TurnEndEvent>().single.reason, 'rejected');
+    });
+
+    test('sin handler rechaza por defecto', () async {
+      expect(await makeLoop(providerForPlan()).runTurn('hazlo'), 'rejected');
+      expect(log.events.whereType<PlanDecisionEvent>().single.approved, isFalse);
+    });
+  });
+
   group('PromptBuilder', () {
     test('incluye el entorno y las reglas de trabajo', () {
       final prompt = PromptBuilder.build(

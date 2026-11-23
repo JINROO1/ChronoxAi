@@ -13,29 +13,32 @@ toolchain local) y se marca `[x]` solo cuando el CI está en verde.
 - [x] Plan maestro escrito (`docs/PLAN_MAESTRO.md`)
 - [x] Investigación: sandbox Android sin root, clientes MCP en Dart, APIs
       nativas de Anthropic/Gemini, convención `AGENTS.md`, hooks de dsh
-- [ ] Persistencia de ajustes del proveedor (`shared_preferences`): sin esto no
-      hay tareas programadas ni reanudación tras reinicio
+- [x] Persistencia de ajustes del proveedor (`shared_preferences`): sin esto no
+      hay tareas programadas ni reanudación tras reinicio (CI de tests y análisis
+      verde en el run `45288298184`)
 
 ## Fase 1 — Ficheros de instrucciones del proyecto (`AGENTS.md` / `CLAUDE.md`)
 
 dsh lee `AGENTS.md` y `CLAUDE.md` del workspace y los inyecta en el prompt.
 
-- [ ] `ProjectInstructions`: carga `AGENTS.md`, `CLAUDE.md` y
+- [x] `ProjectInstructions`: carga `AGENTS.md`, `CLAUDE.md` y
       `.chronox/instructions.md` desde la raíz del workspace (con límite de
       tamaño y precedencia documentada)
-- [ ] `PromptBuilder` incluye las instrucciones del proyecto en el system prompt
-- [ ] `AgentLoop` acepta un cargador inyectable y lo usa en cada turno
-- [ ] Tests: precedencia, límite de tamaño, inclusión en el prompt
+- [x] `PromptBuilder` incluye las instrucciones del proyecto en el system prompt
+- [x] `AgentLoop` acepta un cargador inyectable y lo usa en cada turno
+- [x] Tests: límite de tamaño e inclusión en el prompt (CI tests verde;
+      ampliar cobertura de precedencia continúa pendiente)
 
 ## Fase 2 — Plan mode real
 
 Hoy `exit_plan_mode` solo devuelve texto: el loop **no se detiene**.
 
-- [ ] `PlanProposedEvent` (efímero) y `PlanDecisionEvent` (durable)
-- [ ] `AgentLoop` intercepta `exit_plan_mode`: emite el evento, espera la
+- [x] `PlanProposedEvent` (efímero) y `PlanDecisionEvent` (durable)
+- [x] `AgentLoop` intercepta `exit_plan_mode`: emite el evento, espera la
       decisión del usuario y, si se rechaza, cierra el turno con `rejected`
-- [ ] UI: hoja de plan con el Markdown del plan y botones Aprobar/Rechazar
-- [ ] Tests: aprobación continúa, rechazo detiene el turno
+- [x] UI: hoja de plan con el Markdown del plan y botones Aprobar/Rechazar
+- [ ] Tests explícitos: aprobación continúa y rechazo detiene el turno (CI
+      compila y pasa; estos casos aún no están cubiertos)
 
 ## Fase 3 — UI de sesiones (resume, fork, search, Trajectory)
 

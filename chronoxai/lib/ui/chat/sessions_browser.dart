@@ -12,7 +12,8 @@ Future<void> showSessionsBrowser(final BuildContext context) async {
     context: context,
     isScrollControlled: true,
     backgroundColor: ChronoxColors.backgroundElevated,
-    builder: (final context) => _SessionsBrowser(archive: SessionArchive(directory)),
+    builder: (final context) =>
+        _SessionsBrowser(archive: SessionArchive(directory)),
   );
 }
 
@@ -89,11 +90,14 @@ class _SessionsBrowserState extends State<_SessionsBrowser> {
                       return const Center(child: CircularProgressIndicator());
                     }
                     if (snapshot.hasError) {
-                      return Center(child: Text('No se pudieron leer las sesiones: ${snapshot.error}'));
+                      return Center(
+                          child: Text(
+                              'No se pudieron leer las sesiones: ${snapshot.error}'));
                     }
                     final sessions = snapshot.data ?? const <ArchivedSession>[];
                     if (sessions.isEmpty) {
-                      return const Center(child: Text('No hay sesiones que coincidan.'));
+                      return const Center(
+                          child: Text('No hay sesiones que coincidan.'));
                     }
                     return ListView.builder(
                       itemCount: sessions.length,
@@ -101,8 +105,10 @@ class _SessionsBrowserState extends State<_SessionsBrowser> {
                         final session = sessions[index];
                         return ListTile(
                           contentPadding: EdgeInsets.zero,
-                          leading: const CircleAvatar(child: Icon(Icons.forum_outlined)),
-                          title: Text(session.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          leading: const CircleAvatar(
+                              child: Icon(Icons.forum_outlined)),
+                          title: Text(session.title,
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
                           subtitle: Text(
                             '${session.stats.turns} turnos · ${session.stats.totalTokens} tokens · '
                             '${session.updatedAt.toLocal()}',
@@ -127,7 +133,8 @@ class _SessionsBrowserState extends State<_SessionsBrowser> {
   Future<void> _showTrajectory(
     final BuildContext context,
     final ArchivedSession session,
-  ) => showModalBottomSheet<void>(
+  ) =>
+      showModalBottomSheet<void>(
         context: context,
         backgroundColor: ChronoxColors.backgroundElevated,
         builder: (final context) => SafeArea(
@@ -137,9 +144,11 @@ class _SessionsBrowserState extends State<_SessionsBrowser> {
               padding: const EdgeInsets.all(18),
               children: <Widget>[
                 Text(session.title,
-                    style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
+                    style: const TextStyle(
+                        fontSize: 19, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
-                Text('${session.stats.turns} turnos · ${session.stats.steps} pasos · '
+                Text(
+                    '${session.stats.turns} turnos · ${session.stats.steps} pasos · '
                     '${session.stats.toolCalls} tools · ${session.stats.totalTokens} tokens'),
                 Text('Tiempo modelo ${session.stats.modelTimeMs} ms · '
                     'herramientas ${session.stats.toolTimeMs} ms · '
@@ -165,7 +174,8 @@ class _SessionsBrowserState extends State<_SessionsBrowser> {
                       dense: true,
                       leading: const Icon(Icons.build_outlined),
                       title: Text(event.name),
-                      subtitle: Text(event.arguments.toString(), maxLines: 2, overflow: TextOverflow.ellipsis),
+                      subtitle: Text(event.arguments.toString(),
+                          maxLines: 2, overflow: TextOverflow.ellipsis),
                     ),
               ],
             ),

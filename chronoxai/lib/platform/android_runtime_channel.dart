@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -71,12 +70,15 @@ class PlatformFacts {
     return isAndroid && sdkInt >= 29 && targetSdk >= 29;
   }
 
-  /// Dominio esperado para el `targetSdk` actual, solo para diagnóstico.
+  /// Dominio SELinux del proceso (`untrusted_app_27`), para diagnóstico.
+  ///
+  /// El formato es `u:r:<dominio>:s0:<categorías>`: el segundo campo es el rol
+  /// (`r`), no el dominio; confundirlos mostraba "r" en la pantalla.
   String get expectedDomain {
     final domain = selinuxDomain;
     if (domain == null) return 'desconocido';
-    final suffix = domain.split(':');
-    return suffix.length > 1 ? suffix[1] : domain;
+    final parts = domain.split(':');
+    return parts.length > 2 ? parts[2] : domain;
   }
 
   /// `true` si el ABI es uno para el que empaquetamos binarios.

@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 /// Permisos y ajustes del sistema que la app necesita para funcionar de verdad.
@@ -37,8 +36,9 @@ class AndroidPermissions {
   Future<bool> requestNotifications() async {
     if (!_isAndroid) return true;
     try {
-      final granted = await _channel.invokeMethod<bool>('requestNotifications');
-      return granted ?? false;
+      final granted =
+          await _channel.invokeMethod<Object?>('requestNotifications');
+      return granted is bool ? granted : false;
     } on MissingPluginException {
       return false;
     } on PlatformException {
@@ -50,8 +50,9 @@ class AndroidPermissions {
   Future<bool> isBatteryUnrestricted() async {
     if (!_isAndroid) return true;
     try {
-      final value = await _channel.invokeMethod<bool>('isBatteryUnrestricted');
-      return value ?? false;
+      final value =
+          await _channel.invokeMethod<Object?>('isBatteryUnrestricted');
+      return value is bool ? value : false;
     } on MissingPluginException {
       return false;
     } on PlatformException {
@@ -80,11 +81,11 @@ class AndroidPermissions {
       {final String title = 'Sesión activa'}) async {
     if (!_isAndroid) return false;
     try {
-      final started = await _channel.invokeMethod<bool>(
+      final started = await _channel.invokeMethod<Object?>(
         'startTerminalService',
         <String, Object?>{'title': title},
       );
-      return started ?? false;
+      return started is bool ? started : false;
     } on MissingPluginException {
       return false;
     } on PlatformException {

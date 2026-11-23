@@ -186,7 +186,7 @@ abstract final class RuntimeCompatibility {
           severity: CompatSeverity.warning,
           title: 'Segundo plano: $rom cierra apps',
           detail:
-              'Esta ROM mata procesos en segundo plano de forma agresiva. Un '
+              '$rom mata procesos en segundo plano de forma agresiva. Un '
               '"apt install" largo o el agente trabajando con la pantalla '
               'apagada puede detenerse a mitad.',
           advice:

@@ -213,15 +213,15 @@ void main() {
   test('el directorio opaco vacía su contenido previo', () async {
     final destino = Directory(p.join(raiz.path, 'rootfs'))
       ..createSync(recursive: true);
-    final var = Directory(p.join(destino.path, 'var', 'log'))
+    final dirLog = Directory(p.join(destino.path, 'var', 'log'))
       ..createSync(recursive: true);
-    File(p.join(var.path, 'antiguo.log')).writeAsStringSync('x');
+    File(p.join(dirLog.path, 'antiguo.log')).writeAsStringSync('x');
 
     final tar = ConstructorTar()..directorioOpaco('var/log');
     await extractor(destino).extract(tar.flujo());
 
-    expect(Directory(var.path).existsSync(), isTrue);
-    expect(Directory(var.path).listSync(), isEmpty);
+    expect(Directory(dirLog.path).existsSync(), isTrue);
+    expect(Directory(dirLog.path).listSync(), isEmpty);
   });
 
   test('rechaza rutas que se escapan del directorio destino', () async {

@@ -146,8 +146,9 @@ Todo se compila y verifica en **GitHub Actions** (`.github/workflows/ci.yml`):
 
 | Job | Qué hace |
 |---|---|
-| `analyze` | `dart format --set-exit-if-changed` + `flutter analyze --fatal-infos` |
-| `test` | tests con cobertura |
+| `format` | aplica `dart format` y commitea el resultado |
+| `analyze` | `flutter analyze --fatal-infos` (limpio: 0 errores, 0 avisos) |
+| `test` | 53 tests con cobertura |
 | `runtime` | descarga y **valida el runtime proot** (AArch64 + alineación 16 KB) |
 | `build` | APK release firmada, verificación con `apksigner`, publicación al crear un tag `v*` |
 

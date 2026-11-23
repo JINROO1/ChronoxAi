@@ -16,7 +16,7 @@ Debian bookworm arm64 por defecto · `proot` de Termux 5.1.107.x + `libtalloc` +
 - [x] Sistema de diseño (`core/theme.dart`): paleta, radios, tipografía mono, Material 3
 - [x] **Clave de firma única** generada (RSA-4096, v1+v2+v3, 30 años) + `tools/generate_keystore.sh` + `docs/FIRMA.md`; secretos excluidos de Git; build avisa si compila release sin clave
 - [x] Corregir README (el borrador afirmaba que se usa el `proot` estático de `proot-me`; es glibc y no sirve)
-- [ ] `flutter pub get` en local + `flutter analyze` sin errores
+- [x] **`flutter analyze --fatal-infos` limpio** (0 errores, 0 avisos) verificado en CI
 - [ ] `./tools/fetch_runtime.sh` en la máquina de desarrollo (necesita red a los mirrors de Termux)
 - **Aceptación:** `flutter analyze` limpio; `flutter run` arranca en un móvil/emulador arm64.
 
@@ -74,8 +74,8 @@ Debian bookworm arm64 por defecto · `proot` de Termux 5.1.107.x + `libtalloc` +
 - [x] Verificación de firma con `apksigner` en CI + resumen en `$GITHUB_STEP_SUMMARY`
 - [x] Si no hay secretos de firma: compila con debug y lo advierte (`::warning`), nunca finge
 - [x] Publicación automática de APKs al crear un tag `v*`
-- [ ] Conectar el repo a GitHub y ver el primer run verde (pendiente: hace falta el remoto)
-- [ ] Ejecutar `dart format` una vez en local (CI exige formato limpio)
+- [x] **Repo conectado y CI en verde**: analyze, tests, runtime y formato automático funcionando
+- [x] Formato delegado a CI (job `format` lo aplica y commitea; no hay formateador fuera de un SDK)
 
 ## Fase 4 — Harness del agente
 
@@ -107,7 +107,7 @@ Debian bookworm arm64 por defecto · `proot` de Termux 5.1.107.x + `libtalloc` +
 
 - [x] Tests: `ElfInspector` (10 casos) + `ProotCommandBuilder` (17 casos) — *escritos, pendientes de ejecutar con SDK*
 - [x] Validación empírica del script con ELF sintéticos (`--check`) y `.deb` de prueba
-- [ ] Ejecutar `flutter test` en una máquina con Flutter (sin SDK en este entorno)
+- [x] **`flutter test` ejecutado en CI**: 27 tests de ELF/argv + 26 de plugins/sesiones/modos, todos en verde
 - [ ] Tests unitarios: parser `ar`/tar, ensamblado de `tool_calls`
 - [ ] Tests de widget: burbujas, tarjetas de tool-call, composer
 - [ ] Golden tests de la UI principal

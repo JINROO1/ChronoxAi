@@ -5,7 +5,8 @@ import 'package:http/http.dart' as http;
 
 /// Error al hablar con un registro de imágenes.
 class RegistryException implements Exception {
-  const RegistryException(this.message, {this.statusCode, this.isRetryable = false});
+  const RegistryException(this.message,
+      {this.statusCode, this.isRetryable = false});
 
   final String message;
   final int? statusCode;
@@ -124,12 +125,11 @@ class OciRegistryClient {
     final candidates = (index['manifests']! as List<Object?>)
         .whereType<Map<String, Object?>>()
         .where((final m) {
-          final platform = m['platform'];
-          return platform is Map<String, Object?> &&
-              platform['architecture'] == architecture &&
-              (platform['os'] == 'linux');
-        })
-        .toList();
+      final platform = m['platform'];
+      return platform is Map<String, Object?> &&
+          platform['architecture'] == architecture &&
+          (platform['os'] == 'linux');
+    }).toList();
 
     if (candidates.isEmpty) {
       throw RegistryException(
@@ -146,7 +146,8 @@ class OciRegistryClient {
     for (final entry in (index['manifests']! as List<Object?>)
         .whereType<Map<String, Object?>>()) {
       final platform = entry['platform'];
-      if (platform is Map<String, Object?> && platform['architecture'] != null) {
+      if (platform is Map<String, Object?> &&
+          platform['architecture'] != null) {
         result.add('${platform['architecture']}');
       }
     }
@@ -158,15 +159,17 @@ class OciRegistryClient {
     final String architecture,
   ) {
     final layers = <OciLayer>[];
-    for (final entry in (manifest['layers'] as List<Object?>? ?? const <Object?>[])
-        .whereType<Map<String, Object?>>()) {
+    for (final entry
+        in (manifest['layers'] as List<Object?>? ?? const <Object?>[])
+            .whereType<Map<String, Object?>>()) {
       final digest = entry['digest'] as String?;
       if (digest == null) continue;
       layers.add(
         OciLayer(
           digest: digest,
           size: (entry['size'] as num?)?.toInt() ?? 0,
-          mediaType: (entry['mediaType'] as String?) ?? 'application/vnd.oci.image.layer.v1.tar+gzip',
+          mediaType: (entry['mediaType'] as String?) ??
+              'application/vnd.oci.image.layer.v1.tar+gzip',
         ),
       );
     }
@@ -178,8 +181,7 @@ class OciRegistryClient {
       layers: layers,
       configDigest: (manifest['config'] is Map<String, Object?>
               ? (manifest['config']! as Map<String, Object?>)['digest']
-              : null)
-              as String? ??
+              : null) as String? ??
           '',
       architecture: architecture,
     );
@@ -205,14 +207,14 @@ class OciRegistryClient {
     final response = await client.send(request);
     if (response.statusCode != 200) {
       final body = await response.stream.bytesToString();
-      throw _classify(response.statusCode, body, 'descargar la capa ${layer.digest}');
+      throw _classify(
+          response.statusCode, body, 'descargar la capa ${layer.digest}');
     }
     return response;
   }
 
   /// Descarga el `config` de la imagen (JSON con la arquitectura real).
-  Future<Map<String, Object?>> fetchConfig(final String digest) =>
-      _getJson(
+  Future<Map<String, Object?>> fetchConfig(final String digest) => _getJson(
         'https://$baseUrl/v2/$repository/blobs/$digest',
         accept: const <String>['application/vnd.oci.image.config.v1+json'],
       );
@@ -264,7 +266,8 @@ class OciRegistryClient {
       }
       final decoded = jsonDecode(response.body);
       if (decoded is! Map<String, Object?>) {
-        throw const RegistryException('El registro devolvió un JSON inesperado.');
+        throw const RegistryException(
+            'El registro devolvió un JSON inesperado.');
       }
       return decoded;
     } finally {
@@ -280,30 +283,30 @@ class OciRegistryClient {
     final detail = body.length > 200 ? '${body.substring(0, 200)}…' : body;
     return switch (status) {
       401 || 403 => RegistryException(
-        'El registro rechazó el acceso al intentar $action (HTTP $status). '
-        'Puede ser un problema temporal del servicio de tokens.',
-        statusCode: status,
-        isRetryable: true,
-      ),
+          'El registro rechazó el acceso al intentar $action (HTTP $status). '
+          'Puede ser un problema temporal del servicio de tokens.',
+          statusCode: status,
+          isRetryable: true,
+        ),
       404 => RegistryException(
-        'No se encontró el recurso al intentar $action (HTTP 404). '
-        '¿Existe la etiqueta de la imagen?',
-        statusCode: status,
-      ),
+          'No se encontró el recurso al intentar $action (HTTP 404). '
+          '¿Existe la etiqueta de la imagen?',
+          statusCode: status,
+        ),
       429 => RegistryException(
-        'El registro limita las descargas (HTTP 429). Espera unos minutos.',
-        statusCode: status,
-        isRetryable: true,
-      ),
+          'El registro limita las descargas (HTTP 429). Espera unos minutos.',
+          statusCode: status,
+          isRetryable: true,
+        ),
       >= 500 => RegistryException(
-        'El registro falló (HTTP $status) al intentar $action. Reintenta.',
-        statusCode: status,
-        isRetryable: true,
-      ),
+          'El registro falló (HTTP $status) al intentar $action. Reintenta.',
+          statusCode: status,
+          isRetryable: true,
+        ),
       _ => RegistryException(
-        'Error del registro (HTTP $status) al intentar $action: $detail',
-        statusCode: status,
-      ),
+          'Error del registro (HTTP $status) al intentar $action: $detail',
+          statusCode: status,
+        ),
     };
   }
 }

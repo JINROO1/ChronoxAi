@@ -126,11 +126,11 @@ class _InstallScreenState extends ConsumerState<InstallScreen> {
               Text(
                 instalado
                     ? 'El contenedor está listo. Puedes ejecutar comandos desde '
-                          'el chat o la terminal.'
+                        'el chat o la terminal.'
                     : 'Chronox descarga la imagen oficial de Debian (unos 120 MB) '
-                          'y la desempaqueta en el almacenamiento privado de la '
-                          'app. Necesita conexión; con datos móviles puede '
-                          'consumir cuota.',
+                        'y la desempaqueta en el almacenamiento privado de la '
+                        'app. Necesita conexión; con datos móviles puede '
+                        'consumir cuota.',
                 style: const TextStyle(
                   color: ChronoxColors.textMuted,
                   height: 1.45,
@@ -168,7 +168,8 @@ class _InstallScreenState extends ConsumerState<InstallScreen> {
               children: <Widget>[
                 const Row(
                   children: <Widget>[
-                    Icon(Icons.error_outline_rounded, color: ChronoxColors.danger),
+                    Icon(Icons.error_outline_rounded,
+                        color: ChronoxColors.danger),
                     SizedBox(width: 8),
                     Text(
                       'No se pudo instalar',
@@ -207,9 +208,8 @@ class _InstallScreenState extends ConsumerState<InstallScreen> {
     if (metadatos == null) return 'Instalación local sin metadatos.';
     final fecha = metadatos['installedAt'] as String?;
     final arquitectura = metadatos['architecture'] as String? ?? 'arm64';
-    final legible = fecha == null
-        ? 'fecha desconocida'
-        : fecha.split('T').first;
+    final legible =
+        fecha == null ? 'fecha desconocida' : fecha.split('T').first;
     return 'Variante $arquitectura · instalado el $legible';
   }
 }

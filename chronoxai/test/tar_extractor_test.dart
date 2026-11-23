@@ -62,7 +62,8 @@ class ConstructorTar {
     _bytes.addAll(List<int>.filled(relleno, 0));
   }
 
-  void directorio(final String nombre) => _cabecera(nombre: '$nombre/', tipo: '5');
+  void directorio(final String nombre) =>
+      _cabecera(nombre: '$nombre/', tipo: '5');
 
   void fichero(final String nombre, final String contenido) {
     final datos = utf8.encode(contenido);
@@ -129,11 +130,12 @@ void main() {
     final Directory destino, {
     bool Function()? isCancelled,
     void Function(String)? onEntry,
-  }) => TarExtractor(
-    rootDirectory: destino.path,
-    isCancelled: isCancelled,
-    onEntry: onEntry,
-  );
+  }) =>
+      TarExtractor(
+        rootDirectory: destino.path,
+        isCancelled: isCancelled,
+        onEntry: onEntry,
+      );
 
   test('extrae ficheros y directorios', () async {
     final tar = ConstructorTar()
@@ -156,7 +158,8 @@ void main() {
   });
 
   test('escribe ficheros grandes sin corromperlos', () async {
-    final tar = ConstructorTar()..ficheroConTamano('bin/libc.so.6', 300 * 1024 + 37);
+    final tar = ConstructorTar()
+      ..ficheroConTamano('bin/libc.so.6', 300 * 1024 + 37);
 
     final destino = Directory(p.join(raiz.path, 'rootfs'));
     await extractor(destino).extract(tar.flujo(trozo: 4096));
@@ -207,7 +210,8 @@ void main() {
     await extractor(destino).extract(tar.flujo());
 
     expect(File(p.join(destino.path, 'viejo.txt')).existsSync(), isFalse);
-    expect(Directory(p.join(destino.path, 'var', 'cache')).existsSync(), isFalse);
+    expect(
+        Directory(p.join(destino.path, 'var', 'cache')).existsSync(), isFalse);
   });
 
   test('el directorio opaco vacía su contenido previo', () async {
@@ -257,7 +261,8 @@ void main() {
     );
   });
 
-  test('una descarga truncada se detecta en lugar de dar un fichero a medias', () async {
+  test('una descarga truncada se detecta en lugar de dar un fichero a medias',
+      () async {
     final tar = ConstructorTar()..fichero('grande.bin', 'x' * 4096);
     final datos = tar.terminar();
     final truncado = datos.sublist(0, datos.length - 2000);
@@ -278,7 +283,8 @@ void main() {
     await extractor(destino).extract(tar.flujo());
 
     expect(
-      File(p.join(destino.path, p.joinAll(larga.split('/')))).readAsStringSync(),
+      File(p.join(destino.path, p.joinAll(larga.split('/'))))
+          .readAsStringSync(),
       'contenido',
     );
   });

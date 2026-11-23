@@ -59,20 +59,22 @@ class InstallProgress {
     int? bytesTotal,
     String? currentEntry,
     String? message,
-  }) => InstallProgress(
-    phase: phase ?? this.phase,
-    layerIndex: layerIndex ?? this.layerIndex,
-    layerCount: layerCount ?? this.layerCount,
-    bytesDone: bytesDone ?? this.bytesDone,
-    bytesTotal: bytesTotal ?? this.bytesTotal,
-    currentEntry: currentEntry ?? this.currentEntry,
-    message: message ?? this.message,
-  );
+  }) =>
+      InstallProgress(
+        phase: phase ?? this.phase,
+        layerIndex: layerIndex ?? this.layerIndex,
+        layerCount: layerCount ?? this.layerCount,
+        bytesDone: bytesDone ?? this.bytesDone,
+        bytesTotal: bytesTotal ?? this.bytesTotal,
+        currentEntry: currentEntry ?? this.currentEntry,
+        message: message ?? this.message,
+      );
 }
 
 /// Resultado de una instalación.
 class InstallResult {
-  const InstallResult({required this.success, this.message = '', this.digest = ''});
+  const InstallResult(
+      {required this.success, this.message = '', this.digest = ''});
 
   final bool success;
   final String message;
@@ -99,9 +101,9 @@ class RootfsInstaller {
     required this.paths,
     OciRegistryClient? registry,
     http.Client Function()? clientFactory,
-  }) : registry = registry ??
-           OciRegistryClient(baseUrl: 'registry-1.docker.io'),
-       _newClient = clientFactory ?? http.Client.new;
+  })  : registry =
+            registry ?? OciRegistryClient(baseUrl: 'registry-1.docker.io'),
+        _newClient = clientFactory ?? http.Client.new;
 
   final LinuxPaths paths;
   final OciRegistryClient registry;
@@ -120,11 +122,11 @@ class RootfsInstaller {
 
   /// Arquitectura OCI del dispositivo.
   static String architectureFor(final String abi) => switch (abi) {
-    'arm64-v8a' || 'aarch64' => 'arm64',
-    'x86_64' => 'amd64',
-    'armeabi-v7a' => 'arm',
-    _ => 'arm64',
-  };
+        'arm64-v8a' || 'aarch64' => 'arm64',
+        'x86_64' => 'amd64',
+        'armeabi-v7a' => 'arm',
+        _ => 'arm64',
+      };
 
   /// `true` si hay un rootfs utilizable instalado.
   bool get isInstalled => paths.looksInstalled;
@@ -268,7 +270,9 @@ class RootfsInstaller {
       final shell = File(p.join(_partialDir, 'bin', 'sh'));
       final usrShell = File(p.join(_partialDir, 'usr', 'bin', 'sh'));
       final binBash = File(p.join(_partialDir, 'bin', 'bash'));
-      if (!shell.existsSync() && !usrShell.existsSync() && !binBash.existsSync()) {
+      if (!shell.existsSync() &&
+          !usrShell.existsSync() &&
+          !binBash.existsSync()) {
         throw const RegistryException(
           'La imagen descargada no contiene un shell (/bin/sh). '
           '¿Es una imagen de Debian válida?',
@@ -315,7 +319,8 @@ class RootfsInstaller {
       await _deleteDir(_partialDir);
       if (_cancelled) return _cancelledResult();
       const message = 'El archivo de la imagen está corrupto.';
-      report(const InstallProgress(phase: InstallPhase.failed, message: message));
+      report(
+          const InstallProgress(phase: InstallPhase.failed, message: message));
       return const InstallResult(success: false, message: message);
     } catch (error) {
       await _deleteDir(_partialDir);
@@ -333,11 +338,13 @@ class RootfsInstaller {
   }
 
   /// Comprueba si hay una actualización disponible sin descargar la imagen.
-  Future<String?> checkForUpdate({String tag = 'bookworm', String architecture = 'arm64'}) async {
+  Future<String?> checkForUpdate(
+      {String tag = 'bookworm', String architecture = 'arm64'}) async {
     final installed = installedImage();
     if (installed == null) return null;
     try {
-      final manifest = await registry.resolve(tag: tag, architecture: architecture);
+      final manifest =
+          await registry.resolve(tag: tag, architecture: architecture);
       final current = (installed['layers'] as List<Object?>?)?.cast<String>() ??
           const <String>[];
       final remote = manifest.layers.map((final l) => l.digest).toList();

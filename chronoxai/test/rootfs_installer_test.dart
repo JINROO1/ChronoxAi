@@ -30,24 +30,24 @@ class RegistroFalso {
   String get _digestIndice => 'sha256:${sha256.convert(utf8.encode('indice'))}';
 
   List<Map<String, Object?>> get _descriptores => <Map<String, Object?>>[
-    for (var i = 0; i < capas.length; i++)
-      <String, Object?>{
-        'mediaType': 'application/vnd.oci.image.layer.v1.tar+gzip',
-        'digest': 'sha256:${sha256.convert(capas[i])}',
-        'size': capas[i].length,
-      },
-  ];
+        for (var i = 0; i < capas.length; i++)
+          <String, Object?>{
+            'mediaType': 'application/vnd.oci.image.layer.v1.tar+gzip',
+            'digest': 'sha256:${sha256.convert(capas[i])}',
+            'size': capas[i].length,
+          },
+      ];
 
   Map<String, Object?> get _manifiesto => <String, Object?>{
-    'schemaVersion': 2,
-    'mediaType': 'application/vnd.oci.image.manifest.v1+json',
-    'config': <String, Object?>{
-      'mediaType': 'application/vnd.oci.image.config.v1+json',
-      'digest': 'sha256:config',
-      'size': 10,
-    },
-    'layers': _descriptores,
-  };
+        'schemaVersion': 2,
+        'mediaType': 'application/vnd.oci.image.manifest.v1+json',
+        'config': <String, Object?>{
+          'mediaType': 'application/vnd.oci.image.config.v1+json',
+          'digest': 'sha256:config',
+          'size': 10,
+        },
+        'layers': _descriptores,
+      };
 
   http.Client cliente() => _ClienteFalso(this);
 }
@@ -74,7 +74,10 @@ class _ClienteFalso extends http.BaseClient {
           <String, Object?>{
             'mediaType': 'application/vnd.oci.image.manifest.v1+json',
             'digest': 'sha256:manifest-amd64',
-            'platform': <String, Object?>{'architecture': 'amd64', 'os': 'linux'},
+            'platform': <String, Object?>{
+              'architecture': 'amd64',
+              'os': 'linux'
+            },
           },
           <String, Object?>{
             'mediaType': 'application/vnd.oci.image.manifest.v1+json',
@@ -124,10 +127,10 @@ class _ClienteFalso extends http.BaseClient {
   }
 
   http.StreamedResponse _json(final Object cuerpo) => http.StreamedResponse(
-    Stream<List<int>>.value(utf8.encode(jsonEncode(cuerpo))),
-    200,
-    headers: <String, String>{'content-type': 'application/json'},
-  );
+        Stream<List<int>>.value(utf8.encode(jsonEncode(cuerpo))),
+        200,
+        headers: <String, String>{'content-type': 'application/json'},
+      );
 }
 
 /// Construye un `tar` mínimo con un `/bin/sh` dentro.
@@ -195,14 +198,14 @@ void main() {
   });
 
   RootfsInstaller instalador(final RegistroFalso registro) => RootfsInstaller(
-    paths: rutas,
-    registry: OciRegistryClient(
-      baseUrl: 'registry-1.docker.io',
-      repository: 'library/debian',
-      clientFactory: registro.cliente,
-    ),
-    clientFactory: registro.cliente,
-  );
+        paths: rutas,
+        registry: OciRegistryClient(
+          baseUrl: 'registry-1.docker.io',
+          repository: 'library/debian',
+          clientFactory: registro.cliente,
+        ),
+        clientFactory: registro.cliente,
+      );
 
   test('instala la capa arm64, no la amd64', () async {
     final registro = RegistroFalso(capas: <List<int>>[capaBase]);
@@ -228,18 +231,21 @@ void main() {
           fases.add(progreso.phase);
         }
         final fraccion = progreso.fraction;
-        if (fraccion != null && fraccion > mayorProgreso) mayorProgreso = fraccion;
+        if (fraccion != null && fraccion > mayorProgreso)
+          mayorProgreso = fraccion;
       },
     );
 
     expect(resultado.success, isTrue, reason: resultado.message);
-    expect(fases, containsAllInOrder(<InstallPhase>[
-      InstallPhase.resolving,
-      InstallPhase.downloading,
-      InstallPhase.extracting,
-      InstallPhase.activating,
-      InstallPhase.done,
-    ]));
+    expect(
+        fases,
+        containsAllInOrder(<InstallPhase>[
+          InstallPhase.resolving,
+          InstallPhase.downloading,
+          InstallPhase.extracting,
+          InstallPhase.activating,
+          InstallPhase.done,
+        ]));
     expect(mayorProgreso, greaterThan(0.9));
   });
 
@@ -259,7 +265,8 @@ void main() {
   });
 
   test('descarta la instalación si el hash de una capa no coincide', () async {
-    final registro = RegistroFalso(capas: <List<int>>[capaBase])..corromperCapa = true;
+    final registro = RegistroFalso(capas: <List<int>>[capaBase])
+      ..corromperCapa = true;
 
     final resultado = await instalador(registro).install(architecture: 'arm64');
 
@@ -303,7 +310,8 @@ void main() {
   });
 
   test('una arquitectura no disponible da un mensaje claro', () async {
-    final registro = RegistroFalso(capas: <List<int>>[capaBase], arquitectura: 's390x');
+    final registro =
+        RegistroFalso(capas: <List<int>>[capaBase], arquitectura: 's390x');
 
     final resultado = await instalador(registro).install(architecture: 'arm64');
 

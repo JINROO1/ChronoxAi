@@ -26,7 +26,8 @@ class PtySession {
 
   final MethodChannel _channel;
 
-  final StreamController<Uint8List> _output = StreamController<Uint8List>.broadcast();
+  final StreamController<Uint8List> _output =
+      StreamController<Uint8List>.broadcast();
   final StreamController<int> _exit = StreamController<int>.broadcast();
 
   int? _id;
@@ -110,7 +111,8 @@ class PtySession {
     final id = _id;
     if (id == null || _state != PtyState.running) return false;
     try {
-      final result = await _channel.invokeMethod<bool>('write', <String, Object?>{
+      final result =
+          await _channel.invokeMethod<bool>('write', <String, Object?>{
         'id': id,
         'data': Uint8List.fromList(data.codeUnits),
       });
@@ -125,7 +127,8 @@ class PtySession {
     final id = _id;
     if (id == null || _state != PtyState.running) return false;
     try {
-      final result = await _channel.invokeMethod<bool>('write', <String, Object?>{
+      final result =
+          await _channel.invokeMethod<bool>('write', <String, Object?>{
         'id': id,
         'data': Uint8List.fromList(bytes),
       });

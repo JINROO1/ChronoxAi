@@ -75,7 +75,8 @@ class _TerminalViewState extends State<TerminalView> {
   void initState() {
     super.initState();
     widget.controller.addListener(_alCambiar);
-    WidgetsBinding.instance.addPostFrameCallback((final _) => _foco.requestFocus());
+    WidgetsBinding.instance
+        .addPostFrameCallback((final _) => _foco.requestFocus());
   }
 
   @override
@@ -208,7 +209,8 @@ class _Linea extends StatelessWidget {
     final spans = <InlineSpan>[];
     var indice = 0;
 
-    void agregar(final String texto, final TextStyle estilo, {final bool cursor = false}) {
+    void agregar(final String texto, final TextStyle estilo,
+        {final bool cursor = false}) {
       if (texto.isEmpty) return;
       spans.add(
         TextSpan(
@@ -230,10 +232,12 @@ class _Linea extends StatelessWidget {
         agregar(
           celda.char,
           estilo.copyWith(
-            color: _color(celda.style.foreground, porDefecto: ChronoxColors.textPrimary),
+            color: _color(celda.style.foreground,
+                porDefecto: ChronoxColors.textPrimary),
             backgroundColor: celda.style.background == null
                 ? null
-                : _color(celda.style.background, porDefecto: Colors.transparent),
+                : _color(celda.style.background,
+                    porDefecto: Colors.transparent),
             fontWeight: celda.style.bold ? FontWeight.w700 : FontWeight.w400,
           ),
         );
@@ -332,9 +336,8 @@ class _BarraTeclas extends StatelessWidget {
               padding: const EdgeInsets.only(right: 6),
               child: _Tecla(
                 etiqueta: tecla.etiqueta,
-                onTap: habilitada
-                    ? () => controller.sendKey(tecla.codigo)
-                    : null,
+                onTap:
+                    habilitada ? () => controller.sendKey(tecla.codigo) : null,
               ),
             ),
         ],
@@ -427,7 +430,8 @@ class _BarraEntrada extends StatelessWidget {
                 ),
                 decoration: InputDecoration(
                   isDense: true,
-                  hintText: habilitada ? 'Escribe un comando' : 'Sesión cerrada',
+                  hintText:
+                      habilitada ? 'Escribe un comando' : 'Sesión cerrada',
                   hintStyle: const TextStyle(
                     fontFamily: 'monospace',
                     fontSize: 13,

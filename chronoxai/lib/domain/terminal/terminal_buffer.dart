@@ -41,11 +41,12 @@ class TerminalStyle {
     int? foreground,
     int? background,
     bool? bold,
-  }) => TerminalStyle(
-    foreground: foreground ?? this.foreground,
-    background: background ?? this.background,
-    bold: bold ?? this.bold,
-  );
+  }) =>
+      TerminalStyle(
+        foreground: foreground ?? this.foreground,
+        background: background ?? this.background,
+        bold: bold ?? this.bold,
+      );
 
   @override
   bool operator ==(final Object other) =>
@@ -188,7 +189,10 @@ class TerminalBuffer {
         if (rune >= 0x40 && rune <= 0x7E) {
           _state = _ParseState.ground;
           _applyCsi(String.fromCharCode(rune), _params.toString());
-        } else if (rune == 0x3B || (rune >= 0x30 && rune <= 0x39) || rune == 0x3F || rune == 0x20) {
+        } else if (rune == 0x3B ||
+            (rune >= 0x30 && rune <= 0x39) ||
+            rune == 0x3F ||
+            rune == 0x20) {
           _params.writeCharCode(rune);
         } else if (rune == 0x1B) {
           _state = _ParseState.escape;
@@ -234,7 +238,8 @@ class TerminalBuffer {
     // Al bajar de la última línea se recorta por arriba: se guarda todo el
     // histórico hasta [rows] y a partir de ahí se descarta lo más viejo.
     if (_row >= rows - 1) {
-      final primerNoVacia = _lines.indexWhere((final l) => l.any((final c) => c.char != ' '));
+      final primerNoVacia =
+          _lines.indexWhere((final l) => l.any((final c) => c.char != ' '));
       // Nunca se descarta la línea en curso.
       if (primerNoVacia > 0 && primerNoVacia < _row) {
         _lines.removeRange(0, primerNoVacia);
@@ -279,15 +284,14 @@ class TerminalBuffer {
   void _applyCsi(final String comando, final String parametros) {
     final privado = parametros.startsWith('?');
     final limpio = privado ? parametros.substring(1) : parametros;
-    final numeros = limpio
-        .split(';')
-        .map((final p) => int.tryParse(p) ?? 0)
-        .toList();
+    final numeros =
+        limpio.split(';').map((final p) => int.tryParse(p) ?? 0).toList();
     final primero = numeros.isEmpty ? 0 : numeros.first;
 
     switch (comando) {
       case 'A':
-        _row = (_row - (primero == 0 ? 1 : primero)).clamp(0, _lines.length - 1);
+        _row =
+            (_row - (primero == 0 ? 1 : primero)).clamp(0, _lines.length - 1);
       case 'B':
         final destino = _row + (primero == 0 ? 1 : primero);
         _row = destino.clamp(0, _lines.length - 1);
@@ -296,10 +300,12 @@ class TerminalBuffer {
       case 'D':
         _col = (_col - (primero == 0 ? 1 : primero)).clamp(0, columns - 1);
       case 'E':
-        _row = (_row + (primero == 0 ? 1 : primero)).clamp(0, _lines.length - 1);
+        _row =
+            (_row + (primero == 0 ? 1 : primero)).clamp(0, _lines.length - 1);
         _col = 0;
       case 'F':
-        _row = (_row - (primero == 0 ? 1 : primero)).clamp(0, _lines.length - 1);
+        _row =
+            (_row - (primero == 0 ? 1 : primero)).clamp(0, _lines.length - 1);
         _col = 0;
       case 'G':
         _col = ((primero == 0 ? 1 : primero) - 1).clamp(0, columns - 1);
@@ -307,8 +313,10 @@ class TerminalBuffer {
         _col = 0;
         _row = ((primero == 0 ? 1 : primero) - 1).clamp(0, _lines.length - 1);
       case 'H' || 'f':
-        final fila = (numeros.isNotEmpty && numeros[0] != 0) ? numeros[0] - 1 : 0;
-        final columna = (numeros.length > 1 && numeros[1] != 0) ? numeros[1] - 1 : 0;
+        final fila =
+            (numeros.isNotEmpty && numeros[0] != 0) ? numeros[0] - 1 : 0;
+        final columna =
+            (numeros.length > 1 && numeros[1] != 0) ? numeros[1] - 1 : 0;
         _asegurarLinea(fila);
         _row = fila.clamp(0, _lines.length - 1);
         _col = columna.clamp(0, columns - 1);
@@ -389,15 +397,18 @@ class TerminalBuffer {
         case 1:
           _style = _style.copyWith(bold: true);
         case 22:
-          _style = TerminalStyle(foreground: _style.foreground, background: _style.background);
+          _style = TerminalStyle(
+              foreground: _style.foreground, background: _style.background);
         case >= 30 && <= 37:
           _style = _style.copyWith(foreground: codigo - 30);
         case 39:
-          _style = TerminalStyle(background: _style.background, bold: _style.bold);
+          _style =
+              TerminalStyle(background: _style.background, bold: _style.bold);
         case >= 40 && <= 47:
           _style = _style.copyWith(background: codigo - 40);
         case 49:
-          _style = TerminalStyle(foreground: _style.foreground, bold: _style.bold);
+          _style =
+              TerminalStyle(foreground: _style.foreground, bold: _style.bold);
         case >= 90 && <= 97:
           _style = _style.copyWith(foreground: codigo - 90 + 8);
         case >= 100 && <= 107:
@@ -470,7 +481,9 @@ class TerminalBuffer {
 
   List<TerminalCell> _recortar(final List<TerminalCell> cells) {
     var fin = cells.length;
-    while (fin > 0 && cells[fin - 1].char == ' ' && cells[fin - 1].style.isDefault) {
+    while (fin > 0 &&
+        cells[fin - 1].char == ' ' &&
+        cells[fin - 1].style.isDefault) {
       fin--;
     }
     return cells.sublist(0, fin);

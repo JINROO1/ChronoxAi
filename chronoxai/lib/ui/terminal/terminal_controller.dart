@@ -90,7 +90,8 @@ class TerminalController extends ChangeNotifier {
   TerminalViewState get state => _state;
 
   /// `true` si merece la pena ofrecer el reintento.
-  bool get canRetry => _state.status == TerminalStatus.failed ||
+  bool get canRetry =>
+      _state.status == TerminalStatus.failed ||
       _state.status == TerminalStatus.exited;
 
   /// Abre la sesión.

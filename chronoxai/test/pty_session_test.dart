@@ -37,7 +37,8 @@ class CanalFalso {
   }
 
   /// Envía un evento del lado nativo hacia Dart.
-  Future<void> emitir(final String metodo, final Map<String, Object?> args) async {
+  Future<void> emitir(
+      final String metodo, final Map<String, Object?> args) async {
     await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .handlePlatformMessage(
       'app.chronoxai/pty',
@@ -104,7 +105,8 @@ void main() {
       );
 
       final recibido = <String>[];
-      sesion.output.listen((final bytes) => recibido.add(String.fromCharCodes(bytes)));
+      sesion.output
+          .listen((final bytes) => recibido.add(String.fromCharCodes(bytes)));
 
       await canal.emitir('output', <String, Object?>{
         'id': 1,
@@ -152,7 +154,8 @@ void main() {
       final ok = await sesion.write('ls\r');
 
       expect(ok, isTrue);
-      final escritura = canal.llamadas.firstWhere((final c) => c.method == 'write');
+      final escritura =
+          canal.llamadas.firstWhere((final c) => c.method == 'write');
       final args = escritura.arguments as Map<Object?, Object?>;
       expect((args['data']! as Uint8List).toList(), 'ls\r'.codeUnits);
     });
@@ -168,7 +171,8 @@ void main() {
 
       await sesion.writeBytes(const <int>[ControlKeys.ctrlC]);
 
-      final escritura = canal.llamadas.firstWhere((final c) => c.method == 'write');
+      final escritura =
+          canal.llamadas.firstWhere((final c) => c.method == 'write');
       final args = escritura.arguments as Map<Object?, Object?>;
       expect((args['data']! as Uint8List).toList(), <int>[3]);
     });
@@ -191,9 +195,11 @@ void main() {
       );
     });
 
-    test('sin lado nativo la sesión falla en vez de quedarse colgada', () async {
+    test('sin lado nativo la sesión falla en vez de quedarse colgada',
+        () async {
       // Canal sin manejador: es lo que ocurre en `flutter test`.
-      final sesion = PtySession(command: 'proot', channel: const MethodChannel('app.chronoxai/pty'));
+      final sesion = PtySession(
+          command: 'proot', channel: const MethodChannel('app.chronoxai/pty'));
 
       final ok = await sesion.start(
         binary: '/bin/sh',

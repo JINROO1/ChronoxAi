@@ -35,7 +35,8 @@ abstract final class MenuScript {
   static String comandoInterior({
     String shell = shellPorDefecto,
     String term = terminal,
-  }) => 'TERM=$term exec $shell -l';
+  }) =>
+      'TERM=$term exec $shell -l';
 
   /// Argumentos de `script` para un shell interactivo.
   ///
@@ -46,14 +47,15 @@ abstract final class MenuScript {
   static List<String> argumentos({
     String shell = shellPorDefecto,
     String term = terminal,
-  }) => <String>[
-    'script',
-    '-q',
-    '-f',
-    '-e',
-    '-c',
-    comandoInterior(shell: shell, term: term),
-  ];
+  }) =>
+      <String>[
+        'script',
+        '-q',
+        '-f',
+        '-e',
+        '-c',
+        comandoInterior(shell: shell, term: term),
+      ];
 
   /// Comando completo que se pasa a proot: `sh -c "… exec script …"`.
   ///
@@ -63,11 +65,12 @@ abstract final class MenuScript {
   static List<String> envolturaInterior({
     String shell = shellPorDefecto,
     String term = terminal,
-  }) => <String>[
-    '/bin/sh',
-    '-c',
-    'TERM=$term exec script -q -f -e -c "exec $shell -l"',
-  ];
+  }) =>
+      <String>[
+        '/bin/sh',
+        '-c',
+        'TERM=$term exec script -q -f -e -c "exec $shell -l"',
+      ];
 
   /// Rutas donde puede estar `script` dentro del rootfs.
   ///
@@ -75,12 +78,13 @@ abstract final class MenuScript {
   /// pero se comprueban las dos porque el rootfs puede venir de una imagen
   /// anterior al merge.
   static List<String> rutasCandidatas(final String rootfs) => <String>[
-    '$rootfs/usr/bin/script',
-    '$rootfs/bin/script',
-  ];
+        '$rootfs/usr/bin/script',
+        '$rootfs/bin/script',
+      ];
 
   /// `true` si el rootfs tiene `script`. Sin él no hay terminal interactiva, y
   /// es mejor saberlo antes de abrir una pantalla vacía.
-  static bool disponible(final String rootfs) => rutasCandidatas(rootfs)
-      .any((final ruta) => FileSystemEntity.typeSync(ruta) != FileSystemEntityType.notFound);
+  static bool disponible(final String rootfs) =>
+      rutasCandidatas(rootfs).any((final ruta) =>
+          FileSystemEntity.typeSync(ruta) != FileSystemEntityType.notFound);
 }

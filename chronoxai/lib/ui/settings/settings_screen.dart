@@ -627,7 +627,8 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
     }
 
     final current = ref.read(sessionProvider);
-    if (widget.sessionId != null && current?.log.sessionId == widget.sessionId) {
+    if (widget.sessionId != null &&
+        current?.log.sessionId == widget.sessionId) {
       Navigator.of(context).pop();
       return;
     }

@@ -68,13 +68,14 @@ dsh Standard incluye búsqueda web; aquí solo hay `web_fetch`.
 
 Hoy solo existe el adaptador OpenAI-compatible.
 
-- [ ] `AnthropicClient`: Messages API con streaming SSE, bloques `tool_use`,
+- [x] `AnthropicClient`: Messages API con streaming SSE, bloques `tool_use`,
       cabeceras `x-api-key` / `anthropic-version`, uso de tokens
-- [ ] `GeminiClient`: `streamGenerateContent?alt=sse`, `functionDeclarations`,
+- [x] `GeminiClient`: `streamGenerateContent?alt=sse`, `functionDeclarations`,
       partes `functionCall` / `functionResponse`
-- [ ] Ajustes: selector de tipo de proveedor (OpenAI-compatible / Anthropic /
+- [x] Ajustes: selector de tipo de proveedor (OpenAI-compatible / Anthropic /
       Gemini) con campos por tipo
-- [ ] Tests con cliente HTTP falso para ambos adaptadores
+- [x] Tests con cliente HTTP falso para ambos adaptadores (246 tests en verde,
+      run `45290686923`)
 
 ## Fase 6 — Cliente MCP (Model Context Protocol)
 

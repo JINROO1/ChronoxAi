@@ -18,6 +18,7 @@
         android:name="${applicationName}"
         android:label="Chronox AI"
         android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:extractNativeLibs="true"
         android:requestLegacyExternalStorage="true"
         android:allowBackup="false"

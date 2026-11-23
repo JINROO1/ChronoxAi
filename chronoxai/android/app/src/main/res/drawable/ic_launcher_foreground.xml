@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Icono de la app: un rayo dentro de un hexágono, con el gradiente cian-violeta
+  de la interfaz. Vectorial a propósito: un solo fichero cubre todas las
+  densidades y no añade binarios al repo.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Hexágono de fondo -->
+    <path
+        android:pathData="M54,14 L88,34 L88,74 L54,94 L20,74 L20,34 Z"
+        android:strokeWidth="3"
+        android:strokeColor="#4DE1C1"
+        android:fillColor="#121626" />
+
+    <!-- Rayo -->
+    <path
+        android:pathData="M60,28 L40,58 L52,58 L46,80 L68,48 L55,48 Z"
+        android:fillColor="#8B7BFF" />
+</vector>

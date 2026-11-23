@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:chronoxai/data/runtime/pty_session.dart';
@@ -248,9 +249,29 @@ void main() {
       expect(args[2], contains('exec /bin/bash -l'));
     });
 
-    test('en un sistema real, script existe si el rootfs lo tiene', () {
-      // Sin rootfs no hay nada que comprobar: el contrato es "false, no error".
+    test('sin rootfs disponible() dice false, no lanza', () {
       expect(MenuScript.disponible('/ruta/que/no/existe'), isFalse);
+    });
+
+    test('disponible() encuentra /usr/bin/script en un rootfs real', () {
+      // Debian bookworm (bsdutils, Essential: yes) instala script en
+      // /usr/bin/script. Se reproduce ese layout en un directorio temporal:
+      // es la comprobación que hace la app antes de abrir la terminal, y si
+      // mira la ruta equivocada la terminal no se abre nunca.
+      final raiz = Directory.systemTemp.createTempSync('rootfs_script_');
+      addTearDown(() => raiz.deleteSync(recursive: true));
+
+      expect(MenuScript.disponible(raiz.path), isFalse);
+
+      Directory('${raiz.path}/usr/bin').createSync(recursive: true);
+      File('${raiz.path}/usr/bin/script').writeAsStringSync('');
+
+      expect(MenuScript.disponible(raiz.path), isTrue);
+      expect(
+        MenuScript.rutasCandidatas(raiz.path).first,
+        '${raiz.path}/usr/bin/script',
+        reason: 'la primera ruta probada debe ser la de bookworm',
+      );
     });
   });
 }

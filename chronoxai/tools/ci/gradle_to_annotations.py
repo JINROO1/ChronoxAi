@@ -28,6 +28,14 @@ MANIFEST = re.compile(
 )
 # "error: resource ... not found" y mensajes de AAPT2.
 AAPT = re.compile(r"^(?P<path>[\w./-]+\.xml):(?P<line>\d+):\s*error:\s*(?P<msg>.+)$")
+# Errores del compilador de Dart, que solo aparecen al compilar (analyze los da
+# como info o los tolera): "lib/ui/x.dart:12:5: Error: The argument type ...".
+DART = re.compile(
+    r"^(?P<path>[\w./-]+\.dart):(?P<line>\d+):(?P<col>\d+):\s*"
+    r"(?:Error|error):\s*(?P<msg>.+)$"
+)
+# "Target kernel_snapshot failed: ..." abre el bloque de errores de Dart.
+TARGET = re.compile(r"^Target (?P<target>\w+) failed")
 
 
 def escape(text: str) -> str:
@@ -58,7 +66,7 @@ def main() -> int:
     for index, raw in enumerate(lines):
         line = raw.rstrip("\n")
 
-        for pattern in (KOTLIN, MANIFEST, AAPT):
+        for pattern in (KOTLIN, MANIFEST, AAPT, DART):
             match = pattern.match(line.strip())
             if match:
                 data = match.groupdict()
@@ -88,6 +96,23 @@ def main() -> int:
                     index + 1,
                     " ".join(detail)[:900] or match.group("task"),
                     f"Fallo en {match.group('task')}",
+                )
+                continue
+
+            target = TARGET.match(line.strip())
+            if target:
+                # El mensaje del target es genérico; lo útil son las líneas
+                # siguientes, que traen los errores reales del compilador.
+                detail = [
+                    follow.strip()
+                    for follow in lines[index + 1 : index + 20]
+                    if follow.strip() and "Error" in follow
+                ]
+                add(
+                    ".github",
+                    index + 1,
+                    " ".join(detail)[:900] or target.group("target"),
+                    f"Fallo en {target.group('target')}",
                 )
                 continue
 

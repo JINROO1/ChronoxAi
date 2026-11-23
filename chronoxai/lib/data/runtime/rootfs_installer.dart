@@ -318,10 +318,11 @@ class RootfsInstaller {
       // cancelación; cualquier otro caso se trata como fallo normal.
       await _deleteDir(_partialDir);
       if (_cancelled) return _cancelledResult();
-      const message = 'El archivo de la imagen está corrupto.';
+      const mensaje = 'El archivo de la imagen está corrupto.';
       report(
-          const InstallProgress(phase: InstallPhase.failed, message: message));
-      return const InstallResult(success: false, message: message);
+        const InstallProgress(phase: InstallPhase.failed, message: mensaje),
+      );
+      return const InstallResult(success: false, message: mensaje);
     } catch (error) {
       await _deleteDir(_partialDir);
       final message = 'Instalación interrumpida: $error';

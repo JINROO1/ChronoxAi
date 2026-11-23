@@ -58,7 +58,25 @@ jobs:
       # de pub mientras los demás jobs (con el mismo pubspec) sí resolvían.
       - name: Aplicar formato
         working-directory: ${{ env.PROJECT_DIR }}
-        run: dart format lib test
+        run: |
+          # La salida se publica como anotación porque los logs de Actions no
+          # siempre son accesibles; sin esto un fallo del formateador deja solo
+          # "exit code 65" y no se sabe qué fichero lo provocó.
+          set +e
+          dart format lib test > /tmp/fmt.txt 2>&1
+          estado=$?
+          cat /tmp/fmt.txt
+          if [ $estado -ne 0 ]; then
+            python3 - <<'PYINFO'
+          import os
+          ruta = '/tmp/fmt.txt'
+          texto = open(ruta, encoding='utf-8', errors='replace').read() if os.path.exists(ruta) else ''
+          lineas = [l for l in texto.splitlines() if l.strip()][:25] or ['(sin salida)']
+          for linea in lineas:
+              print('::error title=Error de formato::' + linea.replace('%', '%25').replace('\r', ''))
+          PYINFO
+            exit $estado
+          fi
 
       - name: Commit si hubo cambios
         run: |

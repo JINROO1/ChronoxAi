@@ -58,11 +58,11 @@ class OpenAiCompatibleClient implements LlmProvider {
   }
 
   Map<String, String> get _headers => <String, String>{
-        'Content-Type': 'application/json',
-        'Accept': 'text/event-stream',
-        if (apiKey.isNotEmpty) 'Authorization': 'Bearer $apiKey',
-        if (organization != null) 'OpenAI-Organization': organization!,
-      };
+    'Content-Type': 'application/json',
+    'Accept': 'text/event-stream',
+    if (apiKey.isNotEmpty) 'Authorization': 'Bearer $apiKey',
+    if (organization != null) 'OpenAI-Organization': organization!,
+  };
 
   @override
   Stream<LlmChunk> stream({
@@ -120,54 +120,53 @@ class OpenAiCompatibleClient implements LlmProvider {
               .transform(utf8.decoder)
               .transform(const LineSplitter())
               .listen(
-            (final line) {
-              if (controller.isClosed) return;
-              final trimmed = line.trim();
-              if (trimmed.isEmpty || trimmed.startsWith(':')) return;
+                (final line) {
+                  if (controller.isClosed) return;
+                  final trimmed = line.trim();
+                  if (trimmed.isEmpty || trimmed.startsWith(':')) return;
 
-              if (!trimmed.startsWith('data:')) {
-                // Algunos proveedores mandan líneas `event:` que se ignoran.
-                return;
-              }
-              final payload = trimmed.substring(5).trim();
-              if (payload == '[DONE]') return;
+                  if (!trimmed.startsWith('data:')) {
+                    // Algunos proveedores mandan líneas `event:` que se ignoran.
+                    return;
+                  }
+                  final payload = trimmed.substring(5).trim();
+                  if (payload == '[DONE]') return;
 
-              try {
-                final json = jsonDecode(payload) as Map<String, Object?>;
-                _handleChunk(json, controller, pending, (final u) => usage = u,
-                    (final r) => stopReason = r);
-              } on FormatException {
-                // Un fragmento malformado no debe matar el stream: algunos
-                // proveedores intercalan keep-alives no JSON.
-              }
-            },
-            onError: (final Object error) {
-              if (!controller.isClosed) {
-                controller.addError(_asLlmException(error));
-                unawaited(controller.close());
-              }
-            },
-            onDone: () {
-              if (controller.isClosed) return;
-              // Cierre: ahora sí se pueden decodificar los argumentos.
-              for (final entry in pending.values) {
-                final call = entry.build();
-                if (call != null) {
-                  controller.add(
-                    ToolCallChunk(
-                      index: entry.index,
-                      id: call.id,
-                      name: call.name,
-                      argumentsFragment: jsonEncode(call.arguments),
-                    ),
-                  );
-                }
-              }
-              controller.add(DoneChunk(usage: usage, stopReason: stopReason));
-              unawaited(controller.close());
-            },
-            cancelOnError: true,
-          );
+                  try {
+                    final json =
+                        jsonDecode(payload) as Map<String, Object?>;
+                    _handleChunk(json, controller, pending, (final u) => usage = u,
+                        (final r) => stopReason = r);
+                  } on FormatException {
+                    // Un fragmento malformado no debe matar el stream: algunos
+                    // proveedores intercalan keep-alives no JSON.
+                  }
+                },
+                onError: (final Object error) {
+                  if (!controller.isClosed) {
+                    controller.addError(_asLlmException(error));
+                    unawaited(controller.close());
+                  }
+                },
+                onDone: () {
+                  if (controller.isClosed) return;
+                  // Cierre: aquí los argumentos ya están completos.
+                  for (final entry in pending.values) {
+                    if (!entry.isComplete) continue;
+                    controller.add(
+                      ToolCallChunk(
+                        index: entry.index,
+                        id: entry.id ?? 'call_${entry.index}',
+                        name: entry.name,
+                        argumentsFragment: entry.arguments.toString(),
+                      ),
+                    );
+                  }
+                  controller.add(DoneChunk(usage: usage, stopReason: stopReason));
+                  unawaited(controller.close());
+                },
+                cancelOnError: true,
+              );
         } catch (error) {
           if (!controller.isClosed) {
             controller.addError(_asLlmException(error));
@@ -194,8 +193,9 @@ class OpenAiCompatibleClient implements LlmProvider {
         LlmUsage(
           inputTokens: (usageJson['prompt_tokens'] as num?)?.toInt() ?? 0,
           outputTokens: (usageJson['completion_tokens'] as num?)?.toInt() ?? 0,
-          cachedInputTokens: (usageJson['prompt_tokens_details']
-                  as Map<String, Object?>?)?['cached_tokens'] as int? ??
+          cachedInputTokens:
+              (usageJson['prompt_tokens_details'] as Map<String, Object?>?)?['cached_tokens']
+                  as int? ??
               0,
         ),
       );
@@ -218,7 +218,8 @@ class OpenAiCompatibleClient implements LlmProvider {
     }
 
     // DeepSeek expone el razonamiento en `reasoning_content`.
-    final reasoning = delta['reasoning_content'] ?? delta['reasoning'];
+    final reasoning =
+        delta['reasoning_content'] ?? delta['reasoning'];
     if (reasoning is String && reasoning.isNotEmpty) {
       controller.add(ReasoningChunk(reasoning));
     }
@@ -323,9 +324,14 @@ class OpenAiCompatibleClient implements LlmProvider {
       'Error de red: $error',
     );
   }
+
 }
 
-/// Acumula los fragmentos de una `tool_call` hasta poder decodificarla.
+/// Acumula los fragmentos de una `tool_call` hasta tenerla completa.
+///
+/// No decodifica el JSON a propósito: si los argumentos llegan mal formados, el
+/// motor debe enterarse para pedirle al modelo que los corrija. Descartarlos aquí
+/// dejaría al modelo sin explicación de por qué su herramienta no se ejecutó.
 class _ToolCallBuffer {
   _ToolCallBuffer(this.index);
 
@@ -334,39 +340,5 @@ class _ToolCallBuffer {
   String? name;
   final StringBuffer arguments = StringBuffer();
 
-  LlmToolCall? build() {
-    final callName = name;
-    // Nombre ausente = la llamada no se puede ejecutar; se descarta y el modelo
-    // verá que no hubo resultado.
-    if (callName == null) return null;
-    // El id puede faltar en proveedores no estándar: se sintetiza uno estable
-    // para que el mensaje `tool` posterior siga siendo válido.
-    final callId = id ?? 'call_$index';
-
-    final raw = arguments.toString().trim();
-    if (raw.isEmpty) {
-      return LlmToolCall(
-          id: callId, name: callName, arguments: const <String, Object?>{});
-    }
-
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is Map<String, Object?>) {
-        return LlmToolCall(id: callId, name: callName, arguments: decoded);
-      }
-      return LlmToolCall(
-        id: callId,
-        name: callName,
-        arguments: const <String, Object?>{},
-        parseError: 'Los argumentos no son un objeto JSON: $raw',
-      );
-    } on FormatException catch (e) {
-      return LlmToolCall(
-        id: callId,
-        name: callName,
-        arguments: const <String, Object?>{},
-        parseError: 'JSON inválido en los argumentos ($e). Recibido: $raw',
-      );
-    }
-  }
+  bool get isComplete => name != null;
 }

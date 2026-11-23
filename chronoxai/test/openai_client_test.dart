@@ -204,7 +204,8 @@ void main() {
       expect(calls[1].index, 1);
     });
 
-    test('un tool_call con JSON roto no se entrega como ejecutable', () async {
+    test('un tool_call con JSON roto se entrega para poder corregirlo',
+        () async {
       final sse = chunk(
         <String, Object?>{
           'tool_calls': <Object?>[
@@ -228,7 +229,11 @@ void main() {
         ),
       );
 
-      expect(chunks.whereType<ToolCallChunk>(), isEmpty);
+      // El texto ensamblado llega tal cual; quien decide si es válido y qué
+      // contarle al modelo es el motor, no el cliente.
+      final call = chunks.whereType<ToolCallChunk>().single;
+      expect(call.name, 'read');
+      expect(call.argumentsFragment, '{"path"');
       expect(chunks.whereType<DoneChunk>(), hasLength(1));
     });
 

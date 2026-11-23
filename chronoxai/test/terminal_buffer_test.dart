@@ -199,7 +199,8 @@ void main() {
       final buffer = TerminalBuffer(columns: 80, rows: 10);
       buffer.writeText('uno\r\ndos\r\n');
       // Sube dos líneas (de la tercera a la primera) y escribe detrás de "uno".
-      buffer.writeText('\x1B[2A\x1B[3G!');
+      // ESC[4G es la columna 4 contando desde 1: justo detrás de la "o".
+      buffer.writeText('\x1B[2A\x1B[4G!');
 
       final fila = buffer.cursorRow - buffer.lineOffset;
       expect(fila, 0, reason: 'el cursor debe estar en la primera línea');

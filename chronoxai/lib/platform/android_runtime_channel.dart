@@ -122,29 +122,44 @@ class AndroidRuntimeChannel {
       if (result == null) {
         return _fallback(filesDir, note: 'el canal nativo devolvió nulo');
       }
+      // Los valores se convierten con comprobaciones de tipo explícitas: un
+      // cast a `bool?` sobre algo que no sea `bool` lanza `TypeError` en Dart,
+      // no `PlatformException`, y se escaparía de los `catch` de abajo.
       return PlatformFacts(
         isAndroid: true,
-        sdkInt: (result['sdkInt'] as num?)?.toInt() ?? 0,
-        abi: (result['abi'] as String?) ?? _hostAbi(),
-        pageSize: (result['pageSize'] as num?)?.toInt() ?? 4096,
-        nativeLibraryDir: result['nativeLibraryDir'] as String?,
-        filesDir: (result['filesDir'] as String?) ?? filesDir,
-        cacheDir: (result['cacheDir'] as String?) ?? Directory.systemTemp.path,
-        selinuxEnforcing: (result['selinuxEnforcing'] as bool?) ?? false,
-        targetSdk: (result['targetSdk'] as num?)?.toInt() ?? 0,
-        selinuxDomain: result['selinuxDomain'] as String?,
-        canExecuteFromData: result['canExecuteFromData'] as bool?,
-        manufacturer: (result['manufacturer'] as String?) ?? '',
-        model: (result['model'] as String?) ?? '',
-        release: (result['release'] as String?) ?? '',
+        sdkInt: _asInt(result['sdkInt']) ?? 0,
+        abi: _asString(result['abi']) ?? _hostAbi(),
+        pageSize: _asInt(result['pageSize']) ?? 4096,
+        nativeLibraryDir: _asString(result['nativeLibraryDir']),
+        filesDir: _asString(result['filesDir']) ?? filesDir,
+        cacheDir: _asString(result['cacheDir']) ?? Directory.systemTemp.path,
+        selinuxEnforcing: _asBool(result['selinuxEnforcing']) ?? false,
+        targetSdk: _asInt(result['targetSdk']) ?? 0,
+        selinuxDomain: _asString(result['selinuxDomain']),
+        canExecuteFromData: _asBool(result['canExecuteFromData']),
+        manufacturer: _asString(result['manufacturer']) ?? '',
+        model: _asString(result['model']) ?? '',
+        release: _asString(result['release']) ?? '',
       );
     } on MissingPluginException {
       return _fallback(filesDir, note: 'falta el lado Kotlin del canal');
     } on PlatformException catch (e) {
       return _fallback(filesDir,
           note: 'error en el canal nativo: ${e.message}');
+    } catch (e) {
+      // Cualquier otra cosa (tipo inesperado, canal mal versionado) no debe
+      // tumbar el arranque de la app: se degrada y se informa.
+      return _fallback(filesDir, note: 'respuesta inesperada del canal: $e');
     }
   }
+
+  static int? _asInt(final Object? value) =>
+      value is num ? value.toInt() : null;
+
+  static String? _asString(final Object? value) =>
+      value is String ? value : null;
+
+  static bool? _asBool(final Object? value) => value is bool ? value : null;
 
   /// Ruta del `.so` que contiene proot, dentro del directorio de librerías nativas.
   ///

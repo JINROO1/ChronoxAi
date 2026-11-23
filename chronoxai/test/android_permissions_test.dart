@@ -18,11 +18,16 @@ void main() {
       // Sin este simulacro, `invokeMethod` propaga un `AssertionError` sobre el
       // binding en lugar de un `MissingPluginException`, y se estaría probando
       // un camino que no existe en la app real.
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      TestDefaultBinaryMessengerBinding
+          .instance
+          .defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('app.chronoxai/permissions'),
-        (final call) async => null,
-      );
+            const MethodChannel('app.chronoxai/permissions'),
+            // Map vacío: desde Dart 3, `invokeMethod<bool>` lanza TypeError si el
+            // canal responde `null`. Es lo que devuelve una implementación real
+            // que no conoce el método, así que se simula ese caso.
+            (final call) async => <String, Object?>{},
+          );
     });
 
     test('requestNotifications no concede sin canal', () async {

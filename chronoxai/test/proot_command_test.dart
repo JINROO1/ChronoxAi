@@ -187,7 +187,7 @@ void main() {
         prootLoader: '/x/loader',
         rootfs: '/x/rootfs',
         workingDirectory: '/',
-        environment: const <String, String>{'FOO': 'bar'},
+        environment: <String, String>{'FOO': 'bar'},
       );
 
       expect(ProotCommandBuilder.guestEnvironment(config)['FOO'], 'bar');

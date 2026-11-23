@@ -592,17 +592,20 @@ class _LevelOption extends StatelessWidget {
 /// reconstruir la sesión.
 Future<void> showNewSessionDialog(
   final BuildContext context,
-  final WidgetRef ref,
-) {
+  final WidgetRef ref, {
+  final String? sessionId,
+}) {
   return showDialog<void>(
     context: context,
     barrierDismissible: false,
-    builder: (final context) => const _NewSessionDialog(),
+    builder: (final context) => _NewSessionDialog(sessionId: sessionId),
   );
 }
 
 class _NewSessionDialog extends ConsumerStatefulWidget {
-  const _NewSessionDialog();
+  const _NewSessionDialog({this.sessionId});
+
+  final String? sessionId;
 
   @override
   ConsumerState<_NewSessionDialog> createState() => _NewSessionDialogState();
@@ -623,12 +626,22 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
       return;
     }
 
+    final current = ref.read(sessionProvider);
+    if (widget.sessionId != null && current?.log.sessionId == widget.sessionId) {
+      Navigator.of(context).pop();
+      return;
+    }
+
     setState(() {
       _starting = true;
       _error = null;
     });
 
     try {
+      final previous = ref.read(sessionProvider);
+      if (previous?.loop.status.isRunning ?? false) {
+        throw StateError('Cancela el turno actual antes de cambiar de sesión.');
+      }
       final sessionsDir = await ref.read(appSupportDirProvider.future);
       final mode = ref.read(activeModeProvider);
       final level = ref.read(approvalLevelProvider);
@@ -654,6 +667,7 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
         mode: mode,
         approvalLevel: level,
         sessionsDir: sessionsDir,
+        sessionId: widget.sessionId,
       );
 
       // La UI responde a las peticiones de permiso con la hoja de aprobación.
@@ -680,6 +694,9 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
         title: 'Chronox: sesión ${mode.name}',
       );
 
+      if (previous != null && !identical(previous, session)) {
+        await previous.dispose();
+      }
       ref.read(sessionProvider.notifier).state = session;
       ref.read(agentViewProvider.notifier).sync();
       if (!mounted) return;

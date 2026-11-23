@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../../domain/agent/agent_events.dart';
 import '../../domain/agent/session_archive.dart';
+import '../../domain/agent/session_log.dart';
+import '../settings/settings_screen.dart';
 import '../state/app_state.dart';
 
 Future<void> showSessionsBrowser(final BuildContext context) async {
@@ -17,15 +20,15 @@ Future<void> showSessionsBrowser(final BuildContext context) async {
   );
 }
 
-class _SessionsBrowser extends StatefulWidget {
+class _SessionsBrowser extends ConsumerStatefulWidget {
   const _SessionsBrowser({required this.archive});
   final SessionArchive archive;
 
   @override
-  State<_SessionsBrowser> createState() => _SessionsBrowserState();
+  ConsumerState<_SessionsBrowser> createState() => _SessionsBrowserState();
 }
 
-class _SessionsBrowserState extends State<_SessionsBrowser> {
+class _SessionsBrowserState extends ConsumerState<_SessionsBrowser> {
   final _query = TextEditingController();
   late Future<List<ArchivedSession>> _sessions;
 
@@ -130,6 +133,30 @@ class _SessionsBrowserState extends State<_SessionsBrowser> {
     );
   }
 
+  Future<void> _resume(final ArchivedSession session) async {
+    Navigator.of(context).pop();
+    await showNewSessionDialog(context, ref, sessionId: session.id);
+  }
+
+  Future<void> _fork(final ArchivedSession session) async {
+    try {
+      final dir = await appSessionsDirectory();
+      final source = await SessionLog.open(dir, session.id);
+      final newId = 'fork-${DateTime.now().microsecondsSinceEpoch}';
+      final forked = await source.fork(dir, newId);
+      await forked.close();
+      await source.close();
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      await showNewSessionDialog(context, ref, sessionId: newId);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo crear el fork: $error')),
+      );
+    }
+  }
+
   Future<void> _showTrajectory(
     final BuildContext context,
     final ArchivedSession session,
@@ -153,6 +180,22 @@ class _SessionsBrowserState extends State<_SessionsBrowser> {
                 Text('Tiempo modelo ${session.stats.modelTimeMs} ms · '
                     'herramientas ${session.stats.toolTimeMs} ms · '
                     'TTFT mediano ${session.stats.medianTimeToFirstTokenMs ?? '—'} ms'),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  children: <Widget>[
+                    FilledButton.icon(
+                      onPressed: () => _resume(session),
+                      icon: const Icon(Icons.play_arrow),
+                      label: const Text('Reanudar'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () => _fork(session),
+                      icon: const Icon(Icons.fork_right),
+                      label: const Text('Crear fork'),
+                    ),
+                  ],
+                ),
                 const Divider(height: 28),
                 for (final event in session.events)
                   if (event is TurnStartEvent)

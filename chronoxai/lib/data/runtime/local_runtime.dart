@@ -301,13 +301,13 @@ class UnavailableShellSeam implements ShellSeam {
     final String command, {
     final String? workingDirectory,
     final Duration? timeout,
-  }) async => ShellResult(
-    exitCode: 127,
-    stdout: '',
-    stderr:
-        '${status.title}: no se pueden ejecutar comandos todavía.\n'
-        '${status.message}',
-  );
+  }) async =>
+      ShellResult(
+        exitCode: 127,
+        stdout: '',
+        stderr: '${status.title}: no se pueden ejecutar comandos todavía.\n'
+            '${status.message}',
+      );
 }
 
 /// `ctx.fs` sobre el workspace del dispositivo.

@@ -17,30 +17,30 @@ class LlmMessage {
   });
 
   const LlmMessage.system(this.content)
-    : role = MessageRole.system,
-      toolCallId = null,
-      toolCalls = const <LlmToolCall>[],
-      reasoning = null;
+      : role = MessageRole.system,
+        toolCallId = null,
+        toolCalls = const <LlmToolCall>[],
+        reasoning = null;
 
   const LlmMessage.user(this.content)
-    : role = MessageRole.user,
-      toolCallId = null,
-      toolCalls = const <LlmToolCall>[],
-      reasoning = null;
+      : role = MessageRole.user,
+        toolCallId = null,
+        toolCalls = const <LlmToolCall>[],
+        reasoning = null;
 
   const LlmMessage.assistant(
     this.content, {
     this.toolCalls = const <LlmToolCall>[],
     this.reasoning,
-  }) : role = MessageRole.assistant,
-       toolCallId = null;
+  })  : role = MessageRole.assistant,
+        toolCallId = null;
 
   const LlmMessage.toolResult({
     required this.toolCallId,
     required this.content,
-  }) : role = MessageRole.tool,
-       toolCalls = const <LlmToolCall>[],
-       reasoning = null;
+  })  : role = MessageRole.tool,
+        toolCalls = const <LlmToolCall>[],
+        reasoning = null;
 
   final MessageRole role;
   final String content;
@@ -55,12 +55,12 @@ class LlmMessage {
   final String? reasoning;
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'role': role.name,
-    'content': content,
-    if (toolCallId != null) 'tool_call_id': toolCallId,
-    if (toolCalls.isNotEmpty)
-      'tool_calls': toolCalls.map((final c) => c.toJson()).toList(),
-  };
+        'role': role.name,
+        'content': content,
+        if (toolCallId != null) 'tool_call_id': toolCallId,
+        if (toolCalls.isNotEmpty)
+          'tool_calls': toolCalls.map((final c) => c.toJson()).toList(),
+      };
 }
 
 /// Una llamada a herramienta pedida por el modelo.
@@ -83,13 +83,13 @@ class LlmToolCall {
   final String? parseError;
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'id': id,
-    'type': 'function',
-    'function': <String, Object?>{
-      'name': name,
-      'arguments': arguments,
-    },
-  };
+        'id': id,
+        'type': 'function',
+        'function': <String, Object?>{
+          'name': name,
+          'arguments': arguments,
+        },
+      };
 }
 
 /// Uso de tokens de una respuesta.
@@ -192,7 +192,8 @@ enum LlmErrorKind {
 }
 
 class LlmException implements Exception {
-  const LlmException(this.kind, this.message, {this.statusCode, this.retryAfter});
+  const LlmException(this.kind, this.message,
+      {this.statusCode, this.retryAfter});
 
   final LlmErrorKind kind;
   final String message;
@@ -202,10 +203,13 @@ class LlmException implements Exception {
   final Duration? retryAfter;
 
   bool get isRetryable => switch (kind) {
-    LlmErrorKind.rateLimit || LlmErrorKind.network || LlmErrorKind.server => true,
-    LlmErrorKind.auth || LlmErrorKind.contextLength => false,
-    LlmErrorKind.unknown => false,
-  };
+        LlmErrorKind.rateLimit ||
+        LlmErrorKind.network ||
+        LlmErrorKind.server =>
+          true,
+        LlmErrorKind.auth || LlmErrorKind.contextLength => false,
+        LlmErrorKind.unknown => false,
+      };
 
   @override
   String toString() => 'LlmException(${kind.name}): $message';

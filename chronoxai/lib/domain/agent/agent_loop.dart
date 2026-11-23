@@ -15,7 +15,8 @@ import 'tool_registry.dart';
 /// Se inyecta desde la UI. Si no se proporciona, el motor rechaza las acciones
 /// que necesitan permiso: fallar hacia el lado seguro es preferible a ejecutar
 /// algo destructivo sin que nadie lo haya visto.
-typedef ApprovalHandler = Future<ApprovalAnswer> Function(ApprovalRequest request);
+typedef ApprovalHandler = Future<ApprovalAnswer> Function(
+    ApprovalRequest request);
 
 class ApprovalRequest {
   const ApprovalRequest({
@@ -37,7 +38,9 @@ class ApprovalAnswer {
     this.rememberForSession = false,
   });
 
-  const ApprovalAnswer.denied() : approved = false, rememberForSession = false;
+  const ApprovalAnswer.denied()
+      : approved = false,
+        rememberForSession = false;
 
   final bool approved;
   final bool rememberForSession;
@@ -116,8 +119,8 @@ class AgentLoop {
     required this.modeId,
     ApprovalHandler? approvalHandler,
     LlmSeam? llm,
-  }) : _approvalHandler = approvalHandler,
-       _llm = llm;
+  })  : _approvalHandler = approvalHandler,
+        _llm = llm;
 
   final LlmProvider provider;
   final ToolRegistry registry;
@@ -153,7 +156,8 @@ class AgentLoop {
   /// `rejected` o `error`.
   Future<String> runTurn(final String userInput) async {
     if (_status.isRunning) {
-      throw StateError('Ya hay un turno en curso. Cancélalo antes de empezar otro.');
+      throw StateError(
+          'Ya hay un turno en curso. Cancélalo antes de empezar otro.');
     }
 
     _cancelled = false;
@@ -209,9 +213,8 @@ class AgentLoop {
       final response = await _streamWithRetries(
         messages: messages,
         tools: toolSchemas,
-        onFirstToken: () => firstTokenAt ??= DateTime.now()
-            .difference(started)
-            .inMilliseconds,
+        onFirstToken: () =>
+            firstTokenAt ??= DateTime.now().difference(started).inMilliseconds,
       );
 
       if (_cancelled) return 'cancelled';
@@ -304,8 +307,8 @@ class AgentLoop {
         if (!error.isRetryable || attempt >= config.maxRetries) rethrow;
 
         attempt++;
-        final delay = error.retryAfter ??
-            config.retryBaseDelay * (1 << (attempt - 1));
+        final delay =
+            error.retryAfter ?? config.retryBaseDelay * (1 << (attempt - 1));
         _status = _status.copyWith(
           activity: 'Reintentando en ${delay.inSeconds}s '
               '(${attempt}/${config.maxRetries})…',
@@ -336,7 +339,8 @@ class AgentLoop {
       completer.complete(
         LlmResponse(
           content: contentBuffer.toString(),
-          reasoning: reasoningBuffer.isEmpty ? null : reasoningBuffer.toString(),
+          reasoning:
+              reasoningBuffer.isEmpty ? null : reasoningBuffer.toString(),
           usage: usage,
           stopReason: 'cancelled',
         ),
@@ -344,68 +348,72 @@ class AgentLoop {
     };
     _activeStream = provider
         .stream(
-          messages: messages,
-          tools: tools,
-          temperature: config.temperature,
-          maxTokens: config.maxTokens,
-        )
+      messages: messages,
+      tools: tools,
+      temperature: config.temperature,
+      maxTokens: config.maxTokens,
+    )
         .listen(
-          (final chunk) {
-            switch (chunk) {
-              case TextChunk(:final text):
-                if (!sawFirstToken) {
-                  sawFirstToken = true;
-                  onFirstToken();
-                }
-                contentBuffer.write(text);
-                events.emit(AssistantDeltaEvent(text));
-              case ReasoningChunk(:final text):
-                reasoningBuffer.write(text);
-                events.emit(ReasoningDeltaEvent(text));
-              case ToolCallChunk(:final index, :final id, :final name, :final argumentsFragment):
-                // Los fragmentos ya vienen ensamblados por el cliente: aquí solo
-                // se guarda la versión final de cada índice.
-                if (id != null && name != null && argumentsFragment != null) {
-                  final decoded = _tryDecode(argumentsFragment);
-                  toolCalls[index] = LlmToolCall(
-                    id: id,
-                    name: name,
-                    arguments: decoded ?? const <String, Object?>{},
-                    parseError: decoded == null
-                        ? 'JSON inválido en los argumentos: $argumentsFragment'
-                        : null,
-                  );
-                }
-              case DoneChunk():
-                usage = chunk.usage;
-                stopReason = chunk.stopReason;
+      (final chunk) {
+        switch (chunk) {
+          case TextChunk(:final text):
+            if (!sawFirstToken) {
+              sawFirstToken = true;
+              onFirstToken();
             }
-          },
-          onError: (final Object error) {
-            if (!completer.isCompleted) {
-              completer.completeError(
-                error is LlmException
-                    ? error
-                    : LlmException(LlmErrorKind.network, 'Error de red: $error'),
+            contentBuffer.write(text);
+            events.emit(AssistantDeltaEvent(text));
+          case ReasoningChunk(:final text):
+            reasoningBuffer.write(text);
+            events.emit(ReasoningDeltaEvent(text));
+          case ToolCallChunk(
+              :final index,
+              :final id,
+              :final name,
+              :final argumentsFragment
+            ):
+            // Los fragmentos ya vienen ensamblados por el cliente: aquí solo
+            // se guarda la versión final de cada índice.
+            if (id != null && name != null && argumentsFragment != null) {
+              final decoded = _tryDecode(argumentsFragment);
+              toolCalls[index] = LlmToolCall(
+                id: id,
+                name: name,
+                arguments: decoded ?? const <String, Object?>{},
+                parseError: decoded == null
+                    ? 'JSON inválido en los argumentos: $argumentsFragment'
+                    : null,
               );
             }
-          },
-          onDone: () {
-            if (completer.isCompleted) return;
-            completer.complete(
-              LlmResponse(
-                content: contentBuffer.toString(),
-                toolCalls: toolCalls.values.toList(),
-                reasoning: reasoningBuffer.isEmpty
-                    ? null
-                    : reasoningBuffer.toString(),
-                usage: usage,
-                stopReason: stopReason,
-              ),
-            );
-          },
-          cancelOnError: true,
+          case DoneChunk():
+            usage = chunk.usage;
+            stopReason = chunk.stopReason;
+        }
+      },
+      onError: (final Object error) {
+        if (!completer.isCompleted) {
+          completer.completeError(
+            error is LlmException
+                ? error
+                : LlmException(LlmErrorKind.network, 'Error de red: $error'),
+          );
+        }
+      },
+      onDone: () {
+        if (completer.isCompleted) return;
+        completer.complete(
+          LlmResponse(
+            content: contentBuffer.toString(),
+            toolCalls: toolCalls.values.toList(),
+            reasoning:
+                reasoningBuffer.isEmpty ? null : reasoningBuffer.toString(),
+            usage: usage,
+            stopReason: stopReason,
+          ),
         );
+      },
+      cancelOnError: true,
+    );
 
     return completer.future;
   }
@@ -423,7 +431,8 @@ class AgentLoop {
   /// Ejecuta una herramienta pasando por la política de aprobación.
   Future<_ToolExecutionOutcome> _executeTool(final LlmToolCall call) async {
     await log.append(
-      ToolCallEvent(callId: call.id, name: call.name, arguments: call.arguments),
+      ToolCallEvent(
+          callId: call.id, name: call.name, arguments: call.arguments),
     );
 
     final tool = registry[call.name];
@@ -521,7 +530,9 @@ class AgentLoop {
   static String _previewFor(final LlmToolCall call) {
     final args = call.arguments;
     return switch (call.name) {
-      'bash' || 'run_code' => (args['command'] ?? args['code'] ?? '').toString(),
+      'bash' ||
+      'run_code' =>
+        (args['command'] ?? args['code'] ?? '').toString(),
       'write' => 'Escribir ${args['path']}',
       'edit' => 'Editar ${args['path']}',
       'apply_patch' => 'Aplicar patch',
@@ -549,8 +560,8 @@ class AgentLoop {
     final truncated = content.length > config.toolOutputBudget;
     final clipped = truncated
         ? '${content.substring(0, config.toolOutputBudget)}\n\n'
-              '[salida truncada: ${content.length - config.toolOutputBudget} '
-              'caracteres omitidos]'
+            '[salida truncada: ${content.length - config.toolOutputBudget} '
+            'caracteres omitidos]'
         : content;
 
     await log.append(
@@ -630,7 +641,8 @@ class AgentLoop {
       } else if (event is ToolResultEvent) {
         if (!pendingCallIds.remove(event.callId)) continue;
         messages.add(
-          LlmMessage.toolResult(toolCallId: event.callId, content: event.content),
+          LlmMessage.toolResult(
+              toolCallId: event.callId, content: event.content),
         );
       }
     }
@@ -690,7 +702,8 @@ class AgentLoop {
           'Resume en viñetas breves lo que se ha hecho hasta ahora, '
           'centrándote en decisiones, ficheros tocados y pendientes:\n\n'
           '${PromptBuilder.transcriptForSummary(older)}',
-          system: 'Eres un asistente que resume trabajo técnico de forma concisa.',
+          system:
+              'Eres un asistente que resume trabajo técnico de forma concisa.',
         );
       } catch (_) {
         summary = PromptBuilder.deterministicSummary(older);
@@ -727,22 +740,22 @@ class AgentLoop {
   /// El mensaje crudo de una API ("401 Unauthorized: invalid_api_key") no dice
   /// a nadie qué hacer; el tipo de error sí.
   static String humanMessage(final LlmException error) => switch (error.kind) {
-    LlmErrorKind.auth =>
-      'La clave de API no es válida o ha caducado. Revísala en Ajustes.',
-    LlmErrorKind.rateLimit =>
-      'El proveedor está limitando las peticiones. Espera unos segundos y '
-          'vuelve a intentarlo.',
-    LlmErrorKind.contextLength =>
-      'La conversación no cabe en el contexto del modelo ni después de '
-          'compactarla. Empieza una sesión nueva.',
-    LlmErrorKind.network =>
-      'No se pudo conectar con el proveedor. Comprueba tu conexión: '
-          '${error.message}',
-    LlmErrorKind.server =>
-      'El proveedor devolvió un error (${error.statusCode ?? '?'}). '
-          'Reintenta en unos segundos.',
-    LlmErrorKind.unknown => error.message,
-  };
+        LlmErrorKind.auth =>
+          'La clave de API no es válida o ha caducado. Revísala en Ajustes.',
+        LlmErrorKind.rateLimit =>
+          'El proveedor está limitando las peticiones. Espera unos segundos y '
+              'vuelve a intentarlo.',
+        LlmErrorKind.contextLength =>
+          'La conversación no cabe en el contexto del modelo ni después de '
+              'compactarla. Empieza una sesión nueva.',
+        LlmErrorKind.network =>
+          'No se pudo conectar con el proveedor. Comprueba tu conexión: '
+              '${error.message}',
+        LlmErrorKind.server =>
+          'El proveedor devolvió un error (${error.statusCode ?? '?'}). '
+              'Reintenta en unos segundos.',
+        LlmErrorKind.unknown => error.message,
+      };
 
   /// Ejecuta un subagente con el mismo proveedor y registro, en un turno propio.
   ///

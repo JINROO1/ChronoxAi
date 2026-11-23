@@ -123,14 +123,15 @@ PluginTool tool(
   final String name, {
   required final bool requiresApproval,
   final ToolOutcome Function()? result,
-}) => PluginTool(
-  name: name,
-  description: 'herramienta $name',
-  inputSchema: const <String, Object?>{'type': 'object'},
-  requiresApproval: requiresApproval,
-  execute: (final _) async =>
-      result?.call() ?? const ToolOutcome(content: 'ok'),
-);
+}) =>
+    PluginTool(
+      name: name,
+      description: 'herramienta $name',
+      inputSchema: const <String, Object?>{'type': 'object'},
+      requiresApproval: requiresApproval,
+      execute: (final _) async =>
+          result?.call() ?? const ToolOutcome(content: 'ok'),
+    );
 
 void main() {
   late Directory tempDir;
@@ -196,8 +197,8 @@ void main() {
       final loop = makeLoop(provider);
       final deltas = <String>[];
       final sub = events.of<AssistantDeltaEvent>().listen(
-        (final e) => deltas.add(e.text),
-      );
+            (final e) => deltas.add(e.text),
+          );
 
       await loop.runTurn('di algo');
       await Future<void>.delayed(Duration.zero);
@@ -225,13 +226,18 @@ void main() {
   group('AgentLoop — herramientas', () {
     test('ejecuta la herramienta y devuelve su resultado al modelo', () async {
       registry.add(
-        tool('read', requiresApproval: false, result: () => const ToolOutcome(content: 'contenido')),
+        tool('read',
+            requiresApproval: false,
+            result: () => const ToolOutcome(content: 'contenido')),
       );
       final provider = FakeProvider(<LlmResponse>[
         const LlmResponse(
           content: '',
           toolCalls: <LlmToolCall>[
-            LlmToolCall(id: 'c1', name: 'read', arguments: <String, Object?>{'path': '/a'}),
+            LlmToolCall(
+                id: 'c1',
+                name: 'read',
+                arguments: <String, Object?>{'path': '/a'}),
           ],
         ),
         const LlmResponse(content: 'He leído el fichero.'),
@@ -254,7 +260,8 @@ void main() {
         const LlmResponse(
           content: '',
           toolCalls: <LlmToolCall>[
-            LlmToolCall(id: 'c1', name: 'inventada', arguments: <String, Object?>{}),
+            LlmToolCall(
+                id: 'c1', name: 'inventada', arguments: <String, Object?>{}),
           ],
         ),
         const LlmResponse(content: 'Lo intento de otra forma.'),
@@ -401,7 +408,8 @@ void main() {
           const LlmResponse(
             content: '',
             toolCalls: <LlmToolCall>[
-              LlmToolCall(id: 'c1', name: 'bash', arguments: <String, Object?>{}),
+              LlmToolCall(
+                  id: 'c1', name: 'bash', arguments: <String, Object?>{}),
             ],
           ),
         ]),
@@ -426,7 +434,8 @@ void main() {
           const LlmResponse(
             content: '',
             toolCalls: <LlmToolCall>[
-              LlmToolCall(id: 'c1', name: 'bash', arguments: <String, Object?>{}),
+              LlmToolCall(
+                  id: 'c1', name: 'bash', arguments: <String, Object?>{}),
             ],
           ),
         ]),
@@ -443,13 +452,15 @@ void main() {
           const LlmResponse(
             content: '',
             toolCalls: <LlmToolCall>[
-              LlmToolCall(id: 'c1', name: 'bash', arguments: <String, Object?>{}),
+              LlmToolCall(
+                  id: 'c1', name: 'bash', arguments: <String, Object?>{}),
             ],
           ),
           const LlmResponse(
             content: '',
             toolCalls: <LlmToolCall>[
-              LlmToolCall(id: 'c2', name: 'bash', arguments: <String, Object?>{}),
+              LlmToolCall(
+                  id: 'c2', name: 'bash', arguments: <String, Object?>{}),
             ],
           ),
           const LlmResponse(content: 'fin'),
@@ -474,7 +485,8 @@ void main() {
           const LlmResponse(
             content: '',
             toolCalls: <LlmToolCall>[
-              LlmToolCall(id: 'c1', name: 'bash', arguments: <String, Object?>{}),
+              LlmToolCall(
+                  id: 'c1', name: 'bash', arguments: <String, Object?>{}),
             ],
           ),
         ]),
@@ -501,7 +513,8 @@ void main() {
           const LlmResponse(
             content: '',
             toolCalls: <LlmToolCall>[
-              LlmToolCall(id: 'c1', name: 'read', arguments: <String, Object?>{}),
+              LlmToolCall(
+                  id: 'c1', name: 'read', arguments: <String, Object?>{}),
             ],
           ),
           const LlmResponse(content: 'ok'),
@@ -562,7 +575,8 @@ void main() {
       final provider = FlakyProvider(
         failures: List<LlmException>.generate(
           5,
-          (final i) => const LlmException(LlmErrorKind.server, 'boom', statusCode: 500),
+          (final i) =>
+              const LlmException(LlmErrorKind.server, 'boom', statusCode: 500),
         ),
         result: const LlmResponse(content: 'nunca'),
       );
@@ -675,8 +689,10 @@ void main() {
   group('ApprovalPolicy', () {
     test('guarded pregunta por escrituras y no por lecturas', () {
       final policy = ApprovalPolicy(level: ApprovalLevel.guarded);
-      expect(policy.check(tool('read', requiresApproval: false)).needsUser, isFalse);
-      expect(policy.check(tool('bash', requiresApproval: true)).needsUser, isTrue);
+      expect(policy.check(tool('read', requiresApproval: false)).needsUser,
+          isFalse);
+      expect(
+          policy.check(tool('bash', requiresApproval: true)).needsUser, isTrue);
     });
 
     test('yolo permite todo', () {
@@ -688,17 +704,20 @@ void main() {
     test('una herramienta bloqueada se deniega en cualquier nivel', () {
       final policy = ApprovalPolicy(level: ApprovalLevel.yolo)
         ..denyTool('bash');
-      expect(policy.check(tool('bash', requiresApproval: true)).isDenied, isTrue);
+      expect(
+          policy.check(tool('bash', requiresApproval: true)).isDenied, isTrue);
     });
 
     test('trust desactiva la pregunta solo para esa herramienta', () {
-      final policy = ApprovalPolicy(level: ApprovalLevel.guarded)..trust('bash');
+      final policy = ApprovalPolicy(level: ApprovalLevel.guarded)
+        ..trust('bash');
       expect(policy.check(tool('bash', requiresApproval: true)).decision,
           ApprovalDecision.allow);
       expect(policy.check(tool('write', requiresApproval: true)).needsUser,
           isTrue);
       policy.forgetTrusted();
-      expect(policy.check(tool('bash', requiresApproval: true)).needsUser, isTrue);
+      expect(
+          policy.check(tool('bash', requiresApproval: true)).needsUser, isTrue);
     });
 
     test('marca las herramientas de riesgo alto', () {

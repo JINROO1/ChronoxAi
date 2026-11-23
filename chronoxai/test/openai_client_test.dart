@@ -26,7 +26,8 @@ OpenAiCompatibleClient clientWith(
     baseUrl: 'https://api.example.com',
     apiKey: 'k',
     model: 'm',
-    clientFactory: () => MockClient.streaming((final request, final body) async {
+    clientFactory: () =>
+        MockClient.streaming((final request, final body) async {
       captured?.add(request);
       return http.StreamedResponse(
         Stream<List<int>>.fromIterable(chunks),
@@ -42,10 +43,10 @@ OpenAiCompatibleClient clientWith(
 
 String chunk(final Map<String, Object?> delta, {final String? finish}) =>
     'data: ${jsonEncode(<String, Object?>{
-      'choices': <Object?>[
-        <String, Object?>{'delta': delta, 'finish_reason': finish},
-      ],
-    })}\n\n';
+          'choices': <Object?>[
+            <String, Object?>{'delta': delta, 'finish_reason': finish},
+          ],
+        })}\n\n';
 
 Future<List<LlmChunk>> drain(final Stream<LlmChunk> stream) => stream.toList();
 
@@ -66,11 +67,10 @@ void main() {
         tools: const <Map<String, Object?>>[],
       ));
 
-      final text = chunks.whereType<TextChunk>().map((final c) => c.text).join();
-      final reasoning = chunks
-          .whereType<ReasoningChunk>()
-          .map((final c) => c.text)
-          .join();
+      final text =
+          chunks.whereType<TextChunk>().map((final c) => c.text).join();
+      final reasoning =
+          chunks.whereType<ReasoningChunk>().map((final c) => c.text).join();
       expect(text, 'Hola, mundo');
       expect(reasoning, 'pienso un poco');
       expect(chunks.whereType<DoneChunk>().single.stopReason, 'stop');
@@ -91,7 +91,8 @@ void main() {
       );
     });
 
-    test('caracteres multibyte partidos entre trozos no se corrompen', () async {
+    test('caracteres multibyte partidos entre trozos no se corrompen',
+        () async {
       final sse = chunk(<String, Object?>{'content': 'ñandú 🔥 café'});
       final chunks = await drain(clientWith(sse, chunkSize: 5).stream(
         messages: const <LlmMessage>[LlmMessage.user('x')],
@@ -111,7 +112,10 @@ void main() {
             <String, Object?>{
               'index': 0,
               'id': 'call_a',
-              'function': <String, Object?>{'name': 'read', 'arguments': '{"pa'},
+              'function': <String, Object?>{
+                'name': 'read',
+                'arguments': '{"pa'
+              },
             },
           ],
         }),
@@ -143,7 +147,8 @@ void main() {
       final calls = chunks.whereType<ToolCallChunk>().toList();
       expect(calls, hasLength(2));
 
-      final first = jsonDecode(calls[0].argumentsFragment!) as Map<String, Object?>;
+      final first =
+          jsonDecode(calls[0].argumentsFragment!) as Map<String, Object?>;
       expect(calls[0].index, 0);
       expect(calls[0].id, 'call_a');
       expect(calls[0].name, 'read');
@@ -159,7 +164,10 @@ void main() {
           <String, Object?>{
             'index': 0,
             'id': 'call_a',
-            'function': <String, Object?>{'name': 'read', 'arguments': '{"path"'},
+            'function': <String, Object?>{
+              'name': 'read',
+              'arguments': '{"path"'
+            },
           },
         ],
       }, finish: 'tool_calls');
@@ -179,13 +187,15 @@ void main() {
       final sse = <String>[
         chunk(<String, Object?>{'content': 'ok'}, finish: 'stop'),
         'data: ${jsonEncode(<String, Object?>{
-          'choices': <Object?>[],
-          'usage': <String, Object?>{
-            'prompt_tokens': 1200,
-            'completion_tokens': 34,
-            'prompt_tokens_details': <String, Object?>{'cached_tokens': 900},
-          },
-        })}\n\n',
+              'choices': <Object?>[],
+              'usage': <String, Object?>{
+                'prompt_tokens': 1200,
+                'completion_tokens': 34,
+                'prompt_tokens_details': <String, Object?>{
+                  'cached_tokens': 900
+                },
+              },
+            })}\n\n',
       ].join();
 
       final done = (await drain(clientWith(sse).stream(
@@ -232,7 +242,8 @@ void main() {
       ));
 
       final request = captured.single as http.Request;
-      expect(request.url.toString(), 'https://api.example.com/v1/chat/completions');
+      expect(request.url.toString(),
+          'https://api.example.com/v1/chat/completions');
       expect(request.headers['Authorization'], 'Bearer k');
 
       final body = jsonDecode(request.body) as Map<String, Object?>;
@@ -249,7 +260,8 @@ void main() {
         baseUrl: 'https://api.deepseek.com/v1',
         apiKey: 'k',
         model: 'm',
-        clientFactory: () => MockClient.streaming((final request, final body) async {
+        clientFactory: () =>
+            MockClient.streaming((final request, final body) async {
           captured.add(request);
           return http.StreamedResponse(
             Stream<List<int>>.value(utf8.encode('data: [DONE]\n\n')),
@@ -328,7 +340,8 @@ void main() {
         baseUrl: 'https://api.example.com',
         apiKey: 'k',
         model: 'm',
-        clientFactory: () => MockClient.streaming((final request, final body) async {
+        clientFactory: () =>
+            MockClient.streaming((final request, final body) async {
           // Nunca termina: simula un modelo que se queda pensando.
           return http.StreamedResponse(
             Stream<List<int>>.fromFuture(Completer<List<int>>().future),
@@ -338,12 +351,10 @@ void main() {
       );
 
       var cancelled = false;
-      final sub = client
-          .stream(
-            messages: const <LlmMessage>[LlmMessage.user('x')],
-            tools: const <Map<String, Object?>>[],
-          )
-          .listen((final _) {}, onDone: () => cancelled = true);
+      final sub = client.stream(
+        messages: const <LlmMessage>[LlmMessage.user('x')],
+        tools: const <Map<String, Object?>>[],
+      ).listen((final _) {}, onDone: () => cancelled = true);
 
       await Future<void>.delayed(const Duration(milliseconds: 20));
       await sub.cancel();

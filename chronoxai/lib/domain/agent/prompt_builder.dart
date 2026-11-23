@@ -184,7 +184,9 @@ propia pantalla.
     if (failedTools > 0) {
       buffer.writeln('Hubo $failedTools ejecuciones fallidas.');
     }
-    return buffer.isEmpty ? 'Sin actividad relevante.' : buffer.toString().trim();
+    return buffer.isEmpty
+        ? 'Sin actividad relevante.'
+        : buffer.toString().trim();
   }
 
   static String _clip(final String text, [final int max = 300]) {

@@ -27,7 +27,8 @@ class ArchivedSession {
   bool matches(final String query) {
     final needle = query.trim().toLowerCase();
     if (needle.isEmpty) return true;
-    if (title.toLowerCase().contains(needle) || id.toLowerCase().contains(needle)) {
+    if (title.toLowerCase().contains(needle) ||
+        id.toLowerCase().contains(needle)) {
       return true;
     }
     return events.any((final event) => _eventText(event).contains(needle));
@@ -102,14 +103,18 @@ class SessionArchive {
 
   static String _titleFor(final String id, final List<SessionEvent> events) {
     for (final event in events.reversed) {
-      if (event case SessionTitleEvent(:final title) when title.trim().isNotEmpty) {
+      if (event case SessionTitleEvent(:final title)
+          when title.trim().isNotEmpty) {
         return title.trim();
       }
     }
     for (final event in events) {
-      if (event case UserMessageEvent(:final text) when text.trim().isNotEmpty) {
+      if (event case UserMessageEvent(:final text)
+          when text.trim().isNotEmpty) {
         final normalized = text.trim().replaceAll(RegExp(r'\s+'), ' ');
-        return normalized.length > 64 ? '${normalized.substring(0, 61)}…' : normalized;
+        return normalized.length > 64
+            ? '${normalized.substring(0, 61)}…'
+            : normalized;
       }
     }
     return id;
@@ -162,7 +167,8 @@ class SessionArchive {
       outputTokens: outputTokenCount,
       modelTimeMs: modelTimeMs,
       toolTimeMs: toolTimeMs,
-      medianTimeToFirstTokenMs: ttfts.isEmpty ? null : (ttfts..sort())[ttfts.length ~/ 2],
+      medianTimeToFirstTokenMs:
+          ttfts.isEmpty ? null : (ttfts..sort())[ttfts.length ~/ 2],
     );
   }
 }

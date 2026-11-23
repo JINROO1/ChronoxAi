@@ -16,7 +16,8 @@ void main() {
 
   test('lista sesiones con título, métricas y búsqueda en historial', () async {
     final log = await SessionLog.open(dir, 'session-a');
-    await log.append(const UserMessageEvent(text: 'Analiza el proyecto Chronox'));
+    await log
+        .append(const UserMessageEvent(text: 'Analiza el proyecto Chronox'));
     await log.append(const SessionTitleEvent(title: 'Revisión del proyecto'));
     await log.append(const TurnStartEvent(turnId: 't1'));
     await log.append(const StepStartEvent(stepIndex: 0));

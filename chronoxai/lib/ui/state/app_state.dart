@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../data/llm/anthropic_client.dart';
+import '../../data/llm/gemini_client.dart';
 import '../../data/llm/openai_compatible_client.dart';
 import '../../data/runtime/local_runtime.dart';
 import '../../domain/agent/agent_events.dart';
@@ -22,6 +24,8 @@ import '../../domain/plugins/seams.dart';
 import '../../domain/terminal/linux_paths.dart';
 import '../../platform/android_runtime_channel.dart';
 
+enum ProviderKind { openAiCompatible, anthropic, gemini }
+
 /// Ajustes del proveedor de modelo.
 ///
 /// Se persisten en `shared_preferences` por el notifier del estado global. La
@@ -30,11 +34,13 @@ import '../../platform/android_runtime_channel.dart';
 /// pendiente como requisito de seguridad antes de una publicación amplia.
 class ProviderSettings {
   const ProviderSettings({
+    this.kind = ProviderKind.openAiCompatible,
     this.baseUrl = 'https://api.deepseek.com/v1',
     this.model = 'deepseek-chat',
     this.apiKey = '',
   });
 
+  final ProviderKind kind;
   final String baseUrl;
   final String model;
   final String apiKey;
@@ -42,11 +48,13 @@ class ProviderSettings {
   bool get isConfigured => apiKey.trim().isNotEmpty && model.trim().isNotEmpty;
 
   ProviderSettings copyWith({
+    final ProviderKind? kind,
     final String? baseUrl,
     final String? model,
     final String? apiKey,
   }) =>
       ProviderSettings(
+        kind: kind ?? this.kind,
         baseUrl: baseUrl ?? this.baseUrl,
         model: model ?? this.model,
         apiKey: apiKey ?? this.apiKey,
@@ -140,13 +148,19 @@ class ProviderSettingsNotifier extends StateNotifier<ProviderSettings> {
     _load();
   }
 
+  static const String _kKind = 'provider.kind';
   static const String _kBaseUrl = 'provider.baseUrl';
   static const String _kModel = 'provider.model';
   static const String _kApiKey = 'provider.apiKey';
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
+    final kindName = prefs.getString(_kKind);
     state = ProviderSettings(
+      kind: ProviderKind.values.firstWhere(
+        (final kind) => kind.name == kindName,
+        orElse: () => state.kind,
+      ),
       baseUrl: prefs.getString(_kBaseUrl) ?? state.baseUrl,
       model: prefs.getString(_kModel) ?? state.model,
       apiKey: prefs.getString(_kApiKey) ?? state.apiKey,
@@ -161,6 +175,7 @@ class ProviderSettingsNotifier extends StateNotifier<ProviderSettings> {
 
   Future<void> _save(final ProviderSettings settings) async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kKind, settings.kind.name);
     await prefs.setString(_kBaseUrl, settings.baseUrl);
     await prefs.setString(_kModel, settings.model);
     await prefs.setString(_kApiKey, settings.apiKey);
@@ -385,13 +400,24 @@ class _ProviderAsSeam implements LlmSeam {
   }
 }
 
-/// Crea el cliente HTTP a partir de los ajustes actuales.
-OpenAiCompatibleClient clientFromSettings(final ProviderSettings settings) =>
-    OpenAiCompatibleClient(
-      baseUrl: settings.baseUrl,
-      apiKey: settings.apiKey,
-      model: settings.model,
-    );
+/// Crea el cliente HTTP nativo seleccionado en Ajustes.
+LlmProvider clientFromSettings(final ProviderSettings settings) => switch (settings.kind) {
+      ProviderKind.openAiCompatible => OpenAiCompatibleClient(
+          baseUrl: settings.baseUrl,
+          apiKey: settings.apiKey,
+          model: settings.model,
+        ),
+      ProviderKind.anthropic => AnthropicClient(
+          baseUrl: settings.baseUrl,
+          apiKey: settings.apiKey,
+          model: settings.model,
+        ),
+      ProviderKind.gemini => GeminiClient(
+          baseUrl: settings.baseUrl,
+          apiKey: settings.apiKey,
+          model: settings.model,
+        ),
+    };
 
 /// Transcripción que pinta la pantalla de sesión.
 ///

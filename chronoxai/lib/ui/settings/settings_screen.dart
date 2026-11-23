@@ -15,6 +15,7 @@ import '../state/app_state.dart';
 import '../widgets/chronox_widgets.dart';
 import 'diagnostics_screen.dart';
 import 'install_screen.dart';
+import 'provider_selector.dart';
 
 /// Ajustes: proveedor de modelo, modo de trabajo, permisos y estado del runtime.
 ///
@@ -41,6 +42,14 @@ class SettingsScreen extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
             child: Column(
               children: <Widget>[
+                SettingsRow(
+                  icon: Icons.hub_outlined,
+                  title: 'Tipo de proveedor',
+                  subtitle: providerLabel(settings.kind),
+                  onTap: () => selectProvider(context, ref, settings),
+                  trailing: const Icon(Icons.expand_more, color: ChronoxColors.textMuted),
+                ),
+                const Divider(height: 1, color: ChronoxColors.border),
                 SettingsRow(
                   icon: Icons.key_outlined,
                   title: 'Clave de API',

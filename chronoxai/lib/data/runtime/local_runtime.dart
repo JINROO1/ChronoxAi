@@ -297,23 +297,20 @@ class WorkspaceFileSystemSeam implements FileSystemSeam {
   String resolve(final String path) {
     final root = p.normalize(p.absolute(hostWorkspace));
 
-    // `p.join` descarta la base si la ruta es absoluta, así que las rutas del
-    // contenedor (`/workspace/...`) se traducen antes de unirlas. Cualquier otra
-    // ruta absoluta se deja tal cual y se comprueba después que caiga dentro.
-    final String candidate;
-    if (path == '/workspace' || path.startsWith('/workspace/')) {
-      candidate = p.join(root, path.substring('/workspace'.length));
-    } else if (p.isAbsolute(path)) {
-      candidate = path;
-    } else {
-      candidate = p.join(root, path);
-    }
+    // Las rutas del contenedor se traducen a relativas antes de unirlas: pasar
+    // una ruta absoluta a `p.join` depende de cómo trate cada plataforma los
+    // separadores iniciales, y aquí no queremos ambigüedad.
+    final guest = path == '/workspace' || path.startsWith('/workspace/')
+        ? path.substring('/workspace'.length)
+        : path;
+    final host = p.normalize(
+      p.join(root, guest.replaceFirst(RegExp(r'^/+'), '')),
+    );
 
-    final host = p.normalize(candidate);
-    if (host != root && !p.isWithin(root, host)) {
+    if (!p.equals(root, host) && !host.startsWith('$root${p.separator}')) {
       throw RuntimeException(
         'La ruta "$path" está fuera del workspace. Solo puedes trabajar dentro '
-        'de /workspace.',
+        'de /workspace (raíz real: $root).',
       );
     }
     return host;

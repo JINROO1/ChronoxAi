@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -387,8 +389,12 @@ class _TerminalPlaceholder extends StatelessWidget {
             const SizedBox(height: 18),
             OutlinedButton.icon(
               onPressed: () {
-                Clipboard.setData(
-                  const ClipboardData(text: 'apt update && apt install -y git'),
+                unawaited(
+                  Clipboard.setData(
+                    const ClipboardData(
+                      text: 'apt update && apt install -y git',
+                    ),
+                  ),
                 );
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Comando copiado')),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../../domain/plugins/plugin_api.dart';
+import '../../domain/plugins/plugin_runtime.dart';
 import '../state/app_state.dart';
 import '../widgets/chronox_widgets.dart';
 import 'plugin_surface_host.dart';

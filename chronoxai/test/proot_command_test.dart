@@ -174,7 +174,7 @@ void main() {
     });
 
     test('respeta las variables del usuario', () {
-      final config = ProotConfig(
+      final config = const ProotConfig(
         prootBinary: '/x/libproot.so',
         prootLoader: '/x/loader',
         rootfs: '/x/rootfs',
@@ -207,7 +207,7 @@ void main() {
 
     test('detecta rutas no absolutas', () {
       final problems = ProotCommandBuilder.validate(
-        ProotConfig(
+        const ProotConfig(
           prootBinary: '/x/libproot.so',
           prootLoader: '/x/loader',
           rootfs: 'rootfs-relativo',

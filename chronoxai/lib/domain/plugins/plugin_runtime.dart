@@ -31,6 +31,13 @@ class LoadedPlugin {
 
   final List<Disposable> _disposables = <Disposable>[];
 
+  /// Adopta los registros del contexto de montaje.
+  void adoptDisposables(final List<Disposable> disposables) {
+    _disposables
+      ..clear()
+      ..addAll(disposables);
+  }
+
   bool get isMounted => state == PluginState.mounted;
 }
 
@@ -113,11 +120,17 @@ class PluginHost {
 
     try {
       await plugin.instance.mount(context);
+      // Los registros quedan en poder del host para poder revertirlos.
+      plugin.adoptDisposables(context.registered);
       plugin.state = PluginState.mounted;
       plugin.error = null;
       return true;
     } catch (e) {
-      // Montaje fallido: se revierten los registros hechos hasta el momento.
+      // Montaje fallido: se revierten los registros hechos hasta el momento,
+      // para no dejar medio plugin en el sistema.
+      for (final disposable in context.registered.reversed) {
+        disposable();
+      }
       plugin.state = PluginState.failed;
       plugin.error = e.toString();
       return false;

@@ -192,6 +192,13 @@ class PluginContext {
   final PluginManifest manifest;
   final PluginServices _services;
 
+  /// Registros hechos por este plugin, en orden. El host los revierte al
+  /// desmontar: es lo que hace que la composabilidad temporal sea real y no una
+  /// promesa en la documentación.
+  final List<Disposable> _registered = <Disposable>[];
+
+  List<Disposable> get registered => List<Disposable>.unmodifiable(_registered);
+
   /// Acceso a los servicios del host, filtrado por lo declarado en el manifest.
   ///
   /// El getter está tipado como no-nulo a propósito: el filtrado ya garantiza
@@ -204,25 +211,31 @@ class PluginContext {
   /// Define una herramienta invocable por el modelo.
   Disposable provideTool(final PluginTool tool) {
     _services.registry.add(tool);
-    return () => _services.registry.remove(tool.name);
+    return _track(() => _services.registry.remove(tool.name));
   }
 
   /// Define un pack de instrucciones.
   Disposable provideSkill(final PluginSkill skill) {
     _services.skills[skill.id] = skill;
-    return () => _services.skills.remove(skill.id);
+    return _track(() => _services.skills.remove(skill.id));
   }
 
   /// Define un modo de trabajo (composición de plugins).
   Disposable provideMode(final PluginMode mode) {
     _services.modes[mode.id] = mode;
-    return () => _services.modes.remove(mode.id);
+    return _track(() => _services.modes.remove(mode.id));
   }
 
   /// Define la pantalla propia del plugin.
   Disposable provideSurface(final PluginSurface surface) {
     _services.surfaces[manifest.id] = surface;
-    return () => _services.surfaces.remove(manifest.id);
+    return _track(() => _services.surfaces.remove(manifest.id));
+  }
+
+  /// Registra el `Disposable` para que el host pueda revertirlo.
+  Disposable _track(final Disposable disposable) {
+    _registered.add(disposable);
+    return disposable;
   }
 
   /// Registra un listener sobre un evento del agente.
@@ -230,7 +243,7 @@ class PluginContext {
     final void Function(T event) handler,
   ) {
     final sub = _services.events.of<T>().listen(handler);
-    return sub.cancel;
+    return _track(sub.cancel);
   }
 }
 

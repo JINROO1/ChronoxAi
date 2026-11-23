@@ -65,7 +65,7 @@ class TerminalCell {
   final String char;
   final TerminalStyle style;
 
-  static const TerminalCell vacía = TerminalCell();
+  static const TerminalCell vacia = TerminalCell();
 }
 
 /// Una línea visible, ya recortada por la derecha.
@@ -258,7 +258,7 @@ class TerminalBuffer {
     }
     final cells = _lines[_row];
     while (cells.length <= _col) {
-      cells.add(TerminalCell.vacía);
+      cells.add(TerminalCell.vacia);
     }
     cells[_col] = TerminalCell(char: char, style: _style);
     // En la última columna con autoWrap el cursor se queda ahí: el salto
@@ -346,7 +346,7 @@ class TerminalBuffer {
         if (_col < cells.length) cells.removeRange(_col, cells.length);
       case 1: // desde el principio hasta el cursor
         for (var i = 0; i <= _col && i < cells.length; i++) {
-          cells[i] = TerminalCell.vacía;
+          cells[i] = TerminalCell.vacia;
         }
       case 2: // línea completa
         cells.clear();

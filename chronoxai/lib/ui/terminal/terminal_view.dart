@@ -204,7 +204,7 @@ class _Linea extends StatelessWidget {
   final TextStyle estilo;
 
   @override
-  Widget build(final Widget context) {
+  Widget build(final BuildContext context) {
     final spans = <InlineSpan>[];
     var indice = 0;
 
@@ -264,7 +264,7 @@ class _Aviso extends StatelessWidget {
   final Future<void> Function() onReintentar;
 
   @override
-  Widget build(final Widget context) {
+  Widget build(final BuildContext context) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -307,7 +307,7 @@ class _BarraTeclas extends StatelessWidget {
   final bool habilitada;
 
   @override
-  Widget build(final Widget context) {
+  Widget build(final BuildContext context) {
     final teclas = <({String etiqueta, List<int> codigo})>[
       (etiqueta: '↑', codigo: ControlKeys.arrowUp),
       (etiqueta: '↓', codigo: ControlKeys.arrowDown),
@@ -350,7 +350,7 @@ class _Tecla extends StatelessWidget {
   final VoidCallback? onTap;
 
   @override
-  Widget build(final Widget context) {
+  Widget build(final BuildContext context) {
     return Material(
       color: onTap == null
           ? ChronoxColors.surface
@@ -400,7 +400,7 @@ class _BarraEntrada extends StatelessWidget {
   final Future<void> Function(String) onEnviar;
 
   @override
-  Widget build(final Widget context) {
+  Widget build(final BuildContext context) {
     return SafeArea(
       top: false,
       child: Container(

@@ -14,15 +14,15 @@ class WebSearchResult {
 
 abstract final class WebSearchParser {
   static final RegExp _resultBlock = RegExp(
-    r'<div[^>]*class=["\'][^"\']*result[^"\']*["\'][^>]*>([\s\S]*?)(?=<div[^>]*class=["\'][^"\']*result[^"\']*["\']|$)',
+    r"""<div[^>]*class=["'][^"']*result[^"']*["'][^>]*>([\s\S]*?)(?=<div[^>]*class=["'][^"']*result[^"']*["']|$)""",
     caseSensitive: false,
   );
   static final RegExp _titleLink = RegExp(
-    r'<a[^>]*class=["\'][^"\']*result__a[^"\']*["\'][^>]*href=["\']([^"\']+)["\'][^>]*>([\s\S]*?)</a>',
+    r"""<a[^>]*class=["'][^"']*result__a[^"']*["'][^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)</a>""",
     caseSensitive: false,
   );
   static final RegExp _snippet = RegExp(
-    r'<(?:a|div)[^>]*class=["\'][^"\']*result__snippet[^"\']*["\'][^>]*>([\s\S]*?)</(?:a|div)>',
+    r"""<(?:a|div)[^>]*class=["'][^"']*result__snippet[^"']*["'][^>]*>([\s\S]*?)</(?:a|div)>""",
     caseSensitive: false,
   );
 
@@ -57,7 +57,10 @@ abstract final class WebSearchParser {
 
   static String _text(final String html) => _decode(
         html
-            .replaceAll(RegExp(r'<script[\s\S]*?</script>', caseSensitive: false), ' ')
+            .replaceAll(
+              RegExp(r'<script[\s\S]*?</script>', caseSensitive: false),
+              ' ',
+            )
             .replaceAll(RegExp(r'<[^>]+>'), ' ')
             .replaceAll(RegExp(r'\s+'), ' ')
             .trim(),
@@ -70,7 +73,7 @@ abstract final class WebSearchParser {
       .replaceAll('&lt;', '<')
       .replaceAll('&gt;', '>')
       .replaceAll('&nbsp;', ' ')
-      .replaceAll(RegExp(r'&#(\d+);'), (final match) {
+      .replaceAllMapped(RegExp(r'&#(\d+);'), (final match) {
         final code = int.tryParse(match.group(1) ?? '');
         return code == null ? match.group(0)! : String.fromCharCode(code);
       });

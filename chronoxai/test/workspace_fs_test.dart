@@ -20,8 +20,8 @@ void main() {
   group('WorkspaceFileSystemSeam — confinamiento', () {
     test('traduce /workspace a la ruta del dispositivo', () {
       final resolved = fs.resolve('/workspace/lib/main.dart');
-      expect(resolved, p.join(Directory(workspace.path).absolute.path,
-          'lib', 'main.dart'));
+      expect(resolved,
+          p.join(Directory(workspace.path).absolute.path, 'lib', 'main.dart'));
     });
 
     test('acepta rutas relativas dentro del workspace', () {
@@ -67,8 +67,8 @@ void main() {
       await fs.writeFile('/workspace/a/b/c/d.txt', 'x');
       expect(
         File(
-          p.join(Directory(workspace.path).absolute.path, 'a', 'b', 'c',
-              'd.txt'),
+          p.join(
+              Directory(workspace.path).absolute.path, 'a', 'b', 'c', 'd.txt'),
         ).existsSync(),
         isTrue,
       );

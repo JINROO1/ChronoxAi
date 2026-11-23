@@ -3,7 +3,8 @@
 **Agente de codificación para Android con terminal Linux (proot) integrada.**
 Flutter + Dart 3, sin dependencias de servidor: todo corre en el dispositivo.
 
-> Estado: `0.1.0-alpha` — arquitectura completa, lista para `flutter run`.
+> Estado: `0.1.0-alpha` — el agente funciona de punta a punta sobre el runtime;
+> falta el instalador del rootfs y conectar la terminal interactiva.
 
 ---
 
@@ -14,8 +15,8 @@ pensado para móvil:
 
 | Pieza | Qué hace |
 |---|---|
-| **Harness del agente** | Loop de tool-calling con streaming, cancelación, política de aprobación y compactación de contexto. |
-| **Runtime Linux** | Descarga un rootfs de Alpine/Ubuntu, lo extrae en almacenamiento privado y lo ejecuta con `proot` (sin root, sin desbloquear el bootloader). |
+| **Harness del agente** | Loop de tool-calling con streaming SSE, cancelación que aborta la petición, política de aprobación por herramienta y compactación de contexto. |
+| **Runtime Linux** | Ejecuta un rootfs de Debian con `proot` (sin root, sin desbloquear el bootloader), desde binarios empaquetados en el APK. |
 | **Terminal** | Emulador ANSI real (`xterm`) conectado a un `bash` persistente *dentro* del contenedor. `apt/apk install`, `git`, `python`, `node`… funcionan. |
 | **UI** | Material 3 oscuro con glassmorphism, tipografía mono para el código, tarjetas de tool-call colapsables con diff. |
 | **Proveedor LLM** | Cualquier API compatible con OpenAI: DeepSeek, OpenRouter, Groq, Together, Ollama/LM Studio locales. |
@@ -148,7 +149,7 @@ Todo se compila y verifica en **GitHub Actions** (`.github/workflows/ci.yml`):
 |---|---|
 | `format` | aplica `dart format` y commitea el resultado |
 | `analyze` | `flutter analyze --fatal-infos` (limpio: 0 errores, 0 avisos) |
-| `test` | 53 tests con cobertura |
+| `test` | 136 tests con cobertura |
 | `runtime` | descarga y **valida el runtime proot** (AArch64 + alineación 16 KB) |
 | `build` | APK release firmada, verificación con `apksigner`, publicación al crear un tag `v*` |
 
@@ -162,7 +163,7 @@ mal firmado fingiendo que es una release.
 * [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) — flujo del agente, protocolo de tools, ciclo de vida de proot.
 * [`docs/PLUGINS.md`](docs/PLUGINS.md) — escribir un plugin, capacidades, modos y pantallas propias.
 * [`docs/FIRMA.md`](docs/FIRMA.md) — clave de firma, backups y firma en CI.
-* [`docs/ROADMAP.md`](docs/ROADMAP.md) — siguientes pasos priorizados.
+* [`docs/RELEASE_NOTES.md`](docs/RELEASE_NOTES.md) — notas de la versión que usa el CI como cuerpo de la release.
 
 ## Licencia
 

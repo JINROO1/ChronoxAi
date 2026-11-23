@@ -25,16 +25,17 @@ Debian bookworm arm64 por defecto · `proot` de Termux 5.1.107.x + `libtalloc` +
 - [x] `LinuxPaths`: resuelve `filesDir/linux/{runtime,rootfs,home,overlay}`
 - [x] `tools/fetch_runtime.sh`: descarga `proot` + `libtalloc` + `libandroid-shmem` (deb de Termux, ABI `aarch64`), los coloca en `jniLibs/arm64-v8a/` y verifica hashes (corre en dev/CI, **nunca en el teléfono**)
 - [x] Parser ELF de verificación aplicado en el script: rechaza el build si algún `.so` no está alineado a 16 KB o no es `EM_AARCH64`
-- [ ] `NativeRuntimeLocator`: obtiene `ApplicationInfo.nativeLibraryDir` en Android y localiza `libproot.so`; en escritorio cae a `assets/runtime` (para poder depurar la lógica sin teléfono)
+- [x] `AndroidRuntimeChannel.prootBinaryPath()`: obtiene `nativeLibraryDir` y localiza `libproot.so`
 - [ ] `THIRD_PARTY_NOTICES.md` + pantalla de Licencias (GPLv2 de proot exige ofrecer el fuente)
 - [x] `ElfInspector` + `AndroidRuntimeChannel` (páginas de 16 KB, ABI, SELinux): detecta `PAGE_SIZE`; parser ELF mínimo (`e_phoff`, `p_align` de `LOAD`); valida `proot` y `/bin/bash` del rootfs
 - [ ] `RootfsInstaller`: `manifest.json` de distro (url, sha256, size, familia) + descarga con progreso cancelable
 - [ ] `OciLayerFetcher`: resuelve `library/debian:bookworm` en Docker Hub (token anónimo → manifest → capa) para tener una fuente mantenida sin depender de un CDN propio
 - [ ] `RootfsExtractor`: gunzip (`dart:io`) + `archive` en **isolate** con progreso, soporte de `tar.xz` vía `xz` del runtime (fallback)
 - [x] `ProotCommandBuilder`: genera el argv canónico (flags de §2 de la investigación) desde `LinuxConfig`
-- [ ] `ProotRuntime`: `Process.start` de `proot` desde `nativeLibraryDir`, entorno (`LD_LIBRARY_PATH` → `nativeLibraryDir`, `PROOT_UNBUNDLE_LOADER`, `PROOT_TMP_DIR` → `filesDir`, `HOME`, `TERM`, `PROOT_NO_SECCOMP`)
+- [x] `LocalRuntime.run()`: `Process.start` de `proot` desde `nativeLibraryDir`, entorno completo (`LD_LIBRARY_PATH`, `PROOT_UNBUNDLE_LOADER`, `PROOT_TMP_DIR`, `TERM`, `PROOT_NO_SECCOMP`) y tiempo máximo por comando
+- [x] `LocalRuntime.status()`: diagnóstico como **estado** (ABI, binarios, rootfs, `exec` bloqueado, SELinux) para que la app pueda explicarlo en vez de fallar
 - [x] `AndroidRuntimeChannel`: canal de plataforma mínimo (Kotlin) que expone `nativeLibraryDir`, `PAGE_SIZE`, `abi`, `sdkInt`, `isSelinuxEnforcing`
-- [ ] `RuntimeHealth`: smoke test (`uname -a`, `whoami`, `ls /`), diagnóstico accionable de fallos (SELinux, ABI, 16 KB, mirrors)
+- [ ] `RuntimeHealth`: smoke test (`uname -a`, `whoami`, `ls /`) tras la primera instalación
 - [ ] Limpieza de sesiones huérfanas al arrancar (PID guardado en `SessionStore`)
 - **Aceptación:** en un Pixel/Samsung arm64 se instala Debian y `whoami` devuelve `root` dentro del contenedor, **con el móvil en modo avión** después de instalar el rootfs (prueba de autocontención).
 - **Aceptación extra (hipótesis §10.1):** con el *flavor* `playstore` (`targetSdk 34`), el mismo flujo funciona. Si falla, se documenta por qué y se queda `targetSdk 28`.
@@ -61,8 +62,8 @@ Debian bookworm arm64 por defecto · `proot` de Termux 5.1.107.x + `libtalloc` +
 - [x] `session_log.dart`: log append-only JSONL, fork, rewind, compactación, estadísticas, export Markdown
 - [x] UI: `PluginSurfaceHost` + `PluginSurfaceGrid` — un plugin declara su pantalla y el host aporta el andamiaje
 - [x] Plugin de ejemplo con pantalla propia (`disk_usage`)
-- [ ] `AgentLoop` (el driver): turn/step, streaming, cancelación, presupuesto, compactación automática
-- [ ] `ApprovalPolicy` con los tres niveles de dsh (`read-only`, `guarded`, `yolo`) y "recordar para esta sesión"
+- [x] `AgentLoop` (el driver): turn/step, streaming, cancelación que aborta la petición, presupuesto, compactación automática
+- [x] `ApprovalPolicy` con los tres niveles de dsh (`read-only`, `guarded`, `yolo`) y "recordar para esta sesión"
 - [ ] Cargador de plugins de usuario desde `filesDir/plugins/<id>/manifest.json`
 - [ ] Pantalla Ajustes → Plugins: activar/desactivar, ver capacidades, ver pantallas
 - **Aceptación:** cambiar de Standard a Minimal reduce las herramientas expuestas al modelo a 2, verificable en el prompt enviado; y un plugin desactivado desaparece tanto del menú como del prompt.
@@ -79,25 +80,37 @@ Debian bookworm arm64 por defecto · `proot` de Termux 5.1.107.x + `libtalloc` +
 
 ## Fase 4 — Harness del agente
 
-- [ ] Modelos: `ChatMessage`, `ToolCall`, `ToolResult`, `AgentEvent`, `Usage`
-- [ ] `LlmClient` con **SSE streaming** + ensamblado de `tool_calls` fragmentados + cancelación cooperativa
-- [ ] Proveedores: OpenAI-compatible (DeepSeek/OpenRouter/Groq/Together/local) y **Anthropic** (formato distinto, mensajes/tools)
+- [x] Modelos neutrales: `LlmMessage`, `LlmToolCall`, `LlmResponse`, `LlmUsage`, `LlmChunk`
+- [x] `OpenAiCompatibleClient` con **SSE real** + ensamblado de `tool_calls` fragmentados por índice y cancelación que cierra la conexión
+- [x] Proveedor OpenAI-compatible (DeepSeek/OpenRouter/Groq/Together/vLLM/Ollama/LM Studio)
+- [ ] Proveedor **Anthropic** (formato distinto: bloques de contenido y `tool_use`)
 - [x] `ToolRegistry` + validación JSON-schema (required, tipos, enum, objetos anidados)
-- [ ] Tools: `read_file`, `write_file`, `edit_file` (diff unificado), `list_dir`, `grep`, `glob`, `run_terminal`, `web_fetch`
-- [ ] `AgentLoop`: máx. iteraciones, presupuesto de tokens, reintentos con backoff, compactación de contexto
+- [x] Tools: `read`, `write`, `edit`, `glob`, `grep`, `bash`, `web_fetch` y el resto del catálogo de la Fase 3
+- [x] `AgentLoop`: máx. iteraciones, presupuesto de tokens, reintentos con espera (429/5xx/red) y compactación de contexto
+- [x] `PromptBuilder`: system prompt por modo, con las reglas de trabajo del agente
+- [x] `_buildMessages` reconstruye el histórico **desde el log**, con sus `tool_calls` y descartando resultados huérfanos
 - [x] Persistencia de sesiones: `SessionLog` JSONL con fork/rewind/compactación/estadísticas
-- [ ] Política de aprobación: `ask` / `auto-safe` / `auto-all` + confirmación por comando con vista del diff
-- [ ] Cancelación real (aborta el `Pty`/proceso, no solo la UI) y `Ctrl-C` al agente
+- [x] Política de aprobación por herramienta + hoja de confirmación con vista del comando o del diff
+- [x] Sin *handler* de aprobación se **rechaza** (fallar hacia el lado seguro)
+- [x] Cancelación real del turno (cierra la conexión HTTP en curso, no solo la UI)
+- [ ] `Ctrl-C` al agente desde la terminal
 - **Aceptación:** "crea un script de Python que ordene archivos por extensión, pruébalo" se completa end-to-end con aprobaciones.
 
 ## Fase 5 — UI / UX (la parte "hermosa")
 
 - [ ] `HomeScreen`: estado del runtime, sesiones recientes, accesos rápidos, saludo contextual
-- [ ] `ChatScreen`: burbujas asimétricas, streaming token a token, cursor animado, scroll anclado
-- [ ] `ToolCallCard`: colapsable, estado (pendiente/ejecutando/ok/error), duración, salida truncada con "ver todo", **diff coloreado** para `edit_file`
+- [x] `main.dart` + `AppShell`: tres áreas (Sesión, Plugins, Ajustes) con navegación propia
+- [x] `ChatScreen`: transcripción derivada del log, cabecera con modo/permisos/tokens, envío y cancelación
+- [x] `ToolCallCard` colapsable con estado (pendiente/ok/error) y salida completa al desplegar
+- [x] `ApprovalSheet`: vista previa del comando, **diff coloreado** y "no volver a preguntar"
+- [x] `SettingsScreen`: proveedor, clave, modelo, modo de trabajo, nivel de permiso y estadísticas de la sesión
+- [x] `PluginsScreen`: estado real de montaje, activar/desactivar y acceso a las pantallas de plugin
+- [ ] Streaming token a token en la burbuja (hoy el mensaje aparece al cerrar el paso)
+- [ ] Cursor animado y scroll anclado fino durante el streaming
 - [ ] `TerminalScreen`: pestañas por sesión, `xterm` a pantalla completa, teclado no obstructivo
 - [ ] `SetupScreen`: wizard (distro → descarga con progreso → verificación → smoke test)
-- [ ] `SettingsScreen`: proveedor, API key, modelo, temperatura, política de aprobación, fuente del terminal, tema
+- [ ] Icono de app y splash
+- [ ] Persistencia de los ajustes y de la clave (`flutter_secure_storage`)
 - [ ] Glassmorphism sutil, animaciones `flutter_animate`-style nativas, `Hero` entre setup y home
 - [ ] Icono de app y splash (vectorial, coherente con la paleta)
 - [ ] Accesibilidad: escalado de texto, contraste AA, `Semantics`, navegación con teclado físico
@@ -107,15 +120,17 @@ Debian bookworm arm64 por defecto · `proot` de Termux 5.1.107.x + `libtalloc` +
 
 - [x] Tests: `ElfInspector` (10 casos) + `ProotCommandBuilder` (17 casos) — *escritos, pendientes de ejecutar con SDK*
 - [x] Validación empírica del script con ELF sintéticos (`--check`) y `.deb` de prueba
-- [x] **`flutter test` ejecutado en CI**: 27 tests de ELF/argv + 26 de plugins/sesiones/modos, todos en verde
-- [ ] Tests unitarios: parser `ar`/tar, ensamblado de `tool_calls`
+- [x] **`flutter test` ejecutado en CI**: 136 tests en verde (ELF, argv de proot, plugins, sesiones, motor, cliente HTTP, UI, confinamiento de rutas)
+- [x] Tests del ensamblado de `tool_calls` con el stream troceado a propósito (líneas y UTF-8 partidos)
+- [x] Tests del motor: herramientas, aprobaciones, reintentos, cancelación, compactación y tope de pasos
+- [ ] Tests unitarios: parser `ar`/tar
 - [ ] Tests de widget: burbujas, tarjetas de tool-call, composer
 - [ ] Golden tests de la UI principal
-- [ ] Manejo de errores de red (timeout, 401, 429, contexto excedido) con mensajes humanos
+- [x] Manejo de errores de red (401, 429 con `Retry-After`, 5xx, contexto excedido) con mensajes accionables
 - [ ] `flutter_secure_storage` para la API key (sustituir `SharedPreferences`)
 - [ ] Verificar el *flavor* `playstore` (`targetSdk 34`) en hardware y decidir la vía de distribución
 - [ ] Logging local rotativo + "exportar diagnóstico" (sin secretos) para reportar bugs
-- [ ] CI: `flutter analyze` + `flutter test` + build APK release en GitHub Actions
+- [x] CI: `flutter analyze --fatal-infos` + `flutter test` + runtime proot + build APK release
 - [ ] Release firmada en GitHub Releases + F-Droid metadata
 - [ ] README final con capturas, requisitos, instalación y limitaciones
 

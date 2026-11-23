@@ -68,7 +68,8 @@ class AndroidPermissions {
   }
 
   /// Arranca el servicio en primer plano que mantiene viva la sesión.
-  Future<bool> startTerminalService({final String title = 'Sesión activa'}) async {
+  Future<bool> startTerminalService(
+      {final String title = 'Sesión activa'}) async {
     if (!Platform.isAndroid) return false;
     try {
       final started = await _channel.invokeMethod<bool>(

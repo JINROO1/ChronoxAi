@@ -658,14 +658,15 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
       if (degraded) {
         final message = !status.isReady
             ? 'Sesión abierta sin runtime Linux: ${status.title}. Los comandos '
-                  'todavía no se pueden ejecutar.'
+                'todavía no se pueden ejecutar.'
             : notificationsGranted
-            ? 'No se pudo mantener la sesión en segundo plano: Android puede '
-                  'detener los comandos largos al cambiar de app.'
-            : 'Sin permiso de notificaciones, el sistema puede detener los '
-                  'comandos largos al cambiar de app.';
+                ? 'No se pudo mantener la sesión en segundo plano: Android puede '
+                    'detener los comandos largos al cambiar de app.'
+                : 'Sin permiso de notificaciones, el sistema puede detener los '
+                    'comandos largos al cambiar de app.';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
+          SnackBar(
+              content: Text(message), duration: const Duration(seconds: 6)),
         );
       }
     } catch (error) {

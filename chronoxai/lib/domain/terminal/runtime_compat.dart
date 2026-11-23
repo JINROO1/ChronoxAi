@@ -95,8 +95,7 @@ abstract final class RuntimeCompatibility {
         CompatIssue(
           severity: CompatSeverity.blocking,
           title: 'Android bloquea ejecutar programas de la app',
-          detail:
-              'Desde Android 10, SELinux impide ejecutar ficheros del '
+          detail: 'Desde Android 10, SELinux impide ejecutar ficheros del '
               'almacenamiento privado a las apps con targetSdk 29 o superior. '
               'Este dispositivo tiene API ${facts.sdkInt} '
               '(Android ${_versionName(facts.sdkInt)}), el proceso corre en el '
@@ -118,12 +117,10 @@ abstract final class RuntimeCompatibility {
           const CompatIssue(
             severity: CompatSeverity.blocking,
             title: 'Binarios no compatibles con páginas de 16 KB',
-            detail:
-                'Este dispositivo usa páginas de memoria de 16 KB (Android '
+            detail: 'Este dispositivo usa páginas de memoria de 16 KB (Android '
                 '15+). Los binarios empaquetados están alineados solo a 4 KB y '
                 'el kernel no puede cargarlos.',
-            advice:
-                'Hay que recompilar o actualizar proot con '
+            advice: 'Hay que recompilar o actualizar proot con '
                 '-Wl,-z,max-page-size=16384.',
           ),
         );
@@ -132,8 +129,7 @@ abstract final class RuntimeCompatibility {
           const CompatIssue(
             severity: CompatSeverity.warning,
             title: 'Páginas de memoria de 16 KB',
-            detail:
-                'Este dispositivo usa páginas de 16 KB. Los binarios se '
+            detail: 'Este dispositivo usa páginas de 16 KB. Los binarios se '
                 'verifican al instalarse; si alguno no está alineado, el '
                 'contenedor no arrancará.',
           ),
@@ -147,11 +143,11 @@ abstract final class RuntimeCompatibility {
         const CompatIssue(
           severity: CompatSeverity.note,
           title: 'Aviso de "app creada para una versión anterior"',
-          detail:
-              'Android 15 muestra este aviso para apps con targetSdk 28 o '
+          detail: 'Android 15 muestra este aviso para apps con targetSdk 28 o '
               'menor. Es intencionado: ese targetSdk es justo lo que mantiene '
               'el permiso para ejecutar proot.',
-          advice: 'Es normal. La app no tiene acceso a menos funciones por ello.',
+          advice:
+              'Es normal. La app no tiene acceso a menos funciones por ello.',
         ),
       );
     }
@@ -161,8 +157,7 @@ abstract final class RuntimeCompatibility {
         const CompatIssue(
           severity: CompatSeverity.note,
           title: 'Permiso de notificaciones',
-          detail:
-              'Android 13+ pide permiso para mostrar notificaciones. El '
+          detail: 'Android 13+ pide permiso para mostrar notificaciones. El '
               'servicio que mantiene vivos los comandos en segundo plano lo '
               'necesita para ser visible.',
         ),
@@ -212,25 +207,26 @@ abstract final class RuntimeCompatibility {
   static bool canRun(
     final PlatformFacts facts, {
     final bool? binariesAligned16K,
-  }) => !evaluate(facts, binariesAligned16K: binariesAligned16K)
-      .any((final issue) => issue.isBlocking);
+  }) =>
+      !evaluate(facts, binariesAligned16K: binariesAligned16K)
+          .any((final issue) => issue.isBlocking);
 
   /// Nombre comercial de una versión de Android, para mensajes legibles.
   static String _versionName(final int sdk) => switch (sdk) {
-    <= 0 => 'desconocida',
-    < 24 => 'antiguo',
-    24 || 25 => '7.x',
-    26 || 27 => '8.x',
-    28 => '9',
-    29 => '10',
-    30 => '11',
-    31 || 32 => '12',
-    33 => '13',
-    34 => '14',
-    35 => '15',
-    36 => '16',
-    _ => 'API $sdk',
-  };
+        <= 0 => 'desconocida',
+        < 24 => 'antiguo',
+        24 || 25 => '7.x',
+        26 || 27 => '8.x',
+        28 => '9',
+        29 => '10',
+        30 => '11',
+        31 || 32 => '12',
+        33 => '13',
+        34 => '14',
+        35 => '15',
+        36 => '16',
+        _ => 'API $sdk',
+      };
 
   /// Resumen corto para la pantalla de diagnóstico: "Android 15 · arm64 ·
   /// 16 KB · exec OK".

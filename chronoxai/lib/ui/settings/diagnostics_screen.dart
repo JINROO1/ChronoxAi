@@ -113,8 +113,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                   ),
                 if (blocking.isNotEmpty) ...<Widget>[
                   const SectionLabel('Bloqueantes'),
-                  for (final issue in blocking)
-                    _IssueCard(issue: issue),
+                  for (final issue in blocking) _IssueCard(issue: issue),
                 ],
                 if (warnings.isNotEmpty) ...<Widget>[
                   const SectionLabel('Avisos'),
@@ -138,8 +137,8 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                             ? 'Necesarias para que el servicio de comandos sea '
                                 'visible en Android 13+'
                             : _notificationsGranted!
-                            ? 'Concedidas'
-                            : 'Denegadas: el servicio funcionará sin avisarte',
+                                ? 'Concedidas'
+                                : 'Denegadas: el servicio funcionará sin avisarte',
                         accent: _notificationsGranted == false
                             ? ChronoxColors.warning
                             : ChronoxColors.primary,
@@ -162,8 +161,8 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                         subtitle: _batteryUnrestricted == null
                             ? 'Comprobando…'
                             : _batteryUnrestricted!
-                            ? 'La app puede trabajar con la pantalla apagada'
-                            : 'El sistema puede detener los comandos largos',
+                                ? 'La app puede trabajar con la pantalla apagada'
+                                : 'El sistema puede detener los comandos largos',
                         accent: _batteryUnrestricted == false
                             ? ChronoxColors.warning
                             : ChronoxColors.success,
@@ -208,10 +207,11 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
                         facts.canExecuteFromData == null
                             ? 'no comprobado'
                             : facts.canExecuteFromData!
-                            ? 'permitido'
-                            : 'bloqueado',
+                                ? 'permitido'
+                                : 'bloqueado',
                       ),
-                      _FactRow('proot', facts.nativeLibraryDir ?? 'no extraído'),
+                      _FactRow(
+                          'proot', facts.nativeLibraryDir ?? 'no extraído'),
                     ],
                   ),
                 ),
@@ -309,9 +309,9 @@ class _IssueCard extends StatelessWidget {
     final (color, icon) = switch (issue.severity) {
       CompatSeverity.blocking => (ChronoxColors.danger, Icons.block_rounded),
       CompatSeverity.warning => (
-        ChronoxColors.warning,
-        Icons.warning_amber_rounded,
-      ),
+          ChronoxColors.warning,
+          Icons.warning_amber_rounded,
+        ),
       CompatSeverity.note => (ChronoxColors.accent, Icons.info_outline_rounded),
     };
 

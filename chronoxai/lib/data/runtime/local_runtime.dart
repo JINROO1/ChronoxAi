@@ -53,6 +53,9 @@ class RuntimeStatus {
         RuntimeProblem.unavailable => 'Runtime no disponible',
       };
 
+  /// `true` si los comandos fallarán pero el resto de la sesión funciona.
+  bool get isDegraded => problem == RuntimeProblem.missingRootfs;
+
   String get message => switch (problem) {
         null => 'El contenedor Linux está instalado y funciona.',
         RuntimeProblem.unsupportedDevice =>
@@ -281,6 +284,30 @@ class ProotShellSeam implements ShellSeam {
   }) =>
       runtime.run(command,
           workingDirectory: workingDirectory, timeout: timeout);
+}
+
+/// Shell de sustitución cuando el runtime todavía no está instalado.
+///
+/// Devolver un error explicativo es mejor que impedir abrir la sesión: el usuario
+/// puede seguir hablando con el agente, leer y escribir ficheros del workspace, y
+/// ver exactamente qué falta para poder ejecutar comandos.
+class UnavailableShellSeam implements ShellSeam {
+  const UnavailableShellSeam(this.status);
+
+  final RuntimeStatus status;
+
+  @override
+  Future<ShellResult> run(
+    final String command, {
+    final String? workingDirectory,
+    final Duration? timeout,
+  }) async => ShellResult(
+    exitCode: 127,
+    stdout: '',
+    stderr:
+        '${status.title}: no se pueden ejecutar comandos todavía.\n'
+        '${status.message}',
+  );
 }
 
 /// `ctx.fs` sobre el workspace del dispositivo.

@@ -587,18 +587,17 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
 
       final runtime = await ref.read(localRuntimeProvider.future);
       final status = await runtime.status();
-      if (!status.isReady) {
-        setState(() {
-          _starting = false;
-          _error = '${status.title}: ${status.message}';
-        });
-        return;
-      }
 
+      // Sin runtime se abre igualmente la sesión: el agente puede leer y
+      // escribir en el workspace y le explica al modelo, en cada intento de
+      // comando, qué falta. Bloquear aquí dejaría la app inutilizable hasta
+      // terminar el instalador.
       final session = await startSession(
         SessionBootstrap(
           provider: clientFromSettings(settings),
-          shell: ProotShellSeam(runtime),
+          shell: status.isReady
+              ? ProotShellSeam(runtime)
+              : UnavailableShellSeam(status),
           fileSystem: WorkspaceFileSystemSeam(
             hostWorkspace: runtime.hostWorkspace,
           ),
@@ -618,7 +617,19 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
 
       ref.read(sessionProvider.notifier).state = session;
       ref.read(agentViewProvider.notifier).sync();
-      if (mounted) Navigator.of(context).pop();
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      if (!status.isReady) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Sesión abierta sin runtime Linux: ${status.title}. Los comandos '
+              'todavía no se pueden ejecutar.',
+            ),
+            duration: const Duration(seconds: 6),
+          ),
+        );
+      }
     } catch (error) {
       setState(() {
         _starting = false;

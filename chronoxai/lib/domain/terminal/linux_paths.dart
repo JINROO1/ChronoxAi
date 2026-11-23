@@ -75,7 +75,8 @@ class LinuxPaths {
       p.join(rootfsDir, 'bin', 'sh'),
       p.join(rootfsDir, 'usr', 'bin', 'bash'),
     ];
-    return markers.any((final m) => File(m).existsSync() || Link(m).existsSync());
+    return markers
+        .any((final m) => File(m).existsSync() || Link(m).existsSync());
   }
 
   /// Variable `HOME` dentro del contenedor (no la del dispositivo).

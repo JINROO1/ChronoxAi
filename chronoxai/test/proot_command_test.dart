@@ -44,19 +44,22 @@ void main() {
     test('siempre monta /dev, /proc y /sys', () {
       final argv = ProotCommandBuilder.build(baseConfig());
 
-      expect(argv, containsAll(<String>['--bind=/dev', '--bind=/proc', '--bind=/sys']));
+      expect(argv,
+          containsAll(<String>['--bind=/dev', '--bind=/proc', '--bind=/sys']));
     });
 
     test('añade los montajes del usuario después de los base', () {
       final argv = ProotCommandBuilder.build(
         baseConfig(
           binds: const <BindMount>[
-            BindMount('/data/data/app.chronoxai/files/linux/workspace', '/workspace'),
+            BindMount(
+                '/data/data/app.chronoxai/files/linux/workspace', '/workspace'),
           ],
         ),
       );
 
-      final workspaceBind = argv.firstWhere((final a) => a.contains('/workspace:/workspace'));
+      final workspaceBind =
+          argv.firstWhere((final a) => a.contains('/workspace:/workspace'));
       expect(workspaceBind, startsWith('--bind='));
       expect(
         argv.indexOf('--bind=/sys'),
@@ -65,11 +68,13 @@ void main() {
     });
 
     test('soporta montajes de solo lectura', () {
-      const mount = BindMount('/sdcard/Download', '/mnt/incoming', readOnly: true);
+      const mount =
+          BindMount('/sdcard/Download', '/mnt/incoming', readOnly: true);
       expect(mount.specification, '/sdcard/Download:/mnt/incoming:ro');
     });
 
-    test('el comando interior va al final y por defecto es un shell de login', () {
+    test('el comando interior va al final y por defecto es un shell de login',
+        () {
       final argv = ProotCommandBuilder.build(baseConfig());
 
       expect(argv.sublist(argv.length - 2), <String>['/bin/bash', '-l']);
@@ -91,7 +96,8 @@ void main() {
           prootLoader: '/x/loader',
           rootfs: '/x/rootfs',
           workingDirectory: '/',
-          fakeKernelRelease: r'\Linux\chronoxai\6.1.0-chronox\aarch64\localdomain\-1\',
+          fakeKernelRelease:
+              r'\Linux\chronoxai\6.1.0-chronox\aarch64\localdomain\-1\',
         ),
       );
 
@@ -113,7 +119,8 @@ void main() {
 
       final rootBinds = argv.where((final a) => a.endsWith(':/root')).toList();
       expect(rootBinds, hasLength(1));
-      expect(rootBinds.single, '--bind=/data/data/app.chronoxai/files/linux/home:/root');
+      expect(rootBinds.single,
+          '--bind=/data/data/app.chronoxai/files/linux/home:/root');
     });
 
     test('puede desactivar las extensiones problemáticas', () {
@@ -154,7 +161,8 @@ void main() {
       final env = ProotCommandBuilder.hostEnvironment(
         nativeLibraryDir: '/data/app/app.chronoxai/lib/arm64',
         tempDir: '/data/data/app.chronoxai/files/tmp',
-        prootLoader: '/data/data/app.chronoxai/files/linux/runtime/proot-loader',
+        prootLoader:
+            '/data/data/app.chronoxai/files/linux/runtime/proot-loader',
       );
 
       expect(env['LD_LIBRARY_PATH'], '/data/app/app.chronoxai/lib/arm64');

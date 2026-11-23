@@ -49,12 +49,12 @@ class ElfInfo {
       : loadAlignments.reduce((final a, final b) => a < b ? a : b);
 
   String get machineName => switch (machine) {
-    emAarch64 => 'arm64-v8a (AArch64)',
-    emX8664 => 'x86_64',
-    0x28 => 'armeabi-v7a (ARM)',
-    0x03 => 'x86',
-    _ => 'desconocida (0x${machine.toRadixString(16)})',
-  };
+        emAarch64 => 'arm64-v8a (AArch64)',
+        emX8664 => 'x86_64',
+        0x28 => 'armeabi-v7a (ARM)',
+        0x03 => 'x86',
+        _ => 'desconocida (0x${machine.toRadixString(16)})',
+      };
 
   bool get isAndroidCompatible => machine == emAarch64 || machine == emX8664;
 
@@ -88,7 +88,8 @@ abstract final class ElfInspector {
   }
 
   /// Inspecciona los bytes en memoria de un ELF.
-  static ElfInfo inspect(final Uint8List bytes, {final String source = '<memoria>'}) {
+  static ElfInfo inspect(final Uint8List bytes,
+      {final String source = '<memoria>'}) {
     if (bytes.length < 52) {
       throw ElfFormatException('$source es demasiado pequeño para ser ELF '
           '(${bytes.length} bytes)');
@@ -103,13 +104,15 @@ abstract final class ElfInspector {
 
     final elfClass = bytes[4];
     if (elfClass != 1 && elfClass != 2) {
-      throw ElfFormatException('$source tiene e_ident[EI_CLASS] inválido ($elfClass)');
+      throw ElfFormatException(
+          '$source tiene e_ident[EI_CLASS] inválido ($elfClass)');
     }
     final is64 = elfClass == 2;
 
     final dataEncoding = bytes[5];
     if (dataEncoding != 1 && dataEncoding != 2) {
-      throw ElfFormatException('$source tiene endianness inválida ($dataEncoding)');
+      throw ElfFormatException(
+          '$source tiene endianness inválida ($dataEncoding)');
     }
     final little = dataEncoding == 1;
     final endian = little ? Endian.little : Endian.big;
@@ -133,7 +136,8 @@ abstract final class ElfInspector {
 
     if (phnum == 0) {
       // Sin tabla de programas: no es un ejecutable cargable.
-      throw ElfFormatException('$source no tiene tabla de programas (e_phnum = 0)');
+      throw ElfFormatException(
+          '$source no tiene tabla de programas (e_phnum = 0)');
     }
     final minEntrySize = is64 ? 56 : 32;
     if (phentsize < minEntrySize) {
@@ -141,7 +145,8 @@ abstract final class ElfInspector {
           'mínimo esperado $minEntrySize para ELF${is64 ? 64 : 32}');
     }
     if (phoff <= 0 || phoff + phnum * phentsize > bytes.length) {
-      throw ElfFormatException('$source tiene la tabla de programas fuera de rango '
+      throw ElfFormatException(
+          '$source tiene la tabla de programas fuera de rango '
           '(phoff=$phoff, phnum=$phnum, phentsize=$phentsize, tamaño=${bytes.length})');
     }
 

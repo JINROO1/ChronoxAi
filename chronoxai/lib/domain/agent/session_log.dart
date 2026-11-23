@@ -22,8 +22,8 @@ class SessionLog {
     required this.sessionId,
     required final File file,
     required final List<SessionEvent> events,
-  }) : _file = file,
-       _events = events;
+  })  : _file = file,
+        _events = events;
 
   /// Abre una sesión existente o crea una nueva.
   static Future<SessionLog> open(
@@ -89,10 +89,10 @@ class SessionLog {
     _events.add(event);
     await _file.writeAsString(
       '${jsonEncode(<String, Object?>{
-        'type': event.eventType,
-        'at': DateTime.now().toIso8601String(),
-        'data': event.toJson(),
-      })}\n',
+            'type': event.eventType,
+            'at': DateTime.now().toIso8601String(),
+            'data': event.toJson(),
+          })}\n',
       mode: FileMode.append,
       flush: true,
     );

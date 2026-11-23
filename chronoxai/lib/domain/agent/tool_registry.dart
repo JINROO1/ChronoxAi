@@ -93,15 +93,16 @@ class ToolRegistry {
   ) {
     final problems = <String>[];
 
-    final required = (schema['required'] as List<Object?>?) ?? const <Object?>[];
+    final required =
+        (schema['required'] as List<Object?>?) ?? const <Object?>[];
     for (final key in required.cast<String>()) {
       if (!arguments.containsKey(key) || arguments[key] == null) {
         problems.add('falta el campo requerido "$key"');
       }
     }
 
-    final properties =
-        (schema['properties'] as Map<String, Object?>?) ?? const <String, Object?>{};
+    final properties = (schema['properties'] as Map<String, Object?>?) ??
+        const <String, Object?>{};
 
     for (final entry in arguments.entries) {
       final spec = properties[entry.key];

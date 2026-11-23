@@ -27,7 +27,8 @@ abstract class SessionEvent extends AgentEvent {
   /// Reconstruye un evento desde el log.
   static SessionEvent? fromJson(final Map<String, Object?> json) {
     final type = json['type'] as String?;
-    final data = (json['data'] as Map<String, Object?>?) ?? const <String, Object?>{};
+    final data =
+        (json['data'] as Map<String, Object?>?) ?? const <String, Object?>{};
     return switch (type) {
       'turn/start' => TurnStartEvent.fromJson(data),
       'turn/end' => TurnEndEvent.fromJson(data),
@@ -69,11 +70,11 @@ class SessionCreatedEvent extends SessionEvent {
 
   @override
   Map<String, Object?> toJson() => <String, Object?>{
-    'sessionId': sessionId,
-    'modeId': modeId,
-    'model': model,
-    'createdAt': createdAt.toIso8601String(),
-  };
+        'sessionId': sessionId,
+        'modeId': modeId,
+        'model': model,
+        'createdAt': createdAt.toIso8601String(),
+      };
 
   static SessionCreatedEvent fromJson(final Map<String, Object?> j) =>
       SessionCreatedEvent(
@@ -113,9 +114,9 @@ class TurnStartEvent extends SessionEvent {
 
   @override
   Map<String, Object?> toJson() => <String, Object?>{
-    'turnId': turnId,
-    'userInput': userInput,
-  };
+        'turnId': turnId,
+        'userInput': userInput,
+      };
 
   static TurnStartEvent fromJson(final Map<String, Object?> j) =>
       TurnStartEvent(
@@ -138,14 +139,14 @@ class TurnEndEvent extends SessionEvent {
 
   @override
   Map<String, Object?> toJson() => <String, Object?>{
-    'turnId': turnId,
-    'reason': reason,
-  };
+        'turnId': turnId,
+        'reason': reason,
+      };
 
   static TurnEndEvent fromJson(final Map<String, Object?> j) => TurnEndEvent(
-    turnId: (j['turnId'] as String?) ?? '',
-    reason: (j['reason'] as String?) ?? 'completed',
-  );
+        turnId: (j['turnId'] as String?) ?? '',
+        reason: (j['reason'] as String?) ?? 'completed',
+      );
 }
 
 /// Un paso = una petición al modelo + sus herramientas.
@@ -187,22 +188,22 @@ class StepEndEvent extends SessionEvent {
 
   @override
   Map<String, Object?> toJson() => <String, Object?>{
-    'stepIndex': stepIndex,
-    'inputTokens': inputTokens,
-    'outputTokens': outputTokens,
-    'timeToFirstTokenMs': timeToFirstTokenMs,
-    'durationMs': durationMs,
-    'toolTimeMs': toolTimeMs,
-  };
+        'stepIndex': stepIndex,
+        'inputTokens': inputTokens,
+        'outputTokens': outputTokens,
+        'timeToFirstTokenMs': timeToFirstTokenMs,
+        'durationMs': durationMs,
+        'toolTimeMs': toolTimeMs,
+      };
 
   static StepEndEvent fromJson(final Map<String, Object?> j) => StepEndEvent(
-    stepIndex: (j['stepIndex'] as num?)?.toInt() ?? 0,
-    inputTokens: (j['inputTokens'] as num?)?.toInt() ?? 0,
-    outputTokens: (j['outputTokens'] as num?)?.toInt() ?? 0,
-    timeToFirstTokenMs: (j['timeToFirstTokenMs'] as num?)?.toInt(),
-    durationMs: (j['durationMs'] as num?)?.toInt() ?? 0,
-    toolTimeMs: (j['toolTimeMs'] as num?)?.toInt() ?? 0,
-  );
+        stepIndex: (j['stepIndex'] as num?)?.toInt() ?? 0,
+        inputTokens: (j['inputTokens'] as num?)?.toInt() ?? 0,
+        outputTokens: (j['outputTokens'] as num?)?.toInt() ?? 0,
+        timeToFirstTokenMs: (j['timeToFirstTokenMs'] as num?)?.toInt(),
+        durationMs: (j['durationMs'] as num?)?.toInt() ?? 0,
+        toolTimeMs: (j['toolTimeMs'] as num?)?.toInt() ?? 0,
+      );
 }
 
 // ---------------------------------------------------------------------------
@@ -211,7 +212,8 @@ class StepEndEvent extends SessionEvent {
 
 /// Mensaje del usuario.
 class UserMessageEvent extends SessionEvent {
-  const UserMessageEvent({required this.text, this.attachments = const <String>[]});
+  const UserMessageEvent(
+      {required this.text, this.attachments = const <String>[]});
 
   final String text;
   final List<String> attachments;
@@ -221,9 +223,9 @@ class UserMessageEvent extends SessionEvent {
 
   @override
   Map<String, Object?> toJson() => <String, Object?>{
-    'text': text,
-    'attachments': attachments,
-  };
+        'text': text,
+        'attachments': attachments,
+      };
 
   static UserMessageEvent fromJson(final Map<String, Object?> j) =>
       UserMessageEvent(
@@ -255,19 +257,18 @@ class AssistantMessageEvent extends SessionEvent {
 
   @override
   Map<String, Object?> toJson() => <String, Object?>{
-    'text': text,
-    'reasoning': reasoning,
-    'toolCallIds': toolCallIds,
-    'stopReason': stopReason,
-  };
+        'text': text,
+        'reasoning': reasoning,
+        'toolCallIds': toolCallIds,
+        'stopReason': stopReason,
+      };
 
   static AssistantMessageEvent fromJson(final Map<String, Object?> j) =>
       AssistantMessageEvent(
         text: (j['text'] as String?) ?? '',
         reasoning: j['reasoning'] as String?,
-        toolCallIds:
-            ((j['toolCallIds'] as List<Object?>?) ?? const <Object?>[])
-                .cast<String>(),
+        toolCallIds: ((j['toolCallIds'] as List<Object?>?) ?? const <Object?>[])
+            .cast<String>(),
         stopReason: j['stopReason'] as String?,
       );
 }
@@ -293,17 +294,17 @@ class ToolCallEvent extends SessionEvent {
 
   @override
   Map<String, Object?> toJson() => <String, Object?>{
-    'callId': callId,
-    'name': name,
-    'arguments': arguments,
-  };
+        'callId': callId,
+        'name': name,
+        'arguments': arguments,
+      };
 
   static ToolCallEvent fromJson(final Map<String, Object?> j) => ToolCallEvent(
-    callId: (j['callId'] as String?) ?? '',
-    name: (j['name'] as String?) ?? '',
-    arguments:
-        (j['arguments'] as Map<String, Object?>?) ?? const <String, Object?>{},
-  );
+        callId: (j['callId'] as String?) ?? '',
+        name: (j['name'] as String?) ?? '',
+        arguments: (j['arguments'] as Map<String, Object?>?) ??
+            const <String, Object?>{},
+      );
 }
 
 /// Resultado de una herramienta.
@@ -331,13 +332,13 @@ class ToolResultEvent extends SessionEvent {
 
   @override
   Map<String, Object?> toJson() => <String, Object?>{
-    'callId': callId,
-    'name': name,
-    'content': content,
-    'isError': isError,
-    'durationMs': durationMs,
-    'truncated': truncated,
-  };
+        'callId': callId,
+        'name': name,
+        'content': content,
+        'isError': isError,
+        'durationMs': durationMs,
+        'truncated': truncated,
+      };
 
   static ToolResultEvent fromJson(final Map<String, Object?> j) =>
       ToolResultEvent(
@@ -369,10 +370,10 @@ class ApprovalDecisionEvent extends SessionEvent {
 
   @override
   Map<String, Object?> toJson() => <String, Object?>{
-    'callId': callId,
-    'approved': approved,
-    'rememberForSession': rememberForSession,
-  };
+        'callId': callId,
+        'approved': approved,
+        'rememberForSession': rememberForSession,
+      };
 
   static ApprovalDecisionEvent fromJson(final Map<String, Object?> j) =>
       ApprovalDecisionEvent(
@@ -401,11 +402,11 @@ class CompactionEvent extends SessionEvent {
 
   @override
   Map<String, Object?> toJson() => <String, Object?>{
-    'summary': summary,
-    'replacedEventCount': replacedEventCount,
-    'tokensBefore': tokensBefore,
-    'tokensAfter': tokensAfter,
-  };
+        'summary': summary,
+        'replacedEventCount': replacedEventCount,
+        'tokensBefore': tokensBefore,
+        'tokensAfter': tokensAfter,
+      };
 
   static CompactionEvent fromJson(final Map<String, Object?> j) =>
       CompactionEvent(

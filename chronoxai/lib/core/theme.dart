@@ -156,8 +156,10 @@ abstract final class ChronoxTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: ChronoxColors.surfaceHigh,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        hintStyle: const TextStyle(color: ChronoxColors.textMuted, fontSize: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        hintStyle:
+            const TextStyle(color: ChronoxColors.textMuted, fontSize: 14),
         labelStyle: const TextStyle(color: ChronoxColors.textSecondary),
         border: _inputBorder(ChronoxColors.border),
         enabledBorder: _inputBorder(ChronoxColors.border),
@@ -233,7 +235,8 @@ abstract final class ChronoxTheme {
           borderRadius: ChronoxRadius.card,
           border: Border.all(color: ChronoxColors.borderGlow),
         ),
-        textStyle: const TextStyle(color: ChronoxColors.textPrimary, fontSize: 12),
+        textStyle:
+            const TextStyle(color: ChronoxColors.textPrimary, fontSize: 12),
       ),
     );
   }

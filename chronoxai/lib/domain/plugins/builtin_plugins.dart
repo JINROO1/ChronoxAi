@@ -16,12 +16,13 @@ import 'plugin_runtime.dart';
 Map<String, Object?> _obj(
   final Map<String, Object?> properties, {
   final List<String> required = const <String>[],
-}) => <String, Object?>{
-  'type': 'object',
-  'properties': properties,
-  'required': required,
-  'additionalProperties': false,
-};
+}) =>
+    <String, Object?>{
+      'type': 'object',
+      'properties': properties,
+      'required': required,
+      'additionalProperties': false,
+    };
 
 Map<String, Object?> _str(final String description) =>
     <String, Object?>{'type': 'string', 'description': description};
@@ -55,118 +56,130 @@ class _FsPlugin extends ChronoxPlugin {
 }
 
 ChronoxPlugin fsPlugin() => _FsPlugin(
-  id: 'core-fs',
-  name: 'Sistema de archivos',
-  description: 'Lectura, escritura, búsqueda y listado en /workspace.',
-  tools: (final context) => <PluginTool>[
-    PluginTool(
-      name: 'read',
-      description:
-          'Lee un fichero de texto. Devuelve el contenido con números de línea. '
-          'Usa `offset` y `limit` para ficheros grandes en lugar de leerlo todo.',
-      requiresApproval: false,
-      inputSchema: _obj(<String, Object?>{
-        'path': _str('Ruta absoluta o relativa a /workspace.'),
-        'offset': _int('Primera línea a devolver (1-based).'),
-        'limit': _int('Número máximo de líneas.'),
-      }, required: <String>['path']),
-      execute: (final args) async {
-        final path = args['path']! as String;
-        final offset = (args['offset'] as int?) ?? 1;
-        final limit = (args['limit'] as int?) ?? 2000;
+      id: 'core-fs',
+      name: 'Sistema de archivos',
+      description: 'Lectura, escritura, búsqueda y listado en /workspace.',
+      tools: (final context) => <PluginTool>[
+        PluginTool(
+          name: 'read',
+          description:
+              'Lee un fichero de texto. Devuelve el contenido con números de línea. '
+              'Usa `offset` y `limit` para ficheros grandes en lugar de leerlo todo.',
+          requiresApproval: false,
+          inputSchema: _obj(<String, Object?>{
+            'path': _str('Ruta absoluta o relativa a /workspace.'),
+            'offset': _int('Primera línea a devolver (1-based).'),
+            'limit': _int('Número máximo de líneas.'),
+          }, required: <String>[
+            'path'
+          ]),
+          execute: (final args) async {
+            final path = args['path']! as String;
+            final offset = (args['offset'] as int?) ?? 1;
+            final limit = (args['limit'] as int?) ?? 2000;
 
-        final lines = await context.services.fileSystem.readFile(path);
-        final all = lines.split('\n');
-        final start = (offset - 1).clamp(0, all.length);
-        final end = (start + limit).clamp(0, all.length);
-        final slice = all.sublist(start, end);
+            final lines = await context.services.fileSystem.readFile(path);
+            final all = lines.split('\n');
+            final start = (offset - 1).clamp(0, all.length);
+            final end = (start + limit).clamp(0, all.length);
+            final slice = all.sublist(start, end);
 
-        final numbered = <String>[];
-        for (var i = 0; i < slice.length; i++) {
-          final number = start + i + 1;
-          numbered.add('${number.toString().padLeft(6)}\t${slice[i]}');
-        }
+            final numbered = <String>[];
+            for (var i = 0; i < slice.length; i++) {
+              final number = start + i + 1;
+              numbered.add('${number.toString().padLeft(6)}\t${slice[i]}');
+            }
 
-        final truncated = end < all.length;
-        return ToolOutcome(
-          content: truncated
-              ? '${numbered.join('\n')}\n\n[truncado: quedan '
-                    '${all.length - end} líneas. Usa offset=${end + 1}]'
-              : numbered.join('\n'),
-          metadata: <String, Object?>{'lines': all.length, 'truncated': truncated},
-        );
-      },
-    ),
-    PluginTool(
-      name: 'write',
-      description:
-          'Crea o sobrescribe un fichero. Si el fichero existe, se muestra un '
-          'diff antes de aplicar el cambio.',
-      inputSchema: _obj(<String, Object?>{
-        'path': _str('Ruta del fichero.'),
-        'content': _str('Contenido completo.'),
-      }, required: <String>['path', 'content']),
-      execute: (final args) async {
-        final path = args['path']! as String;
-        final content = args['content']! as String;
-        await context.services.fileSystem.writeFile(path, content);
-        final lines = content.split('\n').length;
-        return ToolOutcome(
-          content: 'Escrito $path ($lines líneas, ${content.length} caracteres).',
-          metadata: <String, Object?>{'path': path, 'lines': lines},
-        );
-      },
-    ),
-    PluginTool(
-      name: 'glob',
-      description:
-          'Encuentra ficheros por patrón (`**/*.dart`, `lib/**/*.ts`). '
-          'Más rápido que `find` para localizar archivos por nombre.',
-      requiresApproval: false,
-      inputSchema: _obj(<String, Object?>{
-        'pattern': _str('Patrón glob.'),
-        'path': _str('Directorio base (por defecto /workspace).'),
-      }, required: <String>['pattern']),
-      execute: (final args) async {
-        final matches = await context.services.fileSystem.glob(
-          args['pattern']! as String,
-        );
-        if (matches.isEmpty) {
-          return const ToolOutcome(content: 'Sin coincidencias.');
-        }
-        return ToolOutcome(
-          content: matches.take(500).join('\n'),
-          metadata: <String, Object?>{'count': matches.length},
-        );
-      },
-    ),
-    PluginTool(
-      name: 'grep',
-      description:
-          'Busca un patrón en el contenido de los ficheros. Devuelve '
-          '`ruta:línea:texto`.',
-      requiresApproval: false,
-      inputSchema: _obj(<String, Object?>{
-        'pattern': _str('Expresión regular.'),
-        'path': _str('Directorio o fichero donde buscar.'),
-      }, required: <String>['pattern']),
-      execute: (final args) async {
-        final results = await context.services.fileSystem.grep(
-          args['pattern']! as String,
-          path: args['path'] as String?,
-        );
-        if (results.isEmpty) {
-          return const ToolOutcome(content: 'Sin coincidencias.');
-        }
-        return ToolOutcome(
-          content: results.take(200).join('\n'),
-          metadata: <String, Object?>{'count': results.length},
-        );
-      },
-    ),
-  ],
-);
-
+            final truncated = end < all.length;
+            return ToolOutcome(
+              content: truncated
+                  ? '${numbered.join('\n')}\n\n[truncado: quedan '
+                      '${all.length - end} líneas. Usa offset=${end + 1}]'
+                  : numbered.join('\n'),
+              metadata: <String, Object?>{
+                'lines': all.length,
+                'truncated': truncated
+              },
+            );
+          },
+        ),
+        PluginTool(
+          name: 'write',
+          description:
+              'Crea o sobrescribe un fichero. Si el fichero existe, se muestra un '
+              'diff antes de aplicar el cambio.',
+          inputSchema: _obj(<String, Object?>{
+            'path': _str('Ruta del fichero.'),
+            'content': _str('Contenido completo.'),
+          }, required: <String>[
+            'path',
+            'content'
+          ]),
+          execute: (final args) async {
+            final path = args['path']! as String;
+            final content = args['content']! as String;
+            await context.services.fileSystem.writeFile(path, content);
+            final lines = content.split('\n').length;
+            return ToolOutcome(
+              content:
+                  'Escrito $path ($lines líneas, ${content.length} caracteres).',
+              metadata: <String, Object?>{'path': path, 'lines': lines},
+            );
+          },
+        ),
+        PluginTool(
+          name: 'glob',
+          description:
+              'Encuentra ficheros por patrón (`**/*.dart`, `lib/**/*.ts`). '
+              'Más rápido que `find` para localizar archivos por nombre.',
+          requiresApproval: false,
+          inputSchema: _obj(<String, Object?>{
+            'pattern': _str('Patrón glob.'),
+            'path': _str('Directorio base (por defecto /workspace).'),
+          }, required: <String>[
+            'pattern'
+          ]),
+          execute: (final args) async {
+            final matches = await context.services.fileSystem.glob(
+              args['pattern']! as String,
+            );
+            if (matches.isEmpty) {
+              return const ToolOutcome(content: 'Sin coincidencias.');
+            }
+            return ToolOutcome(
+              content: matches.take(500).join('\n'),
+              metadata: <String, Object?>{'count': matches.length},
+            );
+          },
+        ),
+        PluginTool(
+          name: 'grep',
+          description:
+              'Busca un patrón en el contenido de los ficheros. Devuelve '
+              '`ruta:línea:texto`.',
+          requiresApproval: false,
+          inputSchema: _obj(<String, Object?>{
+            'pattern': _str('Expresión regular.'),
+            'path': _str('Directorio o fichero donde buscar.'),
+          }, required: <String>[
+            'pattern'
+          ]),
+          execute: (final args) async {
+            final results = await context.services.fileSystem.grep(
+              args['pattern']! as String,
+              path: args['path'] as String?,
+            );
+            if (results.isEmpty) {
+              return const ToolOutcome(content: 'Sin coincidencias.');
+            }
+            return ToolOutcome(
+              content: results.take(200).join('\n'),
+              metadata: <String, Object?>{'count': results.length},
+            );
+          },
+        ),
+      ],
+    );
 
 // ---------------------------------------------------------------------------
 // core-search: política de búsqueda
@@ -199,8 +212,7 @@ class _SearchPolicyPlugin extends ChronoxPlugin {
       PluginSkill(
         id: 'search-policy',
         name: 'Política de búsqueda',
-        instructions:
-            'Al buscar en el proyecto, ignora estas carpetas: '
+        instructions: 'Al buscar en el proyecto, ignora estas carpetas: '
             '${defaultExcludes.join(", ")}. '
             'Limita los resultados a 200 coincidencias y pide un patrón más '
             'específico si hay más.',
@@ -229,8 +241,11 @@ class _ShellPlugin extends ChronoxPlugin {
         inputSchema: _obj(<String, Object?>{
           'command': _str('Comando a ejecutar.'),
           'workdir': _str('Directorio de trabajo.'),
-          'timeout_ms': _int('Tiempo máximo en milisegundos (por defecto 120000).'),
-        }, required: <String>['command']),
+          'timeout_ms':
+              _int('Tiempo máximo en milisegundos (por defecto 120000).'),
+        }, required: <String>[
+          'command'
+        ]),
         execute: (final args) async {
           final timeoutMs = (args['timeout_ms'] as int?) ?? 120000;
           final result = await context.services.shell.run(
@@ -266,7 +281,8 @@ class _TerminalPlugin extends ChronoxPlugin {
             'Abre una terminal persistente. Útil para procesos interactivos o '
             'de larga duración (dev servers, REPLs). Devuelve un id.',
         requiresApproval: false,
-        inputSchema: _obj(<String, Object?>{'title': _str('Etiqueta visible.')}),
+        inputSchema:
+            _obj(<String, Object?>{'title': _str('Etiqueta visible.')}),
         execute: (final args) async {
           final id = await context.services.terminals.open(
             title: args['title'] as String?,
@@ -281,11 +297,15 @@ class _TerminalPlugin extends ChronoxPlugin {
     context.provideTool(
       PluginTool(
         name: 'terminal_send',
-        description: 'Escribe en una terminal. Añade \\n al final si hace falta.',
+        description:
+            'Escribe en una terminal. Añade \\n al final si hace falta.',
         inputSchema: _obj(<String, Object?>{
           'terminal_id': _str('Id devuelto por terminal_open.'),
           'input': _str('Texto a escribir.'),
-        }, required: <String>['terminal_id', 'input']),
+        }, required: <String>[
+          'terminal_id',
+          'input'
+        ]),
         execute: (final args) async {
           await context.services.terminals.send(
             args['terminal_id']! as String,
@@ -302,7 +322,9 @@ class _TerminalPlugin extends ChronoxPlugin {
         requiresApproval: false,
         inputSchema: _obj(<String, Object?>{
           'terminal_id': _str('Id de la terminal.'),
-        }, required: <String>['terminal_id']),
+        }, required: <String>[
+          'terminal_id'
+        ]),
         execute: (final args) async {
           final output = await context.services.terminals.read(
             args['terminal_id']! as String,
@@ -342,9 +364,12 @@ class _TerminalPlugin extends ChronoxPlugin {
         description: 'Cierra una terminal y mata sus procesos.',
         inputSchema: _obj(<String, Object?>{
           'terminal_id': _str('Id de la terminal.'),
-        }, required: <String>['terminal_id']),
+        }, required: <String>[
+          'terminal_id'
+        ]),
         execute: (final args) async {
-          await context.services.terminals.close(args['terminal_id']! as String);
+          await context.services.terminals
+              .close(args['terminal_id']! as String);
           return const ToolOutcome(content: 'Terminal cerrada.');
         },
       ),
@@ -372,16 +397,19 @@ class _EditingPlugin extends ChronoxPlugin {
           'path': _str('Ruta del fichero.'),
           'old_str': _str('Texto exacto a reemplazar (único en el fichero).'),
           'new_str': _str('Texto nuevo. Vacío para borrar.'),
-        }, required: <String>['path', 'old_str', 'new_str']),
+        }, required: <String>[
+          'path',
+          'old_str',
+          'new_str'
+        ]),
         execute: (final args) async {
           final path = args['path']! as String;
           final oldStr = args['old_str']! as String;
           final newStr = (args['new_str'] as String?) ?? '';
 
           final content = await context.services.fileSystem.readFile(path);
-          final occurrences = oldStr.isEmpty
-              ? 0
-              : oldStr.allMatches(content).length;
+          final occurrences =
+              oldStr.isEmpty ? 0 : oldStr.allMatches(content).length;
 
           if (occurrences == 0) {
             return ToolOutcome.error(
@@ -399,7 +427,8 @@ class _EditingPlugin extends ChronoxPlugin {
           final updated = content.replaceFirst(oldStr, newStr);
           await context.services.fileSystem.writeFile(path, updated);
           return ToolOutcome(
-            content: 'Editado $path (−${oldStr.length} +${newStr.length} bytes).',
+            content:
+                'Editado $path (−${oldStr.length} +${newStr.length} bytes).',
             metadata: <String, Object?>{'path': path},
           );
         },
@@ -413,13 +442,16 @@ class _EditingPlugin extends ChronoxPlugin {
             'cambios grandes o múltiples a la vez.',
         inputSchema: _obj(<String, Object?>{
           'patch': _str('Diff en formato unificado.'),
-        }, required: <String>['patch']),
+        }, required: <String>[
+          'patch'
+        ]),
         execute: (final args) async {
           // Se delega en `patch` del contenedor: reimplementar un parser de
           // diffs en Dart sería frágil y el contenedor ya lo tiene.
           final stamp = DateTime.now().microsecondsSinceEpoch;
           final tmp = '/tmp/chronox-patch-$stamp.diff';
-          await context.services.fileSystem.writeFile(tmp, args['patch']! as String);
+          await context.services.fileSystem
+              .writeFile(tmp, args['patch']! as String);
           final result = await context.services.shell.run(
             'patch -p1 --forward --input="$tmp" && rm -f "$tmp"',
           );
@@ -467,7 +499,9 @@ class _TodoPlugin extends ChronoxPlugin {
               'required': <String>['content', 'status'],
             },
           },
-        }, required: <String>['todos']),
+        }, required: <String>[
+          'todos'
+        ]),
         execute: (final args) async {
           items
             ..clear()
@@ -475,9 +509,8 @@ class _TodoPlugin extends ChronoxPlugin {
               ((args['todos'] as List<Object?>?) ?? <Object?>[])
                   .whereType<Map<String, Object?>>(),
             );
-          final done = items
-              .where((final t) => t['status'] == 'completed')
-              .length;
+          final done =
+              items.where((final t) => t['status'] == 'completed').length;
           return ToolOutcome(
             content: 'Lista actualizada: $done/${items.length} completadas.',
             metadata: <String, Object?>{'todos': items},
@@ -503,9 +536,11 @@ class _PlanPlugin extends ChronoxPlugin {
         requiresApproval: false,
         inputSchema: _obj(<String, Object?>{
           'plan': _str('Plan en Markdown, con pasos numerados.'),
-        }, required: <String>['plan']),
-        execute: (final args) async =>
-            ToolOutcome(content: 'Plan presentado al usuario para aprobación:\n\n'
+        }, required: <String>[
+          'plan'
+        ]),
+        execute: (final args) async => ToolOutcome(
+            content: 'Plan presentado al usuario para aprobación:\n\n'
                 '${args['plan']}'),
       ),
     );
@@ -529,7 +564,9 @@ class _WebPlugin extends ChronoxPlugin {
         requiresApproval: false,
         inputSchema: _obj(<String, Object?>{
           'url': _str('URL a descargar.'),
-        }, required: <String>['url']),
+        }, required: <String>[
+          'url'
+        ]),
         execute: (final args) async {
           final response = await context.services.network.get(
             Uri.parse(args['url']! as String),
@@ -594,7 +631,9 @@ class _SubagentPlugin extends ChronoxPlugin {
         inputSchema: _obj(<String, Object?>{
           'prompt': _str('Tarea concreta y autocontenida.'),
           'description': _str('Descripción corta, para la UI.'),
-        }, required: <String>['prompt']),
+        }, required: <String>[
+          'prompt'
+        ]),
         execute: (final args) async {
           final run = runner;
           if (run == null) {
@@ -633,7 +672,9 @@ class _CodeModePlugin extends ChronoxPlugin {
         inputSchema: _obj(<String, Object?>{
           'code': _str('Código Python a ejecutar.'),
           'timeout_ms': _int('Tiempo máximo (por defecto 300000).'),
-        }, required: <String>['code']),
+        }, required: <String>[
+          'code'
+        ]),
         execute: (final args) async {
           final script = args['code']! as String;
           final timeoutMs = (args['timeout_ms'] as int?) ?? 300000;
@@ -675,8 +716,7 @@ class _CreatorInspectPlugin extends ChronoxPlugin {
     context.provideTool(
       PluginTool(
         name: 'cordis_inspect',
-        description:
-            'Inspecciona el runtime: plugins montados, herramientas '
+        description: 'Inspecciona el runtime: plugins montados, herramientas '
             'registradas, skills, modos y pantallas.',
         requiresApproval: false,
         inputSchema: _obj(const <String, Object?>{}),
@@ -714,7 +754,9 @@ class _PluginManagerPlugin extends ChronoxPlugin {
             'enum': <String>['list', 'mount', 'unmount'],
           },
           'plugin_id': _str('Id del plugin (para mount/unmount).'),
-        }, required: <String>['action']),
+        }, required: <String>[
+          'action'
+        ]),
         execute: (final args) async {
           final action = args['action']! as String;
           final pluginId = args['plugin_id'] as String?;
@@ -728,10 +770,12 @@ class _PluginManagerPlugin extends ChronoxPlugin {
               );
             case 'mount':
               if (pluginId == null) {
-                return const ToolOutcome.error('Falta `plugin_id` para montar.');
+                return const ToolOutcome.error(
+                    'Falta `plugin_id` para montar.');
               }
               if (target == null) {
-                return const ToolOutcome.error('El host de plugins no está disponible.');
+                return const ToolOutcome.error(
+                    'El host de plugins no está disponible.');
               }
               final ok = await target.mount(pluginId);
               return ok
@@ -742,10 +786,12 @@ class _PluginManagerPlugin extends ChronoxPlugin {
                     );
             case 'unmount':
               if (pluginId == null) {
-                return const ToolOutcome.error('Falta `plugin_id` para desmontar.');
+                return const ToolOutcome.error(
+                    'Falta `plugin_id` para desmontar.');
               }
               if (target == null) {
-                return const ToolOutcome.error('El host de plugins no está disponible.');
+                return const ToolOutcome.error(
+                    'El host de plugins no está disponible.');
               }
               await target.unmount(pluginId);
               return ToolOutcome(content: 'Plugin "$pluginId" desmontado.');
@@ -770,10 +816,13 @@ class _BaseShellPlugin extends ChronoxPlugin {
     context.provideTool(
       PluginTool(
         name: 'bash',
-        description: 'Ejecuta un comando persistente en el shell del contenedor.',
+        description:
+            'Ejecuta un comando persistente en el shell del contenedor.',
         inputSchema: _obj(<String, Object?>{
           'command': _str('Comando.'),
-        }, required: <String>['command']),
+        }, required: <String>[
+          'command'
+        ]),
         execute: (final args) async {
           final result =
               await context.services.shell.run(args['command']! as String);
@@ -802,7 +851,11 @@ class _BaseEditorPlugin extends ChronoxPlugin {
           'path': _str('Fichero.'),
           'old_str': _str('Texto a reemplazar.'),
           'new_str': _str('Texto nuevo.'),
-        }, required: <String>['path', 'old_str', 'new_str']),
+        }, required: <String>[
+          'path',
+          'old_str',
+          'new_str'
+        ]),
         execute: (final args) async {
           final path = args['path']! as String;
           final content = await context.services.fileSystem.readFile(path);
@@ -857,18 +910,19 @@ List<BuiltinPlugin> builtinPlugins({
     final List<PluginCapability> capabilities = const <PluginCapability>[],
     final List<String> requires = const <String>[],
     final String? icon,
-  }) => PluginManifest(
-    id: id,
-    name: name,
-    version: '1.0.0',
-    kind: kind,
-    description: description,
-    author: 'Chronox AI',
-    capabilities: capabilities,
-    requires: requires,
-    icon: icon,
-    enabledByDefault: true,
-  );
+  }) =>
+      PluginManifest(
+        id: id,
+        name: name,
+        version: '1.0.0',
+        kind: kind,
+        description: description,
+        author: 'Chronox AI',
+        capabilities: capabilities,
+        requires: requires,
+        icon: icon,
+        enabledByDefault: true,
+      );
 
   const fsCaps = <PluginCapability>[PluginCapability.fileSystem];
 

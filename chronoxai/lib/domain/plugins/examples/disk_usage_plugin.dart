@@ -19,20 +19,20 @@ class DiskUsagePlugin extends ChronoxPlugin {
   bool _running = false;
 
   static PluginManifest get manifest => const PluginManifest(
-    id: 'example-disk-usage',
-    name: 'Uso de disco',
-    version: '1.0.0',
-    kind: PluginKind.surface,
-    description:
-        'Muestra qué ocupa espacio en el contenedor y lo expone al agente como '
-        'la herramienta `disk_usage`.',
-    author: 'Chronox AI (ejemplo)',
-    capabilities: <PluginCapability>[PluginCapability.shell],
-    icon: 'storage',
-    surfaceLabel: 'Disco',
-    surfaceOrder: 200,
-    enabledByDefault: false,
-  );
+        id: 'example-disk-usage',
+        name: 'Uso de disco',
+        version: '1.0.0',
+        kind: PluginKind.surface,
+        description:
+            'Muestra qué ocupa espacio en el contenedor y lo expone al agente como '
+            'la herramienta `disk_usage`.',
+        author: 'Chronox AI (ejemplo)',
+        capabilities: <PluginCapability>[PluginCapability.shell],
+        icon: 'storage',
+        surfaceLabel: 'Disco',
+        surfaceOrder: 200,
+        enabledByDefault: false,
+      );
 
   @override
   Future<void> mount(final PluginContext context) async {

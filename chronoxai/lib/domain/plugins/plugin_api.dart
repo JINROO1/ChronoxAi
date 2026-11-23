@@ -131,19 +131,19 @@ class PluginManifest {
   final List<String> requires;
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'id': id,
-    'name': name,
-    'version': version,
-    'kind': kind.name,
-    'description': description,
-    'author': author,
-    'capabilities': capabilities.map((final c) => c.name).toList(),
-    'icon': icon,
-    'surfaceLabel': surfaceLabel,
-    'surfaceOrder': surfaceOrder,
-    'enabledByDefault': enabledByDefault,
-    'requires': requires,
-  };
+        'id': id,
+        'name': name,
+        'version': version,
+        'kind': kind.name,
+        'description': description,
+        'author': author,
+        'capabilities': capabilities.map((final c) => c.name).toList(),
+        'icon': icon,
+        'surfaceLabel': surfaceLabel,
+        'surfaceOrder': surfaceOrder,
+        'enabledByDefault': enabledByDefault,
+        'requires': requires,
+      };
 
   static PluginManifest fromJson(final Map<String, Object?> json) {
     return PluginManifest(
@@ -168,8 +168,8 @@ class PluginManifest {
       surfaceLabel: json['surfaceLabel'] as String?,
       surfaceOrder: (json['surfaceOrder'] as num?)?.toInt() ?? 100,
       enabledByDefault: (json['enabledByDefault'] as bool?) ?? true,
-      requires: ((json['requires'] as List<Object?>?) ?? <Object?>[])
-          .cast<String>(),
+      requires:
+          ((json['requires'] as List<Object?>?) ?? <Object?>[]).cast<String>(),
     );
   }
 }
@@ -313,16 +313,15 @@ abstract class ScopedPluginServices implements PluginServices {
   NetworkSeam get network;
 }
 
-class _ScopedServices extends PluginServices
-    implements ScopedPluginServices {
+class _ScopedServices extends PluginServices implements ScopedPluginServices {
   _ScopedServices({required this.parent, required this.manifest})
-    : super(
-        registry: parent.registry,
-        skills: parent.skills,
-        modes: parent.modes,
-        surfaces: parent.surfaces,
-        events: parent.events,
-      );
+      : super(
+          registry: parent.registry,
+          skills: parent.skills,
+          modes: parent.modes,
+          surfaces: parent.surfaces,
+          events: parent.events,
+        );
 
   final PluginServices parent;
   final PluginManifest manifest;
@@ -366,8 +365,7 @@ class _ScopedServices extends PluginServices
   SessionSeam get session => _require(PluginCapability.session, parent.session);
 
   @override
-  NetworkSeam get network =>
-      _require(PluginCapability.network, parent.network);
+  NetworkSeam get network => _require(PluginCapability.network, parent.network);
 }
 
 /// Ciclo de vida que implementa un plugin.
@@ -413,8 +411,8 @@ class ToolOutcome {
   /// Constructor de error. Es `const` a propósito para que los sitios que
   /// devuelven un error fijo no generen objetos en cada invocación.
   const ToolOutcome.error(this.content)
-    : isError = true,
-      metadata = const <String, Object?>{};
+      : isError = true,
+        metadata = const <String, Object?>{};
 
   final String content;
   final bool isError;

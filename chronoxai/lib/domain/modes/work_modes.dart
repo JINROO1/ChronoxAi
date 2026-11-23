@@ -122,8 +122,7 @@ abstract final class WorkModes {
     PluginMode(
       id: creator,
       name: 'Creator',
-      description:
-          'Standard más inspección del runtime: ver plugins montados, '
+      description: 'Standard más inspección del runtime: ver plugins montados, '
           'herramientas registradas y montar/desmontar en caliente.',
       pluginIds: <String>[
         'core-fs',
@@ -148,9 +147,9 @@ abstract final class WorkModes {
   ];
 
   static PluginMode byId(final String id) => all.firstWhere(
-    (final m) => m.id == id,
-    orElse: () => all.first,
-  );
+        (final m) => m.id == id,
+        orElse: () => all.first,
+      );
 
   static List<String> pluginsFor(final String modeId) =>
       pluginSets[modeId] ?? pluginSets[standard]!;

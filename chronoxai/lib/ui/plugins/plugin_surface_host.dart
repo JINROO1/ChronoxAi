@@ -66,7 +66,9 @@ class _PluginSurfaceHostState extends State<PluginSurfaceHost> {
           children: <Widget>[
             Icon(widget.surface.icon, size: 19, color: ChronoxColors.primary),
             const SizedBox(width: ChronoxSpacing.sm),
-            Flexible(child: Text(widget.surface.label, overflow: TextOverflow.ellipsis)),
+            Flexible(
+                child: Text(widget.surface.label,
+                    overflow: TextOverflow.ellipsis)),
             const SizedBox(width: ChronoxSpacing.sm),
             _PluginBadge(pluginId: widget.pluginId),
           ],
@@ -179,7 +181,8 @@ class _PluginCrashView extends StatelessWidget {
             const SizedBox(height: ChronoxSpacing.sm),
             Text(
               '$error',
-              style: ChronoxTheme.monoSmall.copyWith(color: ChronoxColors.textMuted),
+              style: ChronoxTheme.monoSmall
+                  .copyWith(color: ChronoxColors.textMuted),
               textAlign: TextAlign.center,
               maxLines: 8,
               overflow: TextOverflow.ellipsis,

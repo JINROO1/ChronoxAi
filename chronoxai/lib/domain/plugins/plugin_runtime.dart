@@ -49,8 +49,8 @@ class PluginHost {
   PluginHost({
     required final PluginServices services,
     required final AgentEventBus events,
-  }) : _services = services,
-       _events = events;
+  })  : _services = services,
+        _events = events;
 
   final PluginServices _services;
   final AgentEventBus _events;
@@ -183,9 +183,8 @@ class PluginHost {
               'source': p.source,
               'state': p.state.name,
               'error': p.error,
-              'capabilities': p.manifest.capabilities
-                  .map((final c) => c.name)
-                  .toList(),
+              'capabilities':
+                  p.manifest.capabilities.map((final c) => c.name).toList(),
             },
           )
           .toList(),

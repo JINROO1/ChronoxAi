@@ -104,11 +104,13 @@ void main() {
 
     test('identifica x86_64 y arm32', () {
       expect(
-        ElfInspector.inspect(buildElf(machine: emX8664, loadAligns: [16384])).machineName,
+        ElfInspector.inspect(buildElf(machine: emX8664, loadAligns: [16384]))
+            .machineName,
         contains('x86_64'),
       );
       expect(
-        ElfInspector.inspect(buildElf(machine: 0x28, loadAligns: [16384])).isAndroidCompatible,
+        ElfInspector.inspect(buildElf(machine: 0x28, loadAligns: [16384]))
+            .isAndroidCompatible,
         isFalse,
       );
     });

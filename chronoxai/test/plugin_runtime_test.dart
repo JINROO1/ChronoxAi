@@ -21,22 +21,23 @@ PluginManifest manifest({
   List<PluginCapability> capabilities = const <PluginCapability>[],
   List<String> requires = const <String>[],
   PluginKind kind = PluginKind.tool,
-}) => PluginManifest(
-  id: id,
-  name: id,
-  version: '1.0.0',
-  kind: kind,
-  description: 'plugin de prueba',
-  capabilities: capabilities,
-  requires: requires,
-);
+}) =>
+    PluginManifest(
+      id: id,
+      name: id,
+      version: '1.0.0',
+      kind: kind,
+      description: 'plugin de prueba',
+      capabilities: capabilities,
+      requires: requires,
+    );
 
 PluginTool dummyTool(String name) => PluginTool(
-  name: name,
-  description: 'herramienta $name',
-  inputSchema: const <String, Object?>{'type': 'object'},
-  execute: (final _) async => ToolOutcome(content: 'ok'),
-);
+      name: name,
+      description: 'herramienta $name',
+      inputSchema: const <String, Object?>{'type': 'object'},
+      execute: (final _) async => ToolOutcome(content: 'ok'),
+    );
 
 /// Plugin que registra una herramienta con un nombre dado.
 class ToolRegisteringPlugin extends ChronoxPlugin {
@@ -82,7 +83,9 @@ void main() {
             description: 'lee',
             inputSchema: const <String, Object?>{
               'type': 'object',
-              'properties': <String, Object?>{'path': <String, Object?>{'type': 'string'}},
+              'properties': <String, Object?>{
+                'path': <String, Object?>{'type': 'string'}
+              },
             },
             execute: (final _) async => const ToolOutcome(content: ''),
           ),
@@ -235,7 +238,8 @@ void main() {
       expect(plugin.error, contains('no-existe'));
     });
 
-    test('un plugin que falla al montar queda marcado, no rompe el host', () async {
+    test('un plugin que falla al montar queda marcado, no rompe el host',
+        () async {
       final services = makeServices();
       final host = PluginHost(services: services, events: AgentEventBus());
       host.register(manifest(id: 'malo'), FailingPlugin());
@@ -256,7 +260,8 @@ void main() {
       expect(services.registry.contains('t1'), isTrue);
     });
 
-    test('unmountAll desmonta en orden inverso y deja el registro vacío', () async {
+    test('unmountAll desmonta en orden inverso y deja el registro vacío',
+        () async {
       final services = makeServices();
       final host = PluginHost(services: services, events: AgentEventBus());
       host.register(manifest(id: 'a'), ToolRegisteringPlugin('ta'));
@@ -317,7 +322,8 @@ void main() {
       );
     });
 
-    test('una capacidad declarada pero sin servicio da un error explicativo', () {
+    test('una capacidad declarada pero sin servicio da un error explicativo',
+        () {
       final services = makeServices();
       final scoped = services.forPlugin(
         manifest(
@@ -384,5 +390,6 @@ class _FakeShell implements ShellSeam {
     final String command, {
     final String? workingDirectory,
     final Duration? timeout,
-  }) async => const ShellResult(exitCode: 0, stdout: '', stderr: '');
+  }) async =>
+      const ShellResult(exitCode: 0, stdout: '', stderr: '');
 }

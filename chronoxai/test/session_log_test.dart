@@ -44,8 +44,10 @@ void main() {
 
       // Simula un proceso que murió a media escritura.
       final file = File('${tempDir.path}/s1.jsonl');
-      await file.writeAsString('{"type":"user/message","data":{"text":"ok"}}\n'
-          '{"type":"assistant/mes', mode: FileMode.append);
+      await file.writeAsString(
+          '{"type":"user/message","data":{"text":"ok"}}\n'
+          '{"type":"assistant/mes',
+          mode: FileMode.append);
 
       final reopened = await SessionLog.open(tempDir, 's1');
       expect(reopened.length, 2); // created + el bueno
@@ -54,7 +56,8 @@ void main() {
 
     test('el título sale del primer mensaje del usuario', () async {
       final log = await SessionLog.open(tempDir, 's1');
-      await log.append(const UserMessageEvent(text: 'arregla el bug del login'));
+      await log
+          .append(const UserMessageEvent(text: 'arregla el bug del login'));
 
       expect(log.title, 'arregla el bug del login');
       await log.close();
@@ -138,7 +141,8 @@ void main() {
       await log.append(const TurnStartEvent(turnId: 't1'));
       await log.append(const StepStartEvent(stepIndex: 0));
       await log.append(
-        const ToolCallEvent(callId: 'c1', name: 'bash', arguments: <String, Object?>{}),
+        const ToolCallEvent(
+            callId: 'c1', name: 'bash', arguments: <String, Object?>{}),
       );
       await log.append(
         const ToolResultEvent(
@@ -238,7 +242,8 @@ void main() {
 
     test('Code incluye el plugin de PTC', () {
       expect(WorkModes.pluginsFor(WorkModes.code), contains('code-mode'));
-      expect(WorkModes.pluginsFor(WorkModes.standard), isNot(contains('code-mode')));
+      expect(WorkModes.pluginsFor(WorkModes.standard),
+          isNot(contains('code-mode')));
     });
 
     test('Creator incluye inspección y gestor de plugins', () {

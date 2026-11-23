@@ -105,7 +105,8 @@ class AndroidRuntimeChannel {
     } on MissingPluginException {
       return _fallback(filesDir, note: 'falta el lado Kotlin del canal');
     } on PlatformException catch (e) {
-      return _fallback(filesDir, note: 'error en el canal nativo: ${e.message}');
+      return _fallback(filesDir,
+          note: 'error en el canal nativo: ${e.message}');
     }
   }
 
@@ -120,7 +121,8 @@ class AndroidRuntimeChannel {
     return '$dir/libproot.so';
   }
 
-  Future<PlatformFacts> _fallback(final String filesDir, {required final String note}) async {
+  Future<PlatformFacts> _fallback(final String filesDir,
+      {required final String note}) async {
     // ignore: avoid_print
     print('[ChronoxAI] PlatformFacts degradados ($note)');
     return PlatformFacts(

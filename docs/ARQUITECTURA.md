@@ -32,7 +32,7 @@ de los demás, no parcheando el core.
 | `cordis.patch.yml` | `PluginsConfig` persistida (activar/desactivar/configurar) |
 | evento tipado (`agent/*`, `tools/*`) | `AgentEventBus` tipado con `Stream<T>` |
 
-## 2. Los 42 *seams* (capacidades intercambiables)
+## 2. Los 36 *seams* (capacidades intercambiables)
 
 dsh declara estas capacidades como sustituibles. Están tomadas literalmente de
 `capability-seams.md`; la columna "Chronox" dice si está implementada:

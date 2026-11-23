@@ -73,6 +73,13 @@ class PluginHost {
     return list;
   }
 
+  /// Pantalla que aporta un plugin concreto, si tiene alguna.
+  ///
+  /// La UI necesita el par (id, pantalla) para poder montar la superficie con el
+  /// identificador correcto, que es lo que da contexto a los mensajes de error.
+  PluginSurface? surfaceOf(final String pluginId) =>
+      _services.surfaces[pluginId];
+
   /// Registra un plugin sin montarlo.
   void register(
     final PluginManifest manifest,

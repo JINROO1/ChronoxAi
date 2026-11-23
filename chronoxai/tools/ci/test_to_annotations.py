@@ -60,6 +60,21 @@ def compilation_errors(lines: list[str]) -> list[dict]:
     return unique
 
 
+# "00:12 +53: All tests passed!" -> recuento publicado como aviso, para no tener
+# que abrir el log (que no siempre se puede descargar).
+SUMMARY = re.compile(r"^\d+:\d+\s+\+(\d+)(?:\s+-\d+)?:\s*(All tests passed!|Some tests failed\.)")
+
+
+def summary_line(lines: list[str]) -> str | None:
+    """Recuento final de tests, para dejarlo como anotación informativa."""
+    for line in reversed(lines):
+        match = SUMMARY.match(line.strip())
+        if match:
+            total = int(match.group(1))
+            return f"Tests ejecutados: {total} — {match.group(2)}"
+    return None
+
+
 def escape(text: str) -> str:
     return text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
 
@@ -116,6 +131,10 @@ def main() -> int:
     for error in compilation:
         print(f"::error file={error['path']},line={error['line']},"
               f"title=No compila::{escape(error['message'])}")
+
+    total = summary_line(lines)
+    if total:
+        print(f"::notice title=Recuento::{escape(total)}")
 
     print(f"Anotaciones: {len(failures)} test(s) fallido(s), "
           f"{len(compilation)} fichero(s) que no compilan")

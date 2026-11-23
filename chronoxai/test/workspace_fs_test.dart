@@ -96,9 +96,13 @@ void main() {
     });
 
     test('grep no intenta leer binarios', () async {
+      await fs.writeFile('/workspace/codigo.dart', 'necesito esto');
       await fs.writeFile('/workspace/img.png', 'necesito pero es binario');
 
-      expect(await fs.grep('necesito'), isEmpty);
+      final matches = await fs.grep('necesito');
+
+      expect(matches, hasLength(1));
+      expect(matches.single, startsWith('/workspace/codigo.dart'));
     });
   });
 }

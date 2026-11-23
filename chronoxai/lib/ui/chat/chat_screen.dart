@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
+import '../../domain/agent/approval_policy.dart';
 import '../settings/settings_screen.dart';
 import '../state/app_state.dart';
 import '../widgets/chronox_widgets.dart';

@@ -357,17 +357,17 @@ class SettingsScreen extends ConsumerWidget {
                 hintStyle: const TextStyle(color: ChronoxColors.textMuted),
                 filled: true,
                 fillColor: ChronoxColors.surface,
-                border: OutlineInputBorder(
+                border: const OutlineInputBorder(
                   borderRadius: ChronoxRadius.card,
-                  borderSide: const BorderSide(color: ChronoxColors.border),
+                  borderSide: BorderSide(color: ChronoxColors.border),
                 ),
-                enabledBorder: OutlineInputBorder(
+                enabledBorder: const OutlineInputBorder(
                   borderRadius: ChronoxRadius.card,
-                  borderSide: const BorderSide(color: ChronoxColors.border),
+                  borderSide: BorderSide(color: ChronoxColors.border),
                 ),
-                focusedBorder: OutlineInputBorder(
+                focusedBorder: const OutlineInputBorder(
                   borderRadius: ChronoxRadius.card,
-                  borderSide: const BorderSide(color: ChronoxColors.primary),
+                  borderSide: BorderSide(color: ChronoxColors.primary),
                 ),
               ),
             ),

@@ -141,7 +141,7 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
       ),
     );
   }
-
+}
 
 class _PluginTile extends StatelessWidget {
   const _PluginTile({required this.plugin, required this.onToggle});

@@ -150,7 +150,7 @@ class _ApprovalSheetState extends State<_ApprovalSheet> {
                 const SizedBox(height: 14),
                 InkWell(
                   onTap: () => setState(() => _remember = !_remember),
-                  borderRadius: ChronoxRadius.sm,
+                  borderRadius: BorderRadius.circular(ChronoxRadius.sm),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Row(
@@ -250,7 +250,7 @@ class _CommandPreview extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: ChronoxColors.codeBackground,
-        borderRadius: ChronoxRadius.sm,
+        borderRadius: BorderRadius.circular(ChronoxRadius.sm),
         border: Border.all(color: ChronoxColors.border),
       ),
       child: SingleChildScrollView(

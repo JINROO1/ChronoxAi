@@ -13,7 +13,8 @@ class HttpNetworkSeam implements NetworkSeam {
   Future<NetworkResponse> get(
     final Uri uri, {
     final Map<String, String>? headers,
-  }) => _send('GET', uri, headers: headers);
+  }) =>
+      _send('GET', uri, headers: headers);
 
   @override
   Future<NetworkResponse> post(
@@ -37,7 +38,8 @@ class HttpNetworkSeam implements NetworkSeam {
       final request = http.Request(method, uri)
         ..headers.addAll(headers ?? const <String, String>{})
         ..body = body ?? '';
-      final response = await client.send(request).timeout(const Duration(seconds: 30));
+      final response =
+          await client.send(request).timeout(const Duration(seconds: 30));
       return NetworkResponse(
         statusCode: response.statusCode,
         body: await response.stream.bytesToString(),

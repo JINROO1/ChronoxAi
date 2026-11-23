@@ -684,12 +684,17 @@ class _McpPlugin extends ChronoxPlugin {
     for (final remote in tools) {
       final remoteName = (remote['name'] as String?)?.trim() ?? '';
       if (remoteName.isEmpty) continue;
-      final safeName = 'mcp_${remoteName.replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '_')}';
+      final safeName =
+          'mcp_${remoteName.replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '_')}';
       final schema = remote['inputSchema'];
       final inputSchema = schema is Map<String, Object?>
           ? schema
-          : <String, Object?>{'type': 'object', 'properties': <String, Object?>{}};
-      final description = (remote['description'] as String?) ?? 'MCP: $remoteName';
+          : <String, Object?>{
+              'type': 'object',
+              'properties': <String, Object?>{}
+            };
+      final description =
+          (remote['description'] as String?) ?? 'MCP: $remoteName';
       context.provideTool(PluginTool(
         name: safeName,
         description: description,
@@ -697,9 +702,11 @@ class _McpPlugin extends ChronoxPlugin {
         requiresApproval: true,
         execute: (final args) async {
           try {
-            return ToolOutcome(content: await client.callTool(remoteName, args));
+            return ToolOutcome(
+                content: await client.callTool(remoteName, args));
           } catch (error) {
-            return ToolOutcome.error('Error en la herramienta MCP $remoteName: $error');
+            return ToolOutcome.error(
+                'Error en la herramienta MCP $remoteName: $error');
           }
         },
       ));

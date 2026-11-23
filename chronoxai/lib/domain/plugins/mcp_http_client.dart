@@ -24,7 +24,8 @@ class McpHttpClient {
     });
     final protocol = result['protocolVersion'];
     if (protocol is! String || protocol.isEmpty) {
-      throw const FormatException('El servidor MCP no devolvió protocolVersion.');
+      throw const FormatException(
+          'El servidor MCP no devolvió protocolVersion.');
     }
     await _notify('notifications/initialized', const <String, Object?>{});
     _initialized = true;
@@ -35,9 +36,7 @@ class McpHttpClient {
     final result = await _request('tools/list', const <String, Object?>{});
     final raw = result['tools'];
     if (raw is! List) return const <Map<String, Object?>>[];
-    return raw
-        .whereType<Map<String, Object?>>()
-        .toList(growable: false);
+    return raw.whereType<Map<String, Object?>>().toList(growable: false);
   }
 
   Future<String> callTool(
@@ -118,7 +117,8 @@ class McpHttpClient {
   static Map<String, Object?> _decodeResponse(final String body) {
     final trimmed = body.trim();
     if (trimmed.isEmpty) return const <String, Object?>{};
-    if (trimmed.startsWith('{')) return jsonDecode(trimmed) as Map<String, Object?>;
+    if (trimmed.startsWith('{'))
+      return jsonDecode(trimmed) as Map<String, Object?>;
     // Streamable HTTP puede devolver una secuencia SSE con un evento JSON-RPC.
     for (final line in const LineSplitter().convert(trimmed)) {
       if (!line.startsWith('data:')) continue;
@@ -130,12 +130,16 @@ class McpHttpClient {
 
   static String _content(final Object? raw) {
     if (raw is! List) return raw?.toString() ?? '';
-    return raw.map((final item) {
-      if (item is Map<String, Object?>) {
-        return (item['text'] ?? item['uri'] ?? item['type'] ?? '').toString();
-      }
-      return item.toString();
-    }).where((final text) => text.isNotEmpty).join('\n');
+    return raw
+        .map((final item) {
+          if (item is Map<String, Object?>) {
+            return (item['text'] ?? item['uri'] ?? item['type'] ?? '')
+                .toString();
+          }
+          return item.toString();
+        })
+        .where((final text) => text.isNotEmpty)
+        .join('\n');
   }
 }
 

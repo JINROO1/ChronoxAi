@@ -28,17 +28,20 @@ void main() {
     final network = _FakeNetwork(<NetworkResponse>[
       const NetworkResponse(
         statusCode: 200,
-        body: '{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-03-26","capabilities":{"tools":{}},"serverInfo":{"name":"fake","version":"1"}}}',
+        body:
+            '{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-03-26","capabilities":{"tools":{}},"serverInfo":{"name":"fake","version":"1"}}}',
         headers: <String, String>{'Mcp-Session-Id': 'sid-1'},
       ),
       const NetworkResponse(statusCode: 202, body: ''),
       const NetworkResponse(
         statusCode: 200,
-        body: '{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"echo","inputSchema":{"type":"object"}}]}}',
+        body:
+            '{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"echo","inputSchema":{"type":"object"}}]}}',
       ),
       const NetworkResponse(
         statusCode: 200,
-        body: '{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"pong"}]}}',
+        body:
+            '{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"pong"}]}}',
       ),
     ]);
     final client = McpHttpClient(
@@ -47,12 +50,17 @@ void main() {
     );
 
     final tools = await client.listTools();
-    final result = await client.callTool('echo', <String, Object?>{'text': 'ping'});
+    final result =
+        await client.callTool('echo', <String, Object?>{'text': 'ping'});
 
     expect(tools.single['name'], 'echo');
     expect(result, 'pong');
-    expect(network.requests.map((final request) => request['method']),
-        <String>['initialize', 'notifications/initialized', 'tools/list', 'tools/call']);
+    expect(network.requests.map((final request) => request['method']), <String>[
+      'initialize',
+      'notifications/initialized',
+      'tools/list',
+      'tools/call'
+    ]);
     expect(network.headers[2]?['Mcp-Session-Id'], 'sid-1');
     expect(network.requests.last['params'], <String, Object?>{
       'name': 'echo',
@@ -64,7 +72,8 @@ void main() {
     final network = _FakeNetwork(<NetworkResponse>[
       const NetworkResponse(
         statusCode: 200,
-        body: 'data: {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-03-26"}}\n\n',
+        body:
+            'data: {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-03-26"}}\n\n',
       ),
       const NetworkResponse(statusCode: 202, body: ''),
       const NetworkResponse(

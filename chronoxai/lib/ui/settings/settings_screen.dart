@@ -374,7 +374,8 @@ class SettingsScreen extends ConsumerWidget {
       title: 'Servidor MCP',
       hint: 'https://example.com/mcp',
       initial: settings.mcpServerUrl,
-      helper: 'Chronox conecta por HTTP(S); stdio no está disponible en Android.',
+      helper:
+          'Chronox conecta por HTTP(S); stdio no está disponible en Android.',
     );
     if (value == null) return;
     ref.read(providerSettingsProvider.notifier).state =

@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../state/app_state.dart';
+import '../terminal/terminal_controller.dart';
+import '../terminal/terminal_view.dart';
 
 /// Una entrada de la transcripción, con el estilo que le corresponde.
 ///
@@ -279,8 +281,47 @@ Future<void> openTerminalSheet(final BuildContext context) =>
       builder: (final context) => const _TerminalLauncher(),
     );
 
-class _TerminalLauncher extends StatelessWidget {
+class _TerminalLauncher extends ConsumerStatefulWidget {
   const _TerminalLauncher();
+
+  @override
+  ConsumerState<_TerminalLauncher> createState() => _TerminalLauncherState();
+}
+
+class _TerminalLauncherState extends ConsumerState<_TerminalLauncher> {
+  TerminalController? _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    // El runtime puede tardar (lee el canal nativo); se abre la sesión en
+    // cuanto esté disponible y se muestra el estado mientras tanto.
+    unawaited(_abrir());
+  }
+
+  Future<void> _abrir() async {
+    try {
+      final runtime = await ref.read(localRuntimeProvider.future);
+      if (!mounted) return;
+      final controller = TerminalController(runtime: runtime);
+      setState(() => _controller = controller);
+      await controller.open();
+    } catch (error) {
+      // Si el runtime ni siquiera se puede leer (canal nativo ausente, fichero
+      // bloqueado), la pantalla se queda en el indicador de carga; se registra
+      // para el diagnóstico en vez de tragárselo.
+      debugPrint('No se pudo abrir la terminal: $error');
+    }
+  }
+
+  @override
+  void dispose() {
+    // Cerrar el proceso al salir es obligatorio: si no, el shell del invitado
+    // sigue vivo y consumiendo batería detrás de una pantalla que ya no existe.
+    unawaited(_controller?.disposeSession() ?? Future<void>.value());
+    _controller?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(final BuildContext context) {
@@ -336,72 +377,10 @@ class _TerminalLauncher extends StatelessWidget {
                 ],
               ),
             ),
-            const Expanded(
-              child: _TerminalPlaceholder(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Marcador honesto: el emulador VT y el PTY viven en la capa de terminal, que
-/// todavía no está conectada. Se deja explícito en lugar de mostrar una caja
-/// negra que parece un fallo.
-class _TerminalPlaceholder extends StatelessWidget {
-  const _TerminalPlaceholder();
-
-  @override
-  Widget build(final BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            const Icon(
-              Icons.keyboard_alt_outlined,
-              size: 30,
-              color: ChronoxColors.textMuted,
-            ),
-            const SizedBox(height: 14),
-            const Text(
-              'La terminal interactiva aún no está conectada',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: ChronoxColors.textSecondary,
-                fontSize: 13.5,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 7),
-            const Text(
-              'El runtime de proot ya construye la orden de arranque; falta '
-              'enganchar el PTY y el emulador de pantalla.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: ChronoxColors.textMuted,
-                fontSize: 12,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 18),
-            OutlinedButton.icon(
-              onPressed: () {
-                unawaited(
-                  Clipboard.setData(
-                    const ClipboardData(
-                      text: 'apt update && apt install -y git',
-                    ),
-                  ),
-                );
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Comando copiado')),
-                );
-              },
-              icon: const Icon(Icons.copy_rounded, size: 15),
-              label: const Text('Copiar comando de ejemplo'),
+            Expanded(
+              child: _controller == null
+                  ? const Center(child: CircularProgressIndicator())
+                  : TerminalView(controller: _controller!),
             ),
           ],
         ),

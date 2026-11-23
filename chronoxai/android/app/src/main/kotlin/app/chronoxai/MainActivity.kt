@@ -12,20 +12,31 @@ import android.system.OsConstants
 import androidx.annotation.NonNull
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Actividad principal.
  *
- * No ejecuta ningún proceso: el trabajo de proot se hace desde Dart con
- * `Process.start`. Aquí solo se exponen los datos que Dart no puede leer de
- * forma fiable y que deciden si el runtime Linux puede funcionar.
+ * Los comandos del agente se lanzan desde Dart con `Process.start`. Aquí viven
+ * dos cosas que Dart no puede hacer bien:
+ *
+ *  * los datos del dispositivo que deciden si el runtime puede funcionar;
+ *  * las sesiones de terminal ([PtySession]), porque hay que quedarse con el
+ *    `Process` de Kotlin para poder escribirle, matarlo con sus descendientes y
+ *    avisar a Dart cuando termina.
  */
 class MainActivity : FlutterActivity() {
 
     private val platformChannel = "app.chronoxai/platform"
     private val permissionsChannel = "app.chronoxai/permissions"
+    private val ptyChannelName = "app.chronoxai/pty"
+
+    private val sessions = mutableMapOf<Int, PtySession>()
+    private val nextSessionId = AtomicInteger(1)
+    private var ptyChannel: MethodChannel? = null
 
     /** Resultado pendiente del diálogo de permisos, que es asíncrono. */
     private var pendingPermissionResult: MethodChannel.Result? = null
@@ -34,10 +45,22 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
+        // Si el motor se recrea (cambio de configuración, recreación por el
+        // sistema), las sesiones anteriores quedan sin quien las escuche. Se
+        // cierran para no dejar procesos de proot huérfanos consumiendo batería.
+        closeAllSessions()
+
         // Android 15 obliga a dibujar hasta los bordes; sin esto, en API 35 la
         // app sale con barras de sistema opacas pase lo que pase en Dart.
         if (Build.VERSION.SDK_INT >= 35) {
             window.setDecorFitsSystemWindows(false)
+        }
+
+        ptyChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            ptyChannelName,
+        ).also { channel ->
+            channel.setMethodCallHandler { call, result -> handlePty(call, result) }
         }
 
         MethodChannel(
@@ -161,6 +184,94 @@ class MainActivity : FlutterActivity() {
         } catch (t: Throwable) {
             false
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // Sesiones de terminal
+    // -----------------------------------------------------------------------
+
+    private fun handlePty(call: MethodCall, result: MethodChannel.Result) {
+        when (call.method) {
+            "start" -> {
+                val binary = call.argument<String>("binary")
+                val args = call.argument<List<String>>("args") ?: emptyList()
+                if (binary.isNullOrBlank()) {
+                    result.error("sin_binario", "No se indicó qué ejecutar.", null)
+                    return
+                }
+                @Suppress("UNCHECKED_CAST")
+                val env = call.argument<Map<String, String>>("env") ?: emptyMap()
+                val cwd = call.argument<String>("cwd")
+                result.success(startSession(binary, args, env, cwd))
+            }
+            "write" -> {
+                val id = call.argument<Int>("id") ?: -1
+                val data = call.argument<ByteArray>("data")
+                val session = sessions[id]
+                if (session == null || data == null) {
+                    result.success(false)
+                    return
+                }
+                result.success(session.write(data))
+            }
+            "close" -> {
+                val id = call.argument<Int>("id") ?: -1
+                sessions.remove(id)?.close()
+                result.success(null)
+            }
+            "closeAll" -> {
+                closeAllSessions()
+                result.success(null)
+            }
+            "resize" -> {
+                // Sin PTY del kernel no hay tamaño de ventana que comunicar:
+                // el shell del invitado corre con el ancho por defecto. Se
+                // responde éxito para que la UI no muestre un error por algo
+                // que no depende de ella.
+                result.success(null)
+            }
+            else -> result.notImplemented()
+        }
+    }
+
+    private fun startSession(
+        binary: String,
+        args: List<String>,
+        env: Map<String, String>,
+        cwd: String?,
+    ): Int {
+        val id = nextSessionId.getAndIncrement()
+        val session = PtySession(
+            id = id,
+            onOutput = { sessionId, data ->
+                ptyChannel?.invokeMethod("output", mapOf("id" to sessionId, "data" to data))
+            },
+            onExit = { sessionId, code ->
+                sessions.remove(sessionId)
+                ptyChannel?.invokeMethod("exit", mapOf("id" to sessionId, "exitCode" to code))
+            },
+        )
+        sessions[id] = session
+        return try {
+            session.start(binary, args, env, cwd)
+            id
+        } catch (t: Throwable) {
+            sessions.remove(id)
+            throw t
+        }
+    }
+
+    private fun closeAllSessions() {
+        val copy = sessions.values.toList()
+        sessions.clear()
+        copy.forEach { it.close() }
+    }
+
+    override fun onDestroy() {
+        // Solo si la actividad se destruye de verdad; un cambio de orientación
+        // recrea la actividad y no debe matar la sesión del usuario.
+        if (isFinishing) closeAllSessions()
+        super.onDestroy()
     }
 
     private fun platformFacts(): Map<String, Any?> {

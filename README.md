@@ -3,8 +3,9 @@
 **Agente de codificación para Android con terminal Linux (proot) integrada.**
 Flutter + Dart 3, sin dependencias de servidor: todo corre en el dispositivo.
 
-> Estado: `0.1.0-alpha` — el agente funciona de punta a punta sobre el runtime;
-> falta el instalador del rootfs y conectar la terminal interactiva.
+> Estado: `0.1.0-alpha` — el agente funciona de punta a punta sobre el runtime, el
+> instalador del rootfs está terminado y probado, y la terminal interactiva funciona
+> (ver §10 de la arquitectura). Falta pulir la UI y probar en dispositivos reales.
 
 ---
 
@@ -17,7 +18,7 @@ pensado para móvil:
 |---|---|
 | **Harness del agente** | Loop de tool-calling con streaming SSE, cancelación que aborta la petición, política de aprobación por herramienta y compactación de contexto. |
 | **Runtime Linux** | Ejecuta un rootfs de Debian con `proot` (sin root, sin desbloquear el bootloader), desde binarios empaquetados en el APK. |
-| **Terminal** | Emulador ANSI real (`xterm`) conectado a un `bash` persistente *dentro* del contenedor. `apt/apk install`, `git`, `python`, `node`… funcionan. |
+| **Terminal** | `bash` interactivo *dentro* del contenedor con PTY real (lo crea `script(1)` en el invitado) y emulador ANSI propio. Teclas de control, flechas y colores de 256. |
 | **UI** | Material 3 oscuro con glassmorphism, tipografía mono para el código, tarjetas de tool-call colapsables con diff. |
 | **Proveedor LLM** | Cualquier API compatible con OpenAI: DeepSeek, OpenRouter, Groq, Together, Ollama/LM Studio locales. |
 | **Modos de trabajo** | Los cuatro de DeepSeek Harness: **Standard**, **Code (PTC)**, **Minimal** y **Creator**. |
@@ -110,8 +111,12 @@ Decisiones derivadas de [`docs/INVESTIGACION.md`](docs/INVESTIGACION.md), no de 
    arranca en Android). Se descargan los `.deb` de `proot`, `libtalloc` y `libandroid-shmem`,
    se desempaquetan en el directorio privado y se ejecuta con `LD_LIBRARY_PATH` y
    `PROOT_UNBUNDLE_LOADER` apuntando ahí.
-3. **PTY real** (`flutter_pty`) sobre un emulador VT completo (`xterm.dart`), así que `vim`,
-   `htop`, `less` y las peticiones de TTY de `apt`/`sudo` funcionan de verdad.
+3. **PTY dentro del contenedor, no en Android.** `flutter_pty` y `openpty` por JNI no sirven:
+   `Os.ioctlInt` está `@hide` y `libandroid.so` no exporta `openpty`. El PTY lo crea `script(1)`
+   (paquete `bsdutils`, ya presente en Debian) dentro del invitado; Android solo mueve bytes por
+   dos tuberías. La salida la interpreta un emulador ANSI propio, así que `nano`, `less` y los
+   prompts interactivos funcionan. Detalles en
+   [`docs/ARQUITECTURA.md` §10](docs/ARQUITECTURA.md#10-terminal-interactiva-sin-pty-nativo).
 4. **Debian bookworm arm64 por defecto**, no Alpine: glibc es lo que da compatibilidad con
    binarios precompilados, wheels `manylinux` y extensiones nativas. Alpine (musl) queda como
    opción experimental marcada como tal.
@@ -160,7 +165,7 @@ mal firmado fingiendo que es una release.
 
 * [`docs/INVESTIGACION.md`](docs/INVESTIGACION.md) — **evidencia y fuentes** de cada decisión técnica.
 * [`docs/PLAN.md`](docs/PLAN.md) — plan por fases con criterios de aceptación (checklist).
-* [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) — flujo del agente, protocolo de tools, ciclo de vida de proot e instalación del rootfs (registro OCI, hashes, extracción en streaming).
+* [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) — flujo del agente, protocolo de tools, ciclo de vida de proot, instalación del rootfs (registro OCI, hashes, extracción en streaming) y la terminal interactiva sin PTY nativo.
 * [`docs/PLUGINS.md`](docs/PLUGINS.md) — escribir un plugin, capacidades, modos y pantallas propias.
 * [`docs/COMPATIBILIDAD.md`](docs/COMPATIBILIDAD.md) — qué dispositivos funcionan, por qué, y qué configurar en cada ROM.
 * [`docs/FIRMA.md`](docs/FIRMA.md) — clave de firma, backups y firma en CI.

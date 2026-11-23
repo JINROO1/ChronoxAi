@@ -212,3 +212,67 @@ detectar actualizaciones sin volver a descargar la imagen.
 Pruebas: `test/gzip_stream_test.dart`, `test/tar_extractor_test.dart` y
 `test/rootfs_installer_test.dart` (este último contra un registro OCI falso, sin
 red, cubriendo hash incorrecto, imagen sin shell, cancelación y orden de capas).
+
+## 10. Terminal interactiva sin PTY nativo
+
+El invitado necesita un **PTY** de verdad: sin él, `isatty(0)` es falso, `bash`
+funciona en modo no interactivo (sin prompt, sin historial, sin Ctrl+C por
+carácter) y editores como `nano` o `vim` se niegan a arrancar.
+
+La vía habitual —`openpty(3)` desde JNI— no está disponible en Android:
+
+| Intento | Por qué falla |
+|---|---|
+| `android.system.Os.ioctlInt` para `TIOCSPTLCK`/`TIOCGPTN` | Está marcado `@hide`: solo enlaza contra el SDK de plataforma, no contra el público. |
+| `libandroid.so` exportando `openpty` | No lo exporta; `openpty` vive en `libutil`, que no existe en Android. |
+| Abrir `/dev/ptmx` y negociar a mano | Requiere los `ioctl` anteriores, así que es el mismo callejón. |
+
+La solución es no crear el PTY desde Android, sino **dentro del contenedor**:
+`script(1)` (paquete `bsdutils`) abre un PTY maestro/esclavo y ejecuta el shell
+sobre el esclavo. Android solo ve dos tuberías y el invitado ve un terminal.
+
+```
+Dart                          Android (Kotlin)              Invitado
+────                          ────────────────              ────────
+PtySession.write(bytes) ──►   Process                                   ┌──────────┐
+                              stdin  ──────────► proot ──► /bin/sh -c ──►│ script -q│
+                              stdout ◄────────── proot ◄────           │  -f -e   │
+PtySession.output ◄──────                                  ▼           └────┬─────┘
+                                                     /dev/pts/N  ◄──────────┘
+```
+
+Decisiones que no son obvias:
+
+| Decisión | Por qué |
+|---|---|
+| `script` y no un PTY por JNI | Ver la tabla anterior. Es una dependencia de `bsdutils`, `Essential: yes` en Debian: siempre está instalado. |
+| Se comprueba dónde está antes de abrir | En bookworm es `/usr/bin/script`; en otras imágenes puede ser `/bin/script`. Se prueban ambas y, si no aparece, se dice con un mensaje en vez de abrir una consola muda. |
+| La entrada cruza como `Uint8List`, nunca como `String` | Un `String` en el canal se codifica y decodifica varias veces por el camino y rompe secuencias UTF-8 que caen a mitad de trozo. Dart manda `utf8.encode(texto)` y el invitado recibe bytes. |
+| La salida la interpreta `TerminalBuffer` | `script` manda ANSI real (movimientos de cursor, `ESC[K`, colores, buffer alternativo). Sin emulador, `nano` deja la pantalla hecha un jeroglífico. |
+| `TERM=xterm-256color` | Los programas eligen la secuencia por `TERM`; con `dumb` no dibujan nada, con un tipo desconocido ensucian la salida. |
+| El invitado cree tener 80 columnas | No hay `TIOCSWINSZ` desde Android, así que el ancho real de la pantalla no se puede comunicar. La UI envuelve las líneas ella misma. |
+| `--kill-on-exit` en proot | Al cerrar la pestaña se mata el grupo entero; con `script` en medio, un `destroy()` del proceso padre no basta por sí solo. |
+| Sin eco local | La entrada va por líneas y el eco lo pone el invitado, como en un terminal de verdad. Añadir edición local daría un eco duplicado en cuanto el PTY respondiera. |
+
+El emulador (`TerminalBuffer`) mantiene estado entre trozos: un `ESC[` puede
+llegar partido en dos lecturas, y un carácter UTF-8 también. El parser guarda su
+estado y el decodificador es incremental, porque `utf8.decode` por trozo lanzaría
+con las `ñ` en cuanto cayeran en la frontera.
+
+## 11. Verificación en CI
+
+Los tests corren en cada empujón, pero durante un tiempo el paso llevaba
+`continue-on-error: true`. El job salía en verde con tests fallando: las
+anotaciones lo decían, pero nadie mira anotaciones de un check verde.
+
+Se quitó, y al quitar la red aparecieron fallos reales que el verde ocultaba:
+
+| Fallo | Qué pasaba |
+|---|---|
+| `setUp(() { await ... })` sin `async` en dos tests | No compilaban; el fichero entero se saltaba en silencio. |
+| Whiteouts de OCI con `substring(3)` | `.wh.viejo.txt` borraba `.viejo.txt`: las capas nuevas nunca eliminaban nada de las anteriores. |
+| Salto de línea automático del buffer | El cursor se iba a la columna 81 y `ESC[K` borraba la línea entera. |
+| `PtySession.write` con `codeUnits` | Cada tilde viajaba como dos bytes sueltos. |
+
+La regla que se sigue ahora: si un test falla, el check falla. Nada de
+`continue-on-error` en pasos que verifican.

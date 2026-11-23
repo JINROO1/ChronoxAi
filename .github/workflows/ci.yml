@@ -239,9 +239,14 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # 4. Build de release firmada
-  #     Solo en push a main o en tag. Si no hay secretos de firma, compila con
-  #     la clave de debug y lo deja claro en el resumen (nunca finge que es
-  #     una release publicable).
+  #     En push a main o en tag. Si no hay secretos de firma, compila con la
+  #     clave de debug y lo deja claro en el resumen (nunca finge que es una
+  #     release publicable).
+  #
+  #     También se puede pedir desde una rama de trabajo escribiendo [apk] en el
+  #     mensaje del commit. Hace falta porque `workflow_dispatch` solo existe si
+  #     la rama por defecto tiene este workflow, y main todavía no lo tiene: sin
+  #     esta vía no habría forma de comprobar el APK antes de integrar.
   # ---------------------------------------------------------------------------
   build:
     name: Build APK release
@@ -250,6 +255,7 @@ jobs:
       RUNTIME_ARCH: ${{ inputs.runtime_arch == 'x86_64' && 'x86_64' || 'aarch64' }}
     if: >-
       (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))) ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/arena/') && contains(github.event.head_commit.message, '[apk]')) ||
       (github.event_name == 'workflow_dispatch' && inputs.build_apk)
     runs-on: ubuntu-latest
     steps:

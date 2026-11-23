@@ -272,7 +272,7 @@ class SessionLog {
             ..writeln();
         case ToolResultEvent(:final name, :final content, :final isError):
           buffer
-            ..writeln('**Resultado de `$name`** ${isError ? '(error)' : ''}')
+            ..writeln('**Resultado de `$name`**${isError ? ' (error)' : ''}')
             ..writeln()
             ..writeln('```')
             ..writeln(content)

@@ -728,10 +728,10 @@ class _PluginManagerPlugin extends ChronoxPlugin {
               );
             case 'mount':
               if (pluginId == null) {
-                return ToolOutcome.error('Falta `plugin_id` para montar.');
+                return const ToolOutcome.error('Falta `plugin_id` para montar.');
               }
               if (target == null) {
-                return ToolOutcome.error('El host de plugins no está disponible.');
+                return const ToolOutcome.error('El host de plugins no está disponible.');
               }
               final ok = await target.mount(pluginId);
               return ok
@@ -742,10 +742,10 @@ class _PluginManagerPlugin extends ChronoxPlugin {
                     );
             case 'unmount':
               if (pluginId == null) {
-                return ToolOutcome.error('Falta `plugin_id` para desmontar.');
+                return const ToolOutcome.error('Falta `plugin_id` para desmontar.');
               }
               if (target == null) {
-                return ToolOutcome.error('El host de plugins no está disponible.');
+                return const ToolOutcome.error('El host de plugins no está disponible.');
               }
               await target.unmount(pluginId);
               return ToolOutcome(content: 'Plugin "$pluginId" desmontado.');

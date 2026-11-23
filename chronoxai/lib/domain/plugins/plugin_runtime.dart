@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import '../agent/agent_events.dart';
-import '../agent/tool_registry.dart';
 import 'plugin_api.dart';
 
 // ---------------------------------------------------------------------------

@@ -1,10 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import '../../../core/theme.dart';
 import '../plugin_api.dart';
-import '../plugin_runtime.dart';
+import '../seams.dart';
 
 /// Plugin de ejemplo que demuestra las dos cosas a la vez:
 ///

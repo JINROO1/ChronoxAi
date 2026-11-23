@@ -191,7 +191,7 @@ abstract final class ChronoxTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(foregroundColor: ChronoxColors.primary),
       ),
-      chipTheme: ChipThemeData(
+      chipTheme: const ChipThemeData(
         backgroundColor: ChronoxColors.surfaceHigh,
         selectedColor: ChronoxColors.primaryDim,
         side: const BorderSide(color: ChronoxColors.border),

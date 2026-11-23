@@ -161,7 +161,7 @@ abstract final class ProotCommandBuilder {
     }
 
     // 10. Comando interior.
-    final command = inner ?? <String>['$shell', '-l'];
+    final command = inner ?? <String>[shell, '-l'];
     args.addAll(command);
 
     return args;

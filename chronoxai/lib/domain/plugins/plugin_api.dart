@@ -193,6 +193,12 @@ class PluginContext {
   final PluginServices _services;
 
   /// Acceso a los servicios del host, filtrado por lo declarado en el manifest.
+  ///
+  /// El getter está tipado como no-nulo a propósito: el filtrado ya garantiza
+  /// que lanzar `PluginCapabilityDenied` o `StateError` si la capacidad no está
+  /// concedida o el servicio no existe. Así las herramientas no tienen que
+  /// comprobar nulabilidad en cada llamada (era el origen de 10 errores de
+  /// `unchecked_use_of_nullable_value`).
   PluginServices get services => _services.forPlugin(manifest);
 
   /// Define una herramienta invocable por el modelo.
@@ -278,7 +284,12 @@ class _ScopedServices extends PluginServices {
   final PluginServices parent;
   final PluginManifest manifest;
 
-  T _require<T>(final PluginCapability capability, final T? service) {
+  /// Devuelve el servicio o lanza. El tipo de retorno es `T` (no `T?`), de modo
+  /// que quien llama no arrastra nulabilidad.
+  T _require<T extends Object>(
+    final PluginCapability capability,
+    final T? service,
+  ) {
     if (!manifest.capabilities.contains(capability)) {
       throw PluginCapabilityDenied(manifest.id, capability);
     }
@@ -291,6 +302,9 @@ class _ScopedServices extends PluginServices {
     return service;
   }
 
+  // Los `!` son seguros: `_require` ya lanza si el servicio es nulo, así que
+  // aquí nunca llega null. Se declaran sin `?` para que las herramientas no
+  // repitan comprobaciones en cada uso.
   @override
   FileSystemSeam get fileSystem =>
       _require(PluginCapability.fileSystem, parent.fileSystem);
@@ -353,9 +367,10 @@ class ToolOutcome {
     this.metadata = const <String, Object?>{},
   });
 
-  const ToolOutcome.error(final String message)
-    : content = message,
-      isError = true,
+  /// Constructor de error. Es `const` a propósito para que los sitios que
+  /// devuelven un error fijo no generen objetos en cada invocación.
+  const ToolOutcome.error(this.content)
+    : isError = true,
       metadata = const <String, Object?>{};
 
   final String content;

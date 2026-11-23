@@ -206,6 +206,9 @@ void main() {
     File(p.join(destino.path, 'viejo.txt')).writeAsStringSync('anterior');
     Directory(p.join(destino.path, 'var', 'cache')).createSync(recursive: true);
 
+    // `.wh.viejo.txt` significa "borra viejo.txt" en OCI: el prefijo es
+    // `.wh.`, con el punto. Este test es el que destapó que se recortaba un
+    // carácter de menos.
     final tar = ConstructorTar()
       ..whiteout('.wh.viejo.txt')
       ..directorio('var')

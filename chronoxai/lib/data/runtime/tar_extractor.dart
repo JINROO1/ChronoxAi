@@ -264,8 +264,14 @@ class TarExtractor {
       }
       return;
     }
-    if (base.length <= 3) return;
-    await _removeAny(p.join(p.dirname(target), base.substring(3)));
+    // El prefijo es '.wh.' (cuatro caracteres, con el punto final incluido).
+    // Recortar solo tres dejaba '.viejo.txt', con lo que el whiteout borraba
+    // un fichero oculto que no existía y el original sobrevivía: las capas
+    // nuevas no llegaban a eliminar nada de las anteriores.
+    const prefijo = '.wh.';
+    if (base.length <= prefijo.length) return;
+    final borrar = base.substring(prefijo.length);
+    await _removeAny(p.join(p.dirname(target), borrar));
   }
 
   Future<void> _removeAny(final String path) async {

@@ -1,0 +1,240 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'arena/**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: '3.24.5'
+  # El proyecto Flutter vive en un subdirectorio.
+  PROJECT_DIR: chronoxai
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Análisis estático y formato
+  # ---------------------------------------------------------------------------
+  analyze:
+    name: Analyze & format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Publicar dependencias
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: flutter pub get
+
+      # El formato se comprueba pero no bloquea todavía: el código se escribió
+      # sin un SDK de Dart disponible, así que la primera pasada de `dart format`
+      # está pendiente. Cuando el repo tenga esa pasada aplicada, quitar
+      # `continue-on-error` para que sea estricto.
+      - name: Verificar formato
+        id: format
+        continue-on-error: true
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Avisar si hay ficheros sin formatear
+        if: steps.format.outcome == 'failure'
+        run: |
+          echo "::warning::Hay ficheros sin formato. Ejecuta 'dart format lib test' y haz commit."
+          echo "### ⚠️ Formato pendiente" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Ejecuta \`dart format lib test\` en \`${{ env.PROJECT_DIR }}/\`." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Análisis estático
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: flutter analyze --fatal-infos
+
+  # ---------------------------------------------------------------------------
+  # 2. Tests unitarios y de widget
+  # ---------------------------------------------------------------------------
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Publicar dependencias
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: flutter pub get
+
+      - name: Tests con cobertura
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: flutter test --coverage --reporter expanded
+
+      - name: Resumen de cobertura
+        if: always()
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          if [ -f coverage/lcov.info ]; then
+            total=$(awk -F: '/^LF:/{lf+=$2} /^LH:/{lh+=$2} END {if (lf>0) printf "%.1f", 100*lh/lf; else print "0"}' coverage/lcov.info)
+            echo "### Cobertura: ${total}%" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: ${{ env.PROJECT_DIR }}/coverage/lcov.info
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # 3. Validación del runtime Linux empaquetado
+  #     Comprueba que los binarios de proot existen, son AArch64 y están
+  #     alineados a 16 KB (si no, la app falla en Android 15+).
+  # ---------------------------------------------------------------------------
+  runtime:
+    name: Runtime Linux (proot)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar dependencias del script
+        run: sudo apt-get update && sudo apt-get install -y python3 xz-utils
+
+      - name: Descargar y validar el runtime
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          chmod +x tools/fetch_runtime.sh
+          ./tools/fetch_runtime.sh --abi aarch64
+
+      - name: Revalidar ELF (alineación 16 KB + arquitectura)
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: ./tools/fetch_runtime.sh --check
+
+      - name: Resumen
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          {
+            echo "### Runtime empaquetado"
+            echo ""
+            echo '| Fichero | Tamaño |'
+            echo '|---|---|'
+            for f in android/app/src/main/jniLibs/arm64-v8a/*.so; do
+              echo "| $(basename "$f") | $(du -h "$f" | cut -f1) |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # 4. Build de release firmada
+  #     Solo en push a main o en tag. Si no hay secretos de firma, compila con
+  #     la clave de debug y lo deja claro en el resumen (nunca finge que es
+  #     una release publicable).
+  # ---------------------------------------------------------------------------
+  build:
+    name: Build APK release
+    needs: [analyze, test]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Restaurar clave de firma
+        id: signing
+        working-directory: ${{ env.PROJECT_DIR }}
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::Sin secretos de firma: se usará la clave de DEBUG. El APK no sirve para actualizar versiones publicadas."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          mkdir -p android/keystore
+          echo "$KEYSTORE_BASE64" | base64 -d > android/keystore/chronoxai-release.jks
+          # <<- solo quita TABULACIONES, no espacios: el contenido se escribe
+          # con printf para que key.properties no quede con sangría (Properties
+          # de Java la trataría como parte del valor).
+          {
+            printf 'storePassword=%s\n' "$KEYSTORE_PASSWORD"
+            printf 'keyPassword=%s\n' "$KEY_PASSWORD"
+            printf 'keyAlias=%s\n' "$KEY_ALIAS"
+            printf 'storeFile=keystore/chronoxai-release.jks\n'
+          } > android/key.properties
+          chmod 600 android/key.properties
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Obtener runtime Linux
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          chmod +x tools/fetch_runtime.sh
+          ./tools/fetch_runtime.sh --abi aarch64
+
+      - name: Compilar APK
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: flutter build apk --release --split-per-abi
+
+      - name: Comprobar que la clave restaurada es válida
+        if: steps.signing.outputs.signed == 'true'
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          test -s android/keystore/chronoxai-release.jks || {
+            echo "::error::El keystore restaurado está vacío. ¿Se codificó con 'base64 -w0'?"
+            exit 1
+          }
+          md5sum android/keystore/chronoxai-release.jks
+
+      - name: Verificar la firma
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
+          for apk in build/app/outputs/flutter-apk/*-release.apk; do
+            echo "== $(basename "$apk")"
+            "$APKSIGNER" verify --print-certs "$apk" | grep -E "SHA-256|Verifies" || true
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chronoxai-apk-${{ github.sha }}
+          path: ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/*-release.apk
+          retention-days: 30
+
+      - name: Publicar en la release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/*-release.apk
+          generate_release_notes: true
+          body_path: docs/RELEASE_NOTES.md
+
+      - name: Resumen
+        run: |
+          {
+            echo "### Build"
+            echo ""
+            echo "- Firmado con clave de release: **${{ steps.signing.outputs.signed }}**"
+            echo "- Runtime proot: empaquetado y validado (16 KB)"
+          } >> "$GITHUB_STEP_SUMMARY"

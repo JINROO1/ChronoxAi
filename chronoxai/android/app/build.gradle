@@ -1,0 +1,131 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+// ---------------------------------------------------------------------------
+// Firma de release.
+//
+// La clave vive FUERA del control de versiones (ver .gitignore). Se genera una
+// sola vez con tools/generate_keystore.sh y no debe regenerarse nunca: Android
+// identifica la app por applicationId + clave, así que cambiarla impide
+// actualizar encima de una instalación previa.
+//
+// Si key.properties no existe (clon nuevo, CI sin secretos), la build sigue
+// funcionando y firma con la clave de debug. Eso permite compilar, pero NO
+// permite publicar ni actualizar una versión de release ya instalada.
+// ---------------------------------------------------------------------------
+def keystorePropertiesFile = rootProject.file("key.properties")
+def keystoreProperties = new Properties()
+def hasReleaseSigning = keystorePropertiesFile.exists()
+
+if (hasReleaseSigning) {
+    keystorePropertiesFile.withInputStream { stream ->
+        keystoreProperties.load(stream)
+    }
+}
+
+android {
+    namespace = "app.chronoxai"
+    compileSdk = 34
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    defaultConfig {
+        applicationId = "app.chronoxai"
+        minSdk = 24
+        // IMPORTANTE: proot necesita execve sobre binarios en el directorio de
+        // datos de la app. Android 10+ bloquea esto cuando targetSdk >= 29
+        // (W^X / SELinux). Termux usa exactamente esta misma estrategia.
+        // Ver docs/INVESTIGACION.md §1 y la hipótesis §10.1.
+        targetSdk = 28
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+
+        ndk {
+            abiFilters += ["arm64-v8a", "x86_64"]
+        }
+    }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            release {
+                // La ruta de key.properties es relativa a android/, no al
+                // módulo :app. Resolverla contra el módulo deja la ruta mal.
+                def declared = keystoreProperties.getProperty("storeFile")
+                def fromProject = rootProject.file(declared)
+                storeFile = fromProject.exists() ? fromProject : file(declared)
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+
+                // v1+v2+v3: v1 (JAR) es imprescindible para Android < 7,
+                // v2/v3 son las que usan las versiones modernas.
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig = hasReleaseSigning
+                ? signingConfigs.release
+                : signingConfigs.debug
+
+            minifyEnabled = false
+            shrinkResources = false
+        }
+        debug {
+            // applicationIdSuffix permite tener debug y release instaladas a la
+            // vez sin que se pisen (y sin romper la firma de release).
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
+    }
+
+    packagingOptions {
+        jniLibs {
+            // Necesario para poder ejecutar binarios empaquetados como librerías
+            // nativas (proot se empaqueta como libproot.so).
+            useLegacyPackaging = true
+        }
+    }
+
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
+}
+
+// Aviso claro en consola si se compila release sin clave real.
+gradle.taskGraph.whenReady { taskGraph ->
+    def buildingRelease = taskGraph.allTasks.any { it.name.toLowerCase().contains("release") }
+    if (buildingRelease && !hasReleaseSigning) {
+        logger.warn("")
+        logger.warn("==============================================================")
+        logger.warn(" AVISO: compilando RELEASE sin clave de firma real.")
+        logger.warn(" Se usará la clave de DEBUG, que no sirve para actualizar")
+        logger.warn(" una versión ya publicada.")
+        logger.warn(" Ejecuta: ./tools/generate_keystore.sh")
+        logger.warn("==============================================================")
+        logger.warn("")
+    }
+}
+
+flutter {
+    source = "../.."
+}
+
+dependencies {
+    implementation "androidx.core:core-ktx:1.13.1"
+}

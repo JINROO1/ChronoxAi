@@ -162,6 +162,7 @@ mal firmado fingiendo que es una release.
 * [`docs/PLAN.md`](docs/PLAN.md) — plan por fases con criterios de aceptación (checklist).
 * [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) — flujo del agente, protocolo de tools, ciclo de vida de proot.
 * [`docs/PLUGINS.md`](docs/PLUGINS.md) — escribir un plugin, capacidades, modos y pantallas propias.
+* [`docs/COMPATIBILIDAD.md`](docs/COMPATIBILIDAD.md) — qué dispositivos funcionan, por qué, y qué configurar en cada ROM.
 * [`docs/FIRMA.md`](docs/FIRMA.md) — clave de firma, backups y firma en CI.
 * [`docs/RELEASE_NOTES.md`](docs/RELEASE_NOTES.md) — notas de la versión que usa el CI como cuerpo de la release.
 

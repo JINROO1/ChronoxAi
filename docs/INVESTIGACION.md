@@ -298,3 +298,58 @@ runtime empaquetado, y esta hipótesis se prueba en la Fase 1 con un *flavor* de
   redistribuye dentro del APK (evita el problema de redistribuir una distro completa).
 
 Añadir `THIRD_PARTY_NOTICES.md` y una pantalla "Licencias" en Ajustes.
+
+---
+
+## 11. Android 15, páginas de 16 KB y dominios SELinux (verificado 2026-11)
+
+Punto de partida: se iba a probar en un **RedMagic 8S Pro con Android 15**, y el
+objetivo es que funcione en la mayoría de dispositivos. Estas son las
+comprobaciones que cambiaron el diseño.
+
+### 11.1 El dominio SELinux se puede leer, no hay que adivinarlo
+
+El dominio del proceso decide si `execve` funciona sobre el almacenamiento
+privado:
+
+| `targetSdk` | Dominio | `execve` en `app_data_file` |
+|---|---|---|
+| ≤ 25 | `untrusted_app_25` | permitido |
+| 26–28 | `untrusted_app_27` | permitido |
+| ≥ 29 | `untrusted_app` | denegado (`execute_no_trans`) |
+
+Fuentes: documentación técnica de `termux-exec` y las políticas de
+`system/sepolicy` (`untrusted_app_27.te`,
+`allow untrusted_app_27 app_data_file:file execute_no_trans;`).
+
+Consecuencias:
+
+1. `targetSdk 28` deja de ser una «hipótesis» y pasa a ser la única vía sin root.
+2. Se puede **medir**: `/proc/self/attr/current` da el dominio real, y ejecutar un
+   binario del APK distingue permiso de `ENOEXEC`. Es lo que hace la app ahora.
+3. Casos conocidos de fallo con `targetSdk ≤ 28`: el dominio queda fijado por
+   **otra app con el mismo `sharedUserId`** que declare `targetSdk` alto, o por una
+   instalación anterior (Android lo mantiene hasta desinstalar del todo). De ahí el
+   consejo de desinstalar por completo, no reinstalar.
+
+### 11.2 Páginas de 16 KB (obligatorio para publicar desde 2025-11-01)
+
+- Los dispositivos con Android 15 y kernel 6.6+ pueden usar páginas de 16 KB; un
+  ELF alineado a 4 KB no carga.
+- Requisito de Google Play: apps con `targetSdk ≥ 35` deben soportar 16 KB (bloqueo
+  de actualizaciones desde 2027-02-01).
+- Para binarios propios: NDK r28+ o `-Wl,-z,max-page-size=16384`. **Este proyecto
+  no compila código nativo**: empaqueta binarios de Termux y el rootfs de Debian,
+  así que la alineación se **verifica** en `tools/fetch_runtime.sh` y en tiempo de
+  ejecución, no se asume.
+- `ndk abiFilters` y `--split-per-abi` son incompatibles en Gradle
+  («Conflicting configuration»); el APK se genera único.
+
+### 11.3 Servicio en primer plano en API 34+ y 35
+
+- API 34+: `startForeground` exige **tipo** y debe coincidir con el del manifiesto
+  (`dataSync`), o `MissingForegroundServiceTypeException`.
+- API 33+: `POST_NOTIFICATIONS` se pide en tiempo de ejecución.
+- API 31+: no se puede iniciar un servicio en primer plano desde segundo plano
+  (`ForegroundServiceStartNotAllowedException`): se arranca desde la actividad.
+- API 35: `setDecorFitsSystemWindows(false)` para dibujar hasta los bordes.

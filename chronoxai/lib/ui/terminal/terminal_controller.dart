@@ -168,7 +168,8 @@ class TerminalController extends ChangeNotifier {
       _publicar(
         _state = TerminalViewState(
           lines: _buffer.lines,
-          cursorRow: _buffer.cursorRow,
+          cursorRow: (_buffer.cursorRow - _buffer.lineOffset)
+              .clamp(0, _buffer.lines.length - 1),
           cursorCol: _buffer.cursorCol,
           title: 'Terminal',
           status: TerminalStatus.failed,
@@ -223,7 +224,8 @@ class TerminalController extends ChangeNotifier {
         lines: filas,
         // El cursor del buffer es absoluto; la UI pinta a partir de la primera
         // línea no vacía, así que hay que restarle ese desplazamiento.
-        cursorRow: (filas.length - 1).clamp(0, filas.length),
+        cursorRow: (_buffer.cursorRow - _buffer.lineOffset)
+            .clamp(0, filas.length - 1),
         cursorCol: _buffer.cursorCol,
         title: 'Terminal',
         status: code == null ? TerminalStatus.running : TerminalStatus.exited,

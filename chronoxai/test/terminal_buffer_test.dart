@@ -174,4 +174,36 @@ void main() {
       expect(buffer.lines.first.text, '');
     });
   });
+
+  group('desplazamiento del historial', () {
+    test('lineOffset cuadra con el cursor para colocar el cursor en la UI', () {
+      final buffer = TerminalBuffer(columns: 80, rows: 6);
+      for (var i = 0; i < 4; i++) {
+        buffer.writeText('linea $i\r\n');
+      }
+
+      // Hay cuatro líneas escritas y una quinta en curso (la del prompt).
+      final desplazamiento = buffer.lineOffset;
+      final fila = buffer.cursorRow - desplazamiento;
+
+      expect(buffer.lines.length, greaterThan(fila));
+      expect(buffer.lines[fila].text, isEmpty,
+          reason: 'el cursor debe caer en la línea del prompt, que está vacía');
+      // No se afirma un valor concreto para el desplazamiento: depende de si
+      // el buffer guarda una fila vacía inicial, que es un detalle interno. Lo
+      // que importa es que el cursor caiga en la fila correcta.
+      expect(desplazamiento, greaterThanOrEqualTo(0));
+    });
+
+    test('el cursor sigue al texto, no al final de la pantalla', () {
+      final buffer = TerminalBuffer(columns: 80, rows: 10);
+      buffer.writeText('uno\r\ndos\r\n');
+      // Sube dos líneas (de la tercera a la primera) y escribe detrás de "uno".
+      buffer.writeText('\x1B[2A\x1B[3G!');
+
+      final fila = buffer.cursorRow - buffer.lineOffset;
+      expect(fila, 0, reason: 'el cursor debe estar en la primera línea');
+      expect(buffer.lines.first.text, 'uno!');
+    });
+  });
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
@@ -114,7 +115,7 @@ class PtySession {
       final result =
           await _channel.invokeMethod<bool>('write', <String, Object?>{
         'id': id,
-        'data': Uint8List.fromList(data.codeUnits),
+        'data': Uint8List.fromList(utf8.encode(data)),
       });
       return result ?? false;
     } on PlatformException {

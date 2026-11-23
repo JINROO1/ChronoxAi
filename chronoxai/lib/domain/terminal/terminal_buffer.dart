@@ -476,11 +476,23 @@ class TerminalBuffer {
   /// Se recortan las vacías del principio (desplazamiento de shell) pero se
   /// conserva siempre la línea en curso, aunque esté vacía: es donde va el
   /// cursor del prompt.
-  List<TerminalLine> get lines {
+  /// Filas que se han recortado por arriba en [lines].
+  ///
+  /// El cursor es absoluto (contando desde el principio del historial); quien
+  /// pinte [lines] tiene que restarle esto para colocar el cursor en su sitio.
+  /// Sin este dato, la única opción era suponer que el cursor está en la última
+  /// línea, y por eso el cursor aparecía al final incluso editando en mitad de
+  /// la pantalla.
+  int get lineOffset {
     var inicio = 0;
     while (inicio < _row && _lines[inicio].isEmpty) {
       inicio++;
     }
+    return inicio;
+  }
+
+  List<TerminalLine> get lines {
+    final inicio = lineOffset;
     return <TerminalLine>[
       for (var i = inicio; i < _lines.length; i++)
         TerminalLine(

@@ -611,10 +611,10 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
 
       // La UI responde a las peticiones de permiso con la hoja de aprobación.
       session.loop.approvalHandler = (final request) => showApprovalSheet(
-        context,
-        request: request,
-        isHighRisk: ApprovalPolicy.isHighRisk(request.toolName),
-      );
+            context,
+            request: request,
+            isHighRisk: ApprovalPolicy.isHighRisk(request.toolName),
+          );
 
       ref.read(sessionProvider.notifier).state = session;
       ref.read(agentViewProvider.notifier).sync();

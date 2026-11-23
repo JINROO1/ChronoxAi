@@ -42,11 +42,12 @@ class ProviderSettings {
     final String? baseUrl,
     final String? model,
     final String? apiKey,
-  }) => ProviderSettings(
-    baseUrl: baseUrl ?? this.baseUrl,
-    model: model ?? this.model,
-    apiKey: apiKey ?? this.apiKey,
-  );
+  }) =>
+      ProviderSettings(
+        baseUrl: baseUrl ?? this.baseUrl,
+        model: model ?? this.model,
+        apiKey: apiKey ?? this.apiKey,
+      );
 }
 
 /// Todo lo que compone una sesión de trabajo ya arrancada.
@@ -110,7 +111,8 @@ final localRuntimeProvider = FutureProvider<LocalRuntime>((final ref) async {
 });
 
 /// Estado del runtime, para poder avisar antes de intentar arrancar nada.
-final localRuntimeStatusProvider = FutureProvider<RuntimeStatus>((final ref) async {
+final localRuntimeStatusProvider =
+    FutureProvider<RuntimeStatus>((final ref) async {
   final runtime = await ref.watch(localRuntimeProvider.future);
   return runtime.status();
 });
@@ -120,7 +122,8 @@ final providerSettingsProvider =
     StateProvider<ProviderSettings>((final ref) => const ProviderSettings());
 
 /// Modo de trabajo activo.
-final activeModeProvider = StateProvider<PluginMode>((final ref) => WorkModes.all.first);
+final activeModeProvider =
+    StateProvider<PluginMode>((final ref) => WorkModes.all.first);
 
 /// Nivel de aprobación activo.
 final approvalLevelProvider =
@@ -377,9 +380,7 @@ String _summariseArguments(
   final pattern = arguments['pattern'];
   if (pattern != null) return pattern.toString();
   if (arguments.isEmpty) return tool;
-  return arguments.entries
-      .map((final e) => '${e.key}: ${e.value}')
-      .join('\n');
+  return arguments.entries.map((final e) => '${e.key}: ${e.value}').join('\n');
 }
 
 /// Estado derivado del motor para la barra superior.

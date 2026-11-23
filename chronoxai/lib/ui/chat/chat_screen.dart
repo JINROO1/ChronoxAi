@@ -394,7 +394,8 @@ class _ComposerBar extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              _SendButton(isRunning: isRunning, onSend: onSend, onCancel: onCancel),
+              _SendButton(
+                  isRunning: isRunning, onSend: onSend, onCancel: onCancel),
             ],
           ),
         ],

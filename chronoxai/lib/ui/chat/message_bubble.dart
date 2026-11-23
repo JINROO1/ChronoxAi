@@ -136,8 +136,8 @@ class _ToolCallBlockState extends State<_ToolCallBlock> {
     final accent = entry.isError
         ? ChronoxColors.danger
         : entry.isPending
-        ? ChronoxColors.warning
-        : ChronoxColors.accent;
+            ? ChronoxColors.warning
+            : ChronoxColors.accent;
     final icon = _icons[entry.title] ?? Icons.build_outlined;
 
     return Padding(

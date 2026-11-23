@@ -45,33 +45,32 @@ class RuntimeStatus {
   final String? prootPath;
 
   String get title => switch (problem) {
-    null => 'Runtime listo',
-    RuntimeProblem.unsupportedDevice => 'Dispositivo no compatible',
-    RuntimeProblem.execBlocked => 'Android bloquea la ejecución',
-    RuntimeProblem.missingBinaries => 'Faltan los binarios de proot',
-    RuntimeProblem.missingRootfs => 'Falta el sistema Linux',
-    RuntimeProblem.unavailable => 'Runtime no disponible',
-  };
+        null => 'Runtime listo',
+        RuntimeProblem.unsupportedDevice => 'Dispositivo no compatible',
+        RuntimeProblem.execBlocked => 'Android bloquea la ejecución',
+        RuntimeProblem.missingBinaries => 'Faltan los binarios de proot',
+        RuntimeProblem.missingRootfs => 'Falta el sistema Linux',
+        RuntimeProblem.unavailable => 'Runtime no disponible',
+      };
 
   String get message => switch (problem) {
-    null => 'El contenedor Linux está instalado y funciona.',
-    RuntimeProblem.unsupportedDevice =>
-      'Chronox necesita un dispositivo ARM64. Este dispositivo usa otro tipo '
-          'de procesador y no puede ejecutar el contenedor.',
-    RuntimeProblem.execBlocked =>
-      'Este Android impide ejecutar programas desde el almacenamiento de la '
-          'app. Suele ocurrir en dispositivos con políticas de seguridad '
-          'estrictas o en apps con targetSdk reciente.',
-    RuntimeProblem.missingBinaries =>
-      'El APK no incluye los binarios de proot. Es un fallo de compilación: '
-          'revisa que jniLibs contenga libproot.so y libproot_loader.so.',
-    RuntimeProblem.missingRootfs =>
-      'Todavía no hay un sistema Linux instalado. Descarga Debian para poder '
-          'ejecutar comandos.',
-    RuntimeProblem.unavailable => detail.isEmpty
-        ? 'El runtime no está disponible.'
-        : detail,
-  };
+        null => 'El contenedor Linux está instalado y funciona.',
+        RuntimeProblem.unsupportedDevice =>
+          'Chronox necesita un dispositivo ARM64. Este dispositivo usa otro tipo '
+              'de procesador y no puede ejecutar el contenedor.',
+        RuntimeProblem.execBlocked =>
+          'Este Android impide ejecutar programas desde el almacenamiento de la '
+              'app. Suele ocurrir en dispositivos con políticas de seguridad '
+              'estrictas o en apps con targetSdk reciente.',
+        RuntimeProblem.missingBinaries =>
+          'El APK no incluye los binarios de proot. Es un fallo de compilación: '
+              'revisa que jniLibs contenga libproot.so y libproot_loader.so.',
+        RuntimeProblem.missingRootfs =>
+          'Todavía no hay un sistema Linux instalado. Descarga Debian para poder '
+              'ejecutar comandos.',
+        RuntimeProblem.unavailable =>
+          detail.isEmpty ? 'El runtime no está disponible.' : detail,
+      };
 }
 
 /// Runtime Linux local: `proot` + rootfs de Debian dentro del APK.
@@ -80,7 +79,7 @@ class RuntimeStatus {
 /// [status] para que la UI pueda explicar qué falta antes de intentar nada.
 class LocalRuntime {
   LocalRuntime({required this.paths, AndroidRuntimeChannel? channel})
-    : _channel = channel ?? const AndroidRuntimeChannel();
+      : _channel = channel ?? const AndroidRuntimeChannel();
 
   final LinuxPaths paths;
   final AndroidRuntimeChannel _channel;
@@ -186,12 +185,10 @@ class LocalRuntime {
     final stderrBuffer = StringBuffer();
     // Se recoge el `Future` de `forEach`, no el de `listen`: el de `listen` se
     // completa al suscribirse, no al terminar el stream.
-    final outDone = process.stdout
-        .transform(utf8.decoder)
-        .forEach(stdoutBuffer.write);
-    final errDone = process.stderr
-        .transform(utf8.decoder)
-        .forEach(stderrBuffer.write);
+    final outDone =
+        process.stdout.transform(utf8.decoder).forEach(stdoutBuffer.write);
+    final errDone =
+        process.stderr.transform(utf8.decoder).forEach(stderrBuffer.write);
 
     var timedOut = false;
     final exitCode = await process.exitCode.timeout(
@@ -236,7 +233,8 @@ class LocalRuntime {
 
     return ProotConfig(
       prootBinary: _prootPath ?? p.join(nativeLibraryDir, 'libproot.so'),
-      prootLoader: _loaderPath ?? p.join(nativeLibraryDir, 'libproot_loader.so'),
+      prootLoader:
+          _loaderPath ?? p.join(nativeLibraryDir, 'libproot_loader.so'),
       rootfs: paths.rootfsDir,
       workingDirectory: workingDirectory ?? guestWorkspace,
       homeDirectory: '/root',
@@ -247,7 +245,7 @@ class LocalRuntime {
 
   /// Comando completo para abrir una terminal interactiva (PTY).
   Future<({String binary, List<String> args, Map<String, String> env})>
-  interactiveCommand({final String? workingDirectory}) async {
+      interactiveCommand({final String? workingDirectory}) async {
     final config = await _config(workingDirectory: workingDirectory);
     return (
       binary: config.prootBinary,
@@ -280,7 +278,9 @@ class ProotShellSeam implements ShellSeam {
     final String command, {
     final String? workingDirectory,
     final Duration? timeout,
-  }) => runtime.run(command, workingDirectory: workingDirectory, timeout: timeout);
+  }) =>
+      runtime.run(command,
+          workingDirectory: workingDirectory, timeout: timeout);
 }
 
 /// `ctx.fs` sobre el workspace del dispositivo.
@@ -320,7 +320,8 @@ class WorkspaceFileSystemSeam implements FileSystemSeam {
   }
 
   @override
-  Future<String> readFile(final String path) => File(resolve(path)).readAsString();
+  Future<String> readFile(final String path) =>
+      File(resolve(path)).readAsString();
 
   @override
   Future<void> writeFile(final String path, final String content) async {
@@ -392,8 +393,22 @@ class WorkspaceFileSystemSeam implements FileSystemSeam {
 
   static bool _isTextCandidate(final String path) {
     const binary = <String>{
-      '.so', '.apk', '.dex', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.zip',
-      '.gz', '.tar', '.pdf', '.ttf', '.otf', '.mp4', '.mp3',
+      '.so',
+      '.apk',
+      '.dex',
+      '.png',
+      '.jpg',
+      '.jpeg',
+      '.gif',
+      '.webp',
+      '.zip',
+      '.gz',
+      '.tar',
+      '.pdf',
+      '.ttf',
+      '.otf',
+      '.mp4',
+      '.mp3',
     };
     return !binary.contains(p.extension(path).toLowerCase());
   }

@@ -289,8 +289,8 @@ class _DiffView extends StatelessWidget {
             color: line.startsWith('+')
                 ? ChronoxColors.codeAddition
                 : line.startsWith('-')
-                ? ChronoxColors.codeDeletion
-                : null,
+                    ? ChronoxColors.codeDeletion
+                    : null,
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
             child: Text(
               line.isEmpty ? ' ' : line,
@@ -298,8 +298,8 @@ class _DiffView extends StatelessWidget {
                 color: line.startsWith('+')
                     ? ChronoxColors.success
                     : line.startsWith('-')
-                    ? ChronoxColors.danger
-                    : ChronoxColors.textSecondary,
+                        ? ChronoxColors.danger
+                        : ChronoxColors.textSecondary,
                 fontSize: 12.5,
                 height: 1.4,
                 fontFamily: ChronoxTheme.monoFamily,

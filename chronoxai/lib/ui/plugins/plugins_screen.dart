@@ -48,8 +48,7 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
     ];
     final warnings = <String>[
       for (final plugin in plugins)
-        if (plugin.error != null)
-          '${plugin.manifest.name}: ${plugin.error}',
+        if (plugin.error != null) '${plugin.manifest.name}: ${plugin.error}',
     ];
 
     return Scaffold(
@@ -60,7 +59,8 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
             padding: const EdgeInsets.only(right: 14),
             child: Center(
               child: StatusPill(
-                label: '${session.host.mounted.length}/${plugins.length} activos',
+                label:
+                    '${session.host.mounted.length}/${plugins.length} activos',
                 dense: true,
                 color: session.host.mounted.length == plugins.length
                     ? ChronoxColors.success
@@ -178,7 +178,9 @@ class _PluginTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  hasError ? (plugin.error ?? 'Error al montar') : manifest.description,
+                  hasError
+                      ? (plugin.error ?? 'Error al montar')
+                      : manifest.description,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

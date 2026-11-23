@@ -72,6 +72,7 @@ propia pantalla.
     required final String modeId,
     required final List<PluginTool> tools,
     final SessionLog? log,
+    final String? projectInstructions,
     final Map<String, Object?> context = const <String, Object?>{},
   }) {
     final buffer = StringBuffer(base);
@@ -81,6 +82,16 @@ propia pantalla.
       buffer
         ..writeln()
         ..writeln(section.trim());
+    }
+
+    // Instrucciones del proyecto (AGENTS.md / CLAUDE.md): van después de la
+    // sección del modo y antes del catálogo de herramientas, porque son lo más
+    // específico del proyecto en el que se trabaja.
+    if (projectInstructions != null && projectInstructions.trim().isNotEmpty) {
+      buffer
+        ..writeln()
+        ..writeln('Instrucciones del proyecto (AGENTS.md / CLAUDE.md):')
+        ..writeln(projectInstructions.trim());
     }
 
     if (tools.isNotEmpty) {

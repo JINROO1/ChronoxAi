@@ -39,6 +39,7 @@ abstract class SessionEvent extends AgentEvent {
       'tool/call' => ToolCallEvent.fromJson(data),
       'tool/result' => ToolResultEvent.fromJson(data),
       'approval/decision' => ApprovalDecisionEvent.fromJson(data),
+      'plan/decision' => PlanDecisionEvent.fromJson(data),
       'compaction' => CompactionEvent.fromJson(data),
       'session/created' => SessionCreatedEvent.fromJson(data),
       'session/title' => SessionTitleEvent.fromJson(data),
@@ -380,6 +381,32 @@ class ApprovalDecisionEvent extends SessionEvent {
         callId: (j['callId'] as String?) ?? '',
         approved: (j['approved'] as bool?) ?? false,
         rememberForSession: (j['rememberForSession'] as bool?) ?? false,
+      );
+}
+
+/// Decisión del usuario sobre un plan propuesto con `exit_plan_mode`.
+///
+/// Es durable porque forma parte de la historia que ve el modelo: si el plan
+/// se aprobó, el modelo debe saber que tiene permiso para actuar.
+class PlanDecisionEvent extends SessionEvent {
+  const PlanDecisionEvent({required this.callId, required this.approved});
+
+  final String callId;
+  final bool approved;
+
+  @override
+  String get eventType => 'plan/decision';
+
+  @override
+  Map<String, Object?> toJson() => <String, Object?>{
+        'callId': callId,
+        'approved': approved,
+      };
+
+  static PlanDecisionEvent fromJson(final Map<String, Object?> j) =>
+      PlanDecisionEvent(
+        callId: (j['callId'] as String?) ?? '',
+        approved: (j['approved'] as bool?) ?? false,
       );
 }
 

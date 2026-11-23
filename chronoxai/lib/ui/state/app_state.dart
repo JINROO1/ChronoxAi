@@ -3,12 +3,14 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/llm/openai_compatible_client.dart';
 import '../../data/runtime/local_runtime.dart';
 import '../../domain/agent/agent_events.dart';
 import '../../domain/agent/agent_loop.dart';
 import '../../domain/agent/approval_policy.dart';
+import '../../domain/agent/project_instructions.dart';
 import '../../domain/agent/session_log.dart';
 import '../../domain/agent/tool_registry.dart';
 import '../../domain/llm/llm_types.dart';
@@ -117,17 +119,112 @@ final localRuntimeStatusProvider =
   return runtime.status();
 });
 
-/// Ajustes del proveedor, editables desde Ajustes.
+/// Ajustes del proveedor, editables desde Ajustes y **persistidos**.
+///
+/// La persistencia no es un adorno: sin ella, la clave se pierde al cerrar la
+/// app y las tareas programadas (Fase 11) no podrían arrancar un turno sin
+/// pasar por la UI. Se guarda en `shared_preferences`; la clave de API solo
+/// vive ahí y nunca en el log de sesión.
 final providerSettingsProvider =
-    StateProvider<ProviderSettings>((final ref) => const ProviderSettings());
+    StateNotifierProvider<ProviderSettingsNotifier, ProviderSettings>(
+  (final ref) => ProviderSettingsNotifier(),
+);
 
-/// Modo de trabajo activo.
+class ProviderSettingsNotifier extends StateNotifier<ProviderSettings> {
+  ProviderSettingsNotifier() : super(const ProviderSettings()) {
+    _load();
+  }
+
+  static const String _kBaseUrl = 'provider.baseUrl';
+  static const String _kModel = 'provider.model';
+  static const String _kApiKey = 'provider.apiKey';
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = ProviderSettings(
+      baseUrl: prefs.getString(_kBaseUrl) ?? state.baseUrl,
+      model: prefs.getString(_kModel) ?? state.model,
+      apiKey: prefs.getString(_kApiKey) ?? state.apiKey,
+    );
+  }
+
+  @override
+  set state(final ProviderSettings value) {
+    super.state = value;
+    _save(value);
+  }
+
+  Future<void> _save(final ProviderSettings settings) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kBaseUrl, settings.baseUrl);
+    await prefs.setString(_kModel, settings.model);
+    await prefs.setString(_kApiKey, settings.apiKey);
+  }
+}
+
+/// Modo de trabajo activo, persistido por id.
 final activeModeProvider =
-    StateProvider<PluginMode>((final ref) => WorkModes.all.first);
+    StateNotifierProvider<ActiveModeNotifier, PluginMode>(
+  (final ref) => ActiveModeNotifier(),
+);
 
-/// Nivel de aprobación activo.
+class ActiveModeNotifier extends StateNotifier<PluginMode> {
+  ActiveModeNotifier() : super(WorkModes.all.first) {
+    _load();
+  }
+
+  static const String _kModeId = 'mode.id';
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final id = prefs.getString(_kModeId);
+    if (id != null && id.isNotEmpty) state = WorkModes.byId(id);
+  }
+
+  @override
+  set state(final PluginMode value) {
+    super.state = value;
+    _save(value);
+  }
+
+  Future<void> _save(final PluginMode mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kModeId, mode.id);
+  }
+}
+
+/// Nivel de aprobación activo, persistido por índice.
 final approvalLevelProvider =
-    StateProvider<ApprovalLevel>((final ref) => ApprovalLevel.guarded);
+    StateNotifierProvider<ApprovalLevelNotifier, ApprovalLevel>(
+  (final ref) => ApprovalLevelNotifier(),
+);
+
+class ApprovalLevelNotifier extends StateNotifier<ApprovalLevel> {
+  ApprovalLevelNotifier() : super(ApprovalLevel.guarded) {
+    _load();
+  }
+
+  static const String _kLevel = 'approval.level';
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final index = prefs.getInt(_kLevel);
+    if (index != null && index >= 0 && index < ApprovalLevel.values.length) {
+      state = ApprovalLevel.values[index];
+    }
+  }
+
+  @override
+  set state(final ApprovalLevel value) {
+    super.state = value;
+    _save(value);
+  }
+
+  Future<void> _save(final ApprovalLevel level) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_kLevel, level.index);
+  }
+}
 
 /// Sesión viva. `null` hasta que la UI llama a `startSession`.
 final sessionProvider = StateProvider<SessionRuntime?>((final ref) => null);
@@ -237,6 +334,9 @@ Future<SessionRuntime> startSession(
     policy: policy,
     config: const AgentConfig(),
     modeId: mode.id,
+    // AGENTS.md / CLAUDE.md del workspace, cargados en cada turno.
+    loadProjectInstructions: () =>
+        ProjectInstructions.load(bootstrap.workspaceDir),
     llm: _ProviderAsSeam(bootstrap.provider),
   );
 

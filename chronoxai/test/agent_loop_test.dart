@@ -156,6 +156,8 @@ void main() {
     final LlmProvider provider, {
     ApprovalPolicy? policy,
     ApprovalHandler? approvalHandler,
+    PlanHandler? planHandler,
+    Future<String> Function()? loadProjectInstructions,
     AgentConfig config = const AgentConfig(),
   }) {
     return AgentLoop(
@@ -167,6 +169,8 @@ void main() {
       config: config,
       modeId: 'standard',
       approvalHandler: approvalHandler,
+      planHandler: planHandler,
+      loadProjectInstructions: loadProjectInstructions,
     );
   }
 
@@ -648,6 +652,22 @@ void main() {
         tools: const <PluginTool>[],
       );
       expect(creator, contains('cordis_inspect'));
+    });
+
+    test('incluye las instrucciones del proyecto cuando las hay', () {
+      final prompt = PromptBuilder.build(
+        modeId: 'standard',
+        tools: const <PluginTool>[],
+        projectInstructions: '--- AGENTS.md ---\nUsa `make test`.',
+      );
+      expect(prompt, contains('Instrucciones del proyecto'));
+      expect(prompt, contains('make test'));
+
+      final without = PromptBuilder.build(
+        modeId: 'standard',
+        tools: const <PluginTool>[],
+      );
+      expect(without, isNot(contains('Instrucciones del proyecto')));
     });
 
     test('lista las herramientas disponibles con su primera línea', () {

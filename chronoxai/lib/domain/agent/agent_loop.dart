@@ -46,6 +46,21 @@ class ApprovalAnswer {
   final bool rememberForSession;
 }
 
+/// Petición de aprobación de un plan (`exit_plan_mode`).
+///
+/// El plan mode de dsh detiene el loop hasta que el usuario lo aprueba o lo
+/// rechaza. Sin esto, `exit_plan_mode` sería solo texto que el modelo escribe
+/// y sigue actuando igual.
+class PlanRequest {
+  const PlanRequest({required this.callId, required this.plan});
+
+  final String callId;
+  final String plan;
+}
+
+/// Quién responde cuando el motor presenta un plan.
+typedef PlanHandler = Future<ApprovalAnswer> Function(PlanRequest request);
+
 /// Configuración del motor.
 class AgentConfig {
   const AgentConfig({
@@ -118,8 +133,12 @@ class AgentLoop {
     required this.config,
     required this.modeId,
     ApprovalHandler? approvalHandler,
+    PlanHandler? planHandler,
+    Future<String> Function()? loadProjectInstructions,
     LlmSeam? llm,
   })  : _approvalHandler = approvalHandler,
+        _planHandler = planHandler,
+        _loadProjectInstructions = loadProjectInstructions,
         _llm = llm;
 
   final LlmProvider provider;
@@ -131,11 +150,19 @@ class AgentLoop {
   final String modeId;
 
   ApprovalHandler? _approvalHandler;
+  PlanHandler? _planHandler;
+  final Future<String> Function()? _loadProjectInstructions;
   final LlmSeam? _llm;
+
+  /// Instrucciones del proyecto cargadas para el turno en curso.
+  String? _projectInstructions;
 
   /// Permite a la UI enganchar su diálogo de aprobación después de construir.
   set approvalHandler(final ApprovalHandler? handler) =>
       _approvalHandler = handler;
+
+  /// Permite a la UI enganchar su hoja de plan después de construir.
+  set planHandler(final PlanHandler? handler) => _planHandler = handler;
 
   StreamSubscription<LlmChunk>? _activeStream;
   Completer<void>? _cancelSignal;
@@ -163,6 +190,12 @@ class AgentLoop {
     _cancelled = false;
     _cancelSignal = Completer<void>();
     _status = const AgentStatus(isRunning: true, activity: 'Pensando…');
+
+    // Las instrucciones del proyecto se cargan una vez por turno, no por
+    // paso: leer tres ficheros en cada iteración sería desperdicio, y si el
+    // usuario las edita a mitad de turno, el cambio entra en el siguiente.
+    final loader = _loadProjectInstructions;
+    _projectInstructions = loader == null ? null : await loader();
 
     final turnId = 'turn-${DateTime.now().microsecondsSinceEpoch}';
     await log.append(TurnStartEvent(turnId: turnId, userInput: userInput));
@@ -452,6 +485,14 @@ class AgentLoop {
       return _ToolExecutionOutcome.failed;
     }
 
+    // Plan mode: `exit_plan_mode` no es una herramienta normal. Detiene el
+    // loop hasta que el usuario aprueba o rechaza el plan, como hace dsh.
+    // Sin esta intercepción, el plugin solo devolvería texto y el modelo
+    // seguiría actuando sin permiso.
+    if (call.name == 'exit_plan_mode') {
+      return _executePlan(call);
+    }
+
     final verdict = policy.check(tool);
     if (verdict.isDenied) {
       await _recordResult(call, verdict.reason ?? 'Rechazado.', isError: true);
@@ -495,6 +536,41 @@ class AgentLoop {
     return outcome.isError
         ? _ToolExecutionOutcome.failed
         : _ToolExecutionOutcome.ok;
+  }
+
+  /// Ejecuta `exit_plan_mode`: presenta el plan y espera la decisión.
+  ///
+  /// Si no hay UI que pregunte (handler nulo), se rechaza: fallar hacia el
+  /// lado seguro, igual que con las aprobaciones de herramientas.
+  Future<_ToolExecutionOutcome> _executePlan(final LlmToolCall call) async {
+    final plan = (call.arguments['plan'] ?? '').toString();
+    events.emit(PlanProposedEvent(callId: call.id, plan: plan));
+
+    final handler = _planHandler;
+    final answer = handler == null
+        ? const ApprovalAnswer.denied()
+        : await handler(PlanRequest(callId: call.id, plan: plan));
+
+    await log.append(
+      PlanDecisionEvent(callId: call.id, approved: answer.approved),
+    );
+
+    if (!answer.approved) {
+      await _recordResult(
+        call,
+        'El usuario rechazó el plan. No actúes todavía: espera nuevas '
+        'instrucciones del usuario antes de continuar.',
+        isError: true,
+      );
+      return _ToolExecutionOutcome.rejected;
+    }
+
+    await _recordResult(
+      call,
+      'Plan aprobado por el usuario. Puedes empezar a ejecutarlo.',
+      isError: false,
+    );
+    return _ToolExecutionOutcome.ok;
   }
 
   Future<ApprovalAnswer> _askApproval(
@@ -601,6 +677,7 @@ class AgentLoop {
           modeId: modeId,
           tools: registry.all.toList(),
           log: log,
+          projectInstructions: _projectInstructions,
         ),
       ),
     ];

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 
 import '../agent/agent_events.dart';
+import '../agent/tool_registry.dart';
 
 /// Tipo de plugin. Determina qué puede registrar.
 enum PluginKind {
@@ -203,6 +204,91 @@ class PluginContext {
   }
 }
 
+/// Servicios del host que un plugin puede consumir.
+///
+/// Vive en el dominio junto al contrato; las implementaciones concretas de los
+/// seams (`ProotShellSeam`, etc.) van en la capa de datos.
+class PluginServices {
+  PluginServices({
+    required this.registry,
+    required this.skills,
+    required this.modes,
+    required this.surfaces,
+    required this.events,
+    this.fileSystem,
+    this.shell,
+    this.terminals,
+    this.llm,
+    this.session,
+    this.network,
+  });
+
+  final ToolRegistry registry;
+  final Map<String, PluginSkill> skills;
+  final Map<String, PluginMode> modes;
+  final Map<String, PluginSurface> surfaces;
+  final AgentEventBus events;
+
+  final FileSystemSeam? fileSystem;
+  final ShellSeam? shell;
+  final TerminalsSeam? terminals;
+  final LlmSeam? llm;
+  final SessionSeam? session;
+  final NetworkSeam? network;
+
+  /// Devuelve una vista filtrada para un plugin concreto (mínimo privilegio).
+  PluginServices forPlugin(final PluginManifest manifest) =>
+      _ScopedServices(parent: this, manifest: manifest);
+}
+
+class _ScopedServices extends PluginServices {
+  _ScopedServices({required this.parent, required this.manifest})
+    : super(
+        registry: parent.registry,
+        skills: parent.skills,
+        modes: parent.modes,
+        surfaces: parent.surfaces,
+        events: parent.events,
+      );
+
+  final PluginServices parent;
+  final PluginManifest manifest;
+
+  T _require<T>(final PluginCapability capability, final T? service) {
+    if (!manifest.capabilities.contains(capability)) {
+      throw PluginCapabilityDenied(manifest.id, capability);
+    }
+    if (service == null) {
+      throw StateError(
+        'El servicio "${capability.name}" no está disponible en este modo. '
+        'El plugin "${manifest.id}" lo necesita.',
+      );
+    }
+    return service;
+  }
+
+  @override
+  FileSystemSeam get fileSystem =>
+      _require(PluginCapability.fileSystem, parent.fileSystem);
+
+  @override
+  ShellSeam get shell => _require(PluginCapability.shell, parent.shell);
+
+  @override
+  TerminalsSeam get terminals =>
+      _require(PluginCapability.terminals, parent.terminals);
+
+  @override
+  LlmSeam get llm => _require(PluginCapability.llm, parent.llm);
+
+  @override
+  SessionSeam get session => _require(PluginCapability.session, parent.session);
+
+  @override
+  NetworkSeam get network =>
+      _require(PluginCapability.network, parent.network);
+}
+
 /// Ciclo de vida que implementa un plugin.
 abstract class ChronoxPlugin {
   /// Se llama una vez, y solo si el plugin está habilitado.
@@ -295,6 +381,32 @@ class PluginMode {
   final String? systemPromptPrefix;
 
   final String? icon;
+}
+
+/// Ámbito que recibe la pantalla de un plugin.
+///
+/// Se declara en el dominio (y no en la capa UI) porque es parte del contrato
+/// entre el host y el plugin: la UI solo lo implementa. Tenerlo aquí evita un
+/// ciclo de imports entre dominio y presentación.
+class PluginSurfaceScope {
+  const PluginSurfaceScope({
+    required this.pluginId,
+    required this.setState,
+    required this.showSnackBar,
+    required this.openTerminal,
+  });
+
+  /// Id del plugin dueño, para mensajes de error y telemetría.
+  final String pluginId;
+
+  /// Reconstruye la pantalla del plugin.
+  final void Function() setState;
+
+  /// Muestra un mensaje efímero con el estilo de la app.
+  final void Function(String message) showSnackBar;
+
+  /// Abre la terminal del sistema.
+  final Future<void> Function() openTerminal;
 }
 
 /// Pantalla completa aportada por un plugin.

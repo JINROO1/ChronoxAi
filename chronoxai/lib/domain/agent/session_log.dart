@@ -134,7 +134,7 @@ class SessionLog {
     var outputTokens = 0;
     var modelTimeMs = 0;
     var toolTimeMs = 0;
-    var firstTokenMs = <int>[];
+    final firstTokenMs = <int>[];
 
     for (final event in _events) {
       switch (event) {
@@ -243,7 +243,7 @@ class SessionLog {
   /// Exporta la sesión como Markdown legible.
   String exportMarkdown() {
     final buffer = StringBuffer()
-      ..writeln('# ${title}')
+      ..writeln('# $title')
       ..writeln()
       ..writeln('_Sesión `${sessionId}` · ${_events.length} eventos_')
       ..writeln();

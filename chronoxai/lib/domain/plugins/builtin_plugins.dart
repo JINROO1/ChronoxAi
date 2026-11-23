@@ -84,7 +84,7 @@ ChronoxPlugin fsPlugin() => _FsPlugin(
         final numbered = <String>[];
         for (var i = 0; i < slice.length; i++) {
           final number = start + i + 1;
-          numbered.add(number.toString().padLeft(6) + '\t' + slice[i]);
+          numbered.add('${number.toString().padLeft(6)}\t${slice[i]}');
         }
 
         final truncated = end < all.length;

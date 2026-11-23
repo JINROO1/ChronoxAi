@@ -3,33 +3,6 @@ import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../../domain/plugins/plugin_api.dart';
 
-/// Ámbito que recibe la pantalla de un plugin.
-///
-/// Es el contrato entre el host y el plugin: el host aporta el andamiaje
-/// (tema, navegación, ciclo de vida) y el plugin solo dibuja su contenido. Así
-/// una pantalla de plugin se ve integrada sin que el autor tenga que replicar el
-/// diseño de la app.
-class PluginSurfaceScope {
-  const PluginSurfaceScope({
-    required this.pluginId,
-    required this.setState,
-    required this.showSnackBar,
-    required this.openTerminal,
-  });
-
-  /// Id del plugin dueño, para telemetría y mensajes de error.
-  final String pluginId;
-
-  /// Reconstruye la pantalla del plugin.
-  final void Function() setState;
-
-  /// Muestra un mensaje efímero con el estilo de la app.
-  final void Function(String message) showSnackBar;
-
-  /// Abre la terminal del sistema (útil para plugins que lanzan procesos).
-  final Future<void> Function() openTerminal;
-}
-
 /// Contenedor que monta la pantalla de un plugin.
 ///
 /// Responsabilidades del host (y no del plugin):
@@ -155,9 +128,9 @@ class _PluginBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: ChronoxColors.accent.withValues(alpha: 0.14),
+        color: ChronoxColors.accent.withOpacity(0.14),
         borderRadius: ChronoxRadius.pill,
-        border: Border.all(color: ChronoxColors.accent.withValues(alpha: 0.35)),
+        border: Border.all(color: ChronoxColors.accent.withOpacity(0.35)),
       ),
       child: Text(
         'plugin',
@@ -165,7 +138,7 @@ class _PluginBadge extends StatelessWidget {
           fontSize: 10,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.3,
-          color: ChronoxColors.accent.withValues(alpha: 0.95),
+          color: ChronoxColors.accent.withOpacity(0.95),
         ),
       ),
     );

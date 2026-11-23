@@ -18,10 +18,57 @@ env:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # 1. Análisis estático y formato
+  # 0. Formato automático
+  #     No hay formateador de Dart disponible fuera de un SDK, así que CI lo
+  #     aplica y lo commitea él mismo. Con `--set-exit-if-changed` avisa, pero
+  #     en lugar de hacer fallar la build arregla el fichero: el objetivo es que
+  #     el repo quede formateado, no que el contribuidor adivine el estilo.
+  #     En pull requests NO commitea (sería escribir en una rama ajena).
+  # ---------------------------------------------------------------------------
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Publicar dependencias
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: flutter pub get
+
+      - name: Aplicar formato
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: dart format lib test
+
+      - name: Commit si hubo cambios
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "Ya estaba formateado."
+            echo "### Formato: sin cambios" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git config user.name "chronox-format-bot"
+          git config user.email "bot@chronoxai.app"
+          git add -A
+          git commit -m "style: aplicar dart format [skip ci]"
+          git push
+          echo "### Formato: aplicado y commiteado" >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # 1. Análisis estático
   # ---------------------------------------------------------------------------
   analyze:
-    name: Analyze & format
+    name: Analyze
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -35,24 +82,6 @@ jobs:
       - name: Publicar dependencias
         working-directory: ${{ env.PROJECT_DIR }}
         run: flutter pub get
-
-      # El formato se comprueba pero no bloquea todavía: el código se escribió
-      # sin un SDK de Dart disponible, así que la primera pasada de `dart format`
-      # está pendiente. Cuando el repo tenga esa pasada aplicada, quitar
-      # `continue-on-error` para que sea estricto.
-      - name: Verificar formato
-        id: format
-        continue-on-error: true
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: dart format --output=none --set-exit-if-changed lib test
-
-      - name: Avisar si hay ficheros sin formatear
-        if: steps.format.outcome == 'failure'
-        run: |
-          echo "::warning::Hay ficheros sin formato. Ejecuta 'dart format lib test' y haz commit."
-          echo "### ⚠️ Formato pendiente" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Ejecuta \`dart format lib test\` en \`${{ env.PROJECT_DIR }}/\`." >> "$GITHUB_STEP_SUMMARY"
 
       # El resultado se publica como ANOTACIONES (file/line/col) además de en el
       # log: así el error aparece señalado en el diff del PR y se puede leer por

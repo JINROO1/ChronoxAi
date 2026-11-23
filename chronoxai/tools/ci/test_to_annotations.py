@@ -26,6 +26,40 @@ NOISE = re.compile(
 )
 
 
+# "lib/foo.dart:12:5: Error: Expected '}' ..."
+COMPILER = re.compile(r"^(\S+\.dart):(\d+):(\d+):\s+(\w+:.*)$")
+
+
+def compilation_errors(lines: list[str]) -> list[dict]:
+    """Extrae los errores de compilación del compilador de Dart.
+
+    Sin esto, un test que no compila se reporta como "Compilation failed" sin
+    fichero ni línea, que es inútil: el compilador sí dice dónde está el fallo,
+    solo que unas líneas más abajo.
+    """
+    found = []
+    for line in lines:
+        match = COMPILER.match(line.rstrip("\n"))
+        if not match:
+            continue
+        path, line_no, _col, message = match.groups()
+        if not message.startswith(("Error:", "Warning:")):
+            continue
+        found.append(
+            {"path": path, "line": int(line_no), "message": message.strip()}
+        )
+    # Un mismo error se repite para cada test que importa el fichero: se deduplica.
+    seen = set()
+    unique = []
+    for error in found:
+        key = (error["path"], error["line"], error["message"])
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(error)
+    return unique
+
+
 def escape(text: str) -> str:
     return text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
 
@@ -78,7 +112,13 @@ def main() -> int:
         else:
             print(f"::error title={escape(name)}::{escape(message)}")
 
-    print(f"Anotaciones: {len(failures)} test(s) fallido(s)")
+    compilation = compilation_errors(lines)
+    for error in compilation:
+        print(f"::error file={error['path']},line={error['line']},"
+              f"title=No compila::{escape(error['message'])}")
+
+    print(f"Anotaciones: {len(failures)} test(s) fallido(s), "
+          f"{len(compilation)} fichero(s) que no compilan")
     return 0
 
 

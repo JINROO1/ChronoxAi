@@ -311,7 +311,7 @@ class AgentLoop {
             error.retryAfter ?? config.retryBaseDelay * (1 << (attempt - 1));
         _status = _status.copyWith(
           activity: 'Reintentando en ${delay.inSeconds}s '
-              '(${attempt}/${config.maxRetries})…',
+              '($attempt/${config.maxRetries})…',
         );
         await Future<void>.delayed(delay);
         if (_cancelled) {
@@ -763,7 +763,7 @@ class AgentLoop {
   /// principal, que es justo para lo que existe.
   Future<String> runSubagent(final String prompt) async {
     final messages = <LlmMessage>[
-      LlmMessage.system(
+      const LlmMessage.system(
         'Eres un subagente. Resuelve la tarea de forma autónoma y devuelve solo '
         'el resultado, sin explicar tu proceso.',
       ),

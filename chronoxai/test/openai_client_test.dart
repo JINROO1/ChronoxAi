@@ -5,48 +5,87 @@ import 'package:chronoxai/data/llm/openai_compatible_client.dart';
 import 'package:chronoxai/domain/llm/llm_types.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 
-/// Construye un cliente cuyo transporte devuelve [sse] troceado a propósito en
-/// trozos que cortan líneas y caracteres multibyte por la mitad.
+/// Transporte falso: devuelve los bytes indicados y recuerda la petición.
+///
+/// Se implementa aquí en lugar de usar `MockClient` para no depender de una API
+/// de terceros que cambia entre versiones; lo único que se necesita es
+/// `BaseClient.send`.
+class FakeTransport extends http.BaseClient {
+  FakeTransport(
+    this.chunks, {
+    this.statusCode = 200,
+    this.headers = const <String, String>{},
+  });
+
+  final List<List<int>> chunks;
+  final int statusCode;
+  final Map<String, String> headers;
+
+  final List<http.BaseRequest> requests = <http.BaseRequest>[];
+  bool closed = false;
+
+  @override
+  Future<http.StreamedResponse> send(final http.BaseRequest request) async {
+    requests.add(request);
+    return http.StreamedResponse(
+      Stream<List<int>>.fromIterable(chunks),
+      statusCode,
+      headers: headers,
+      request: request,
+    );
+  }
+
+  @override
+  void close() => closed = true;
+}
+
+/// Parte [sse] en trozos de [chunkSize] bytes, cortando por donde haga falta.
+List<List<int>> sliced(final String sse, {final int chunkSize = 7}) {
+  final bytes = utf8.encode(sse);
+  final out = <List<int>>[];
+  for (var i = 0; i < bytes.length; i += chunkSize) {
+    out.add(bytes.sublist(i, (i + chunkSize).clamp(0, bytes.length)));
+  }
+  return out;
+}
+
 OpenAiCompatibleClient clientWith(
   final String sse, {
   final int status = 200,
   final Map<String, String> headers = const <String, String>{},
-  final List<http.BaseRequest>? captured,
+  final FakeTransport? transport,
   final int chunkSize = 7,
 }) {
-  final bytes = utf8.encode(sse);
-  final chunks = <List<int>>[];
-  for (var i = 0; i < bytes.length; i += chunkSize) {
-    chunks.add(bytes.sublist(i, (i + chunkSize).clamp(0, bytes.length)));
+  final fake = transport ?? FakeTransport(<List<int>>[]);
+  if (transport == null) {
+    fake.chunks.addAll(sliced(sse, chunkSize: chunkSize));
   }
-
   return OpenAiCompatibleClient(
     baseUrl: 'https://api.example.com',
     apiKey: 'k',
     model: 'm',
-    clientFactory: () =>
-        MockClient.streaming((final request, final body) async {
-      captured?.add(request);
-      return http.StreamedResponse(
-        Stream<List<int>>.fromIterable(chunks),
-        status,
-        headers: <String, String>{
-          'content-type': 'text/event-stream',
-          ...headers,
-        },
-      );
-    }),
+    clientFactory: () => _TransportProxy(fake),
   );
+}
+
+/// Envuelve el transporte falso para no compartir el estado de `closed` entre
+/// las peticiones que hace el cliente.
+class _TransportProxy extends http.BaseClient {
+  _TransportProxy(this.inner);
+  final FakeTransport inner;
+
+  @override
+  Future<http.StreamedResponse> send(final http.BaseRequest request) =>
+      inner.send(request);
 }
 
 String chunk(final Map<String, Object?> delta, {final String? finish}) =>
     'data: ${jsonEncode(<String, Object?>{
-          'choices': <Object?>[
-            <String, Object?>{'delta': delta, 'finish_reason': finish},
-          ],
-        })}\n\n';
+      'choices': <Object?>[
+        <String, Object?>{'delta': delta, 'finish_reason': finish},
+      ],
+    })}\n\n';
 
 Future<List<LlmChunk>> drain(final Stream<LlmChunk> stream) => stream.toList();
 
@@ -62,10 +101,12 @@ void main() {
         'data: [DONE]\n\n',
       ].join();
 
-      final chunks = await drain(clientWith(sse).stream(
-        messages: const <LlmMessage>[LlmMessage.user('hola')],
-        tools: const <Map<String, Object?>>[],
-      ));
+      final chunks = await drain(
+        clientWith(sse).stream(
+          messages: const <LlmMessage>[LlmMessage.user('hola')],
+          tools: const <Map<String, Object?>>[],
+        ),
+      );
 
       final text =
           chunks.whereType<TextChunk>().map((final c) => c.text).join();
@@ -76,14 +117,17 @@ void main() {
       expect(chunks.whereType<DoneChunk>().single.stopReason, 'stop');
     });
 
-    test('una línea cortada por la mitad se reconstruye bien', () async {
-      // chunkSize 7 parte casi cualquier línea en varios trozos TCP.
-      final sse = chunk(<String, Object?>{'content': 'abcdefghijklmnop'},
-          finish: 'stop');
-      final chunks = await drain(clientWith(sse, chunkSize: 3).stream(
-        messages: const <LlmMessage>[LlmMessage.user('x')],
-        tools: const <Map<String, Object?>>[],
-      ));
+    test('una línea partida entre trozos se reconstruye bien', () async {
+      final sse = chunk(
+        <String, Object?>{'content': 'abcdefghijklmnop'},
+        finish: 'stop',
+      );
+      final chunks = await drain(
+        clientWith(sse, chunkSize: 3).stream(
+          messages: const <LlmMessage>[LlmMessage.user('x')],
+          tools: const <Map<String, Object?>>[],
+        ),
+      );
 
       expect(
         chunks.whereType<TextChunk>().map((final c) => c.text).join(),
@@ -91,13 +135,14 @@ void main() {
       );
     });
 
-    test('caracteres multibyte partidos entre trozos no se corrompen',
-        () async {
+    test('caracteres multibyte partidos no se corrompen', () async {
       final sse = chunk(<String, Object?>{'content': 'ñandú 🔥 café'});
-      final chunks = await drain(clientWith(sse, chunkSize: 5).stream(
-        messages: const <LlmMessage>[LlmMessage.user('x')],
-        tools: const <Map<String, Object?>>[],
-      ));
+      final chunks = await drain(
+        clientWith(sse, chunkSize: 5).stream(
+          messages: const <LlmMessage>[LlmMessage.user('x')],
+          tools: const <Map<String, Object?>>[],
+        ),
+      );
 
       expect(
         chunks.whereType<TextChunk>().map((final c) => c.text).join(),
@@ -112,10 +157,7 @@ void main() {
             <String, Object?>{
               'index': 0,
               'id': 'call_a',
-              'function': <String, Object?>{
-                'name': 'read',
-                'arguments': '{"pa'
-              },
+              'function': <String, Object?>{'name': 'read', 'arguments': '{"pa'},
             },
           ],
         }),
@@ -138,10 +180,12 @@ void main() {
         }, finish: 'tool_calls'),
       ].join();
 
-      final chunks = await drain(clientWith(sse).stream(
-        messages: const <LlmMessage>[LlmMessage.user('x')],
-        tools: const <Map<String, Object?>>[],
-      ));
+      final chunks = await drain(
+        clientWith(sse).stream(
+          messages: const <LlmMessage>[LlmMessage.user('x')],
+          tools: const <Map<String, Object?>>[],
+        ),
+      );
 
       // Nada de llamadas a medio ensamblar: solo la versión final.
       final calls = chunks.whereType<ToolCallChunk>().toList();
@@ -157,28 +201,27 @@ void main() {
       expect(calls[1].index, 1);
     });
 
-    test('un tool_call con JSON roto no se pierde: se marca para corregir',
-        () async {
-      final sse = chunk(<String, Object?>{
-        'tool_calls': <Object?>[
-          <String, Object?>{
-            'index': 0,
-            'id': 'call_a',
-            'function': <String, Object?>{
-              'name': 'read',
-              'arguments': '{"path"'
+    test('un tool_call con JSON roto no se entrega como ejecutable', () async {
+      final sse = chunk(
+        <String, Object?>{
+          'tool_calls': <Object?>[
+            <String, Object?>{
+              'index': 0,
+              'id': 'call_a',
+              'function': <String, Object?>{'name': 'read', 'arguments': '{"path"'},
             },
-          },
-        ],
-      }, finish: 'tool_calls');
+          ],
+        },
+        finish: 'tool_calls',
+      );
 
-      final chunks = await drain(clientWith(sse).stream(
-        messages: const <LlmMessage>[LlmMessage.user('x')],
-        tools: const <Map<String, Object?>>[],
-      ));
+      final chunks = await drain(
+        clientWith(sse).stream(
+          messages: const <LlmMessage>[LlmMessage.user('x')],
+          tools: const <Map<String, Object?>>[],
+        ),
+      );
 
-      // El cliente reensambla y solo entrega JSON válido; aquí el JSON no lo es,
-      // así que no debe emitir una llamada ejecutable en absoluto.
       expect(chunks.whereType<ToolCallChunk>(), isEmpty);
       expect(chunks.whereType<DoneChunk>(), hasLength(1));
     });
@@ -187,21 +230,21 @@ void main() {
       final sse = <String>[
         chunk(<String, Object?>{'content': 'ok'}, finish: 'stop'),
         'data: ${jsonEncode(<String, Object?>{
-              'choices': <Object?>[],
-              'usage': <String, Object?>{
-                'prompt_tokens': 1200,
-                'completion_tokens': 34,
-                'prompt_tokens_details': <String, Object?>{
-                  'cached_tokens': 900
-                },
-              },
-            })}\n\n',
+          'choices': <Object?>[],
+          'usage': <String, Object?>{
+            'prompt_tokens': 1200,
+            'completion_tokens': 34,
+            'prompt_tokens_details': <String, Object?>{'cached_tokens': 900},
+          },
+        })}\n\n',
       ].join();
 
-      final done = (await drain(clientWith(sse).stream(
-        messages: const <LlmMessage>[LlmMessage.user('x')],
-        tools: const <Map<String, Object?>>[],
-      )))
+      final done = (await drain(
+        clientWith(sse).stream(
+          messages: const <LlmMessage>[LlmMessage.user('x')],
+          tools: const <Map<String, Object?>>[],
+        ),
+      ))
           .whereType<DoneChunk>()
           .single;
 
@@ -211,12 +254,15 @@ void main() {
     });
 
     test('ignora comentarios y eventos que no son data', () async {
-      final sse = ': keep-alive\n\nevent: ping\ndata: {"choices":[]}\n\n'
+      final sse =
+          ': keep-alive\n\nevent: ping\ndata: {"choices":[]}\n\n'
           '${chunk(<String, Object?>{'content': 'fin'})}';
-      final chunks = await drain(clientWith(sse).stream(
-        messages: const <LlmMessage>[LlmMessage.user('x')],
-        tools: const <Map<String, Object?>>[],
-      ));
+      final chunks = await drain(
+        clientWith(sse).stream(
+          messages: const <LlmMessage>[LlmMessage.user('x')],
+          tools: const <Map<String, Object?>>[],
+        ),
+      );
 
       expect(
         chunks.whereType<TextChunk>().map((final c) => c.text).join(),
@@ -227,56 +273,56 @@ void main() {
 
   group('OpenAiCompatibleClient — petición', () {
     test('manda las herramientas y pide el uso en el stream', () async {
-      final captured = <http.BaseRequest>[];
-      await drain(clientWith(
-        chunk(<String, Object?>{'content': 'x'}),
-        captured: captured,
-      ).stream(
-        messages: const <LlmMessage>[LlmMessage.user('hola')],
-        tools: <Map<String, Object?>>[
-          <String, Object?>{
-            'type': 'function',
-            'function': <String, Object?>{'name': 'read'},
-          },
-        ],
-      ));
+      final transport = FakeTransport(
+        sliced(chunk(<String, Object?>{'content': 'x'})),
+      );
+      await drain(
+        clientWith('', transport: transport).stream(
+          messages: const <LlmMessage>[LlmMessage.user('hola')],
+          tools: <Map<String, Object?>>[
+            <String, Object?>{
+              'type': 'function',
+              'function': <String, Object?>{'name': 'read'},
+            },
+          ],
+        ),
+      );
 
-      final request = captured.single as http.Request;
-      expect(request.url.toString(),
-          'https://api.example.com/v1/chat/completions');
+      final request = transport.requests.single as http.Request;
+      expect(
+        request.url.toString(),
+        'https://api.example.com/v1/chat/completions',
+      );
       expect(request.headers['Authorization'], 'Bearer k');
 
       final body = jsonDecode(request.body) as Map<String, Object?>;
       expect(body['stream'], isTrue);
-      expect((body['stream_options'] as Map<String, Object?>)['include_usage'],
-          isTrue);
+      final options = body['stream_options'] as Map<String, Object?>;
+      expect(options['include_usage'], isTrue);
       expect(body['tools'], hasLength(1));
       expect(body['model'], 'm');
     });
 
     test('no duplica /v1 si el usuario ya lo incluyó', () async {
-      final captured = <http.BaseRequest>[];
+      final transport = FakeTransport(sliced('data: [DONE]\n\n'));
       final client = OpenAiCompatibleClient(
         baseUrl: 'https://api.deepseek.com/v1',
         apiKey: 'k',
         model: 'm',
-        clientFactory: () =>
-            MockClient.streaming((final request, final body) async {
-          captured.add(request);
-          return http.StreamedResponse(
-            Stream<List<int>>.value(utf8.encode('data: [DONE]\n\n')),
-            200,
-          );
-        }),
+        clientFactory: () => _TransportProxy(transport),
       );
 
-      await drain(client.stream(
-        messages: const <LlmMessage>[LlmMessage.user('x')],
-        tools: const <Map<String, Object?>>[],
-      ));
+      await drain(
+        client.stream(
+          messages: const <LlmMessage>[LlmMessage.user('x')],
+          tools: const <Map<String, Object?>>[],
+        ),
+      );
 
-      expect((captured.single as http.Request).url.toString(),
-          'https://api.deepseek.com/v1/chat/completions');
+      expect(
+        (transport.requests.single as http.Request).url.toString(),
+        'https://api.deepseek.com/v1/chat/completions',
+      );
     });
   });
 
@@ -286,16 +332,22 @@ void main() {
       final String body, {
       final Map<String, String> headers = const <String, String>{},
     }) async {
-      final client = clientWith('', status: status, headers: headers);
+      final transport = FakeTransport(
+        utf8.encode(body).map((final b) => <int>[b]).toList(),
+        statusCode: status,
+        headers: headers,
+      );
       try {
-        await drain(client.stream(
-          messages: const <LlmMessage>[LlmMessage.user('x')],
-          tools: const <Map<String, Object?>>[],
-        ));
-        fail('debía lanzar');
+        await drain(
+          clientWith('', transport: transport).stream(
+            messages: const <LlmMessage>[LlmMessage.user('x')],
+            tools: const <Map<String, Object?>>[],
+          ),
+        );
       } on LlmException catch (e) {
         return e;
       }
+      throw StateError('La petición no lanzó LlmException');
     }
 
     test('401 es un error de clave y no se reintenta', () async {
@@ -306,8 +358,11 @@ void main() {
     });
 
     test('429 se puede reintentar y respeta Retry-After', () async {
-      final error = await errorFor(429, 'slow down',
-          headers: <String, String>{'retry-after': '12'});
+      final error = await errorFor(
+        429,
+        'slow down',
+        headers: <String, String>{'retry-after': '12'},
+      );
       expect(error.kind, LlmErrorKind.rateLimit);
       expect(error.isRetryable, isTrue);
       expect(error.retryAfter, const Duration(seconds: 12));
@@ -322,7 +377,7 @@ void main() {
     test('400 por contexto excedido se clasifica como compactable', () async {
       final error = await errorFor(
         400,
-        '{"error":{"message":"This model\'s maximum context length is 65536 tokens"}}',
+        '{"error":{"message":"maximum context length is 65536 tokens"}}',
       );
       expect(error.kind, LlmErrorKind.contextLength);
       expect(error.isRetryable, isFalse);
@@ -335,31 +390,41 @@ void main() {
   });
 
   group('OpenAiCompatibleClient — cancelación', () {
-    test('cancelar cierra el stream sin dejar la petición viva', () async {
+    test('cancelar deja de consumir el stream', () async {
+      // Stream infinito: simula un modelo que se queda pensando.
+      final transport = FakeTransport(<List<int>>[]);
       final client = OpenAiCompatibleClient(
         baseUrl: 'https://api.example.com',
         apiKey: 'k',
         model: 'm',
-        clientFactory: () =>
-            MockClient.streaming((final request, final body) async {
-          // Nunca termina: simula un modelo que se queda pensando.
-          return http.StreamedResponse(
-            Stream<List<int>>.fromFuture(Completer<List<int>>().future),
-            200,
-          );
-        }),
+        clientFactory: () => _EndlessClient(transport),
       );
 
-      var cancelled = false;
-      final sub = client.stream(
-        messages: const <LlmMessage>[LlmMessage.user('x')],
-        tools: const <Map<String, Object?>>[],
-      ).listen((final _) {}, onDone: () => cancelled = true);
+      var done = false;
+      final sub = client
+          .stream(
+            messages: const <LlmMessage>[LlmMessage.user('x')],
+            tools: const <Map<String, Object?>>[],
+          )
+          .listen((final _) {}, onDone: () => done = true);
 
       await Future<void>.delayed(const Duration(milliseconds: 20));
       await sub.cancel();
 
-      expect(cancelled, isFalse);
+      expect(done, isFalse);
     });
   });
+}
+
+/// Cliente cuya respuesta nunca termina.
+class _EndlessClient extends http.BaseClient {
+  _EndlessClient(this.inner);
+  final FakeTransport inner;
+
+  @override
+  Future<http.StreamedResponse> send(final http.BaseRequest request) async {
+    inner.requests.add(request);
+    final controller = StreamController<List<int>>();
+    return http.StreamedResponse(controller.stream, 200, request: request);
+  }
 }

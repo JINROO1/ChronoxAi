@@ -656,13 +656,15 @@ void main() {
       );
 
       expect(await loop.runTurn('hazlo'), 'rejected');
-      expect(log.events.whereType<PlanDecisionEvent>().single.approved, isFalse);
+      expect(
+          log.events.whereType<PlanDecisionEvent>().single.approved, isFalse);
       expect(log.events.whereType<TurnEndEvent>().single.reason, 'rejected');
     });
 
     test('sin handler rechaza por defecto', () async {
       expect(await makeLoop(providerForPlan()).runTurn('hazlo'), 'rejected');
-      expect(log.events.whereType<PlanDecisionEvent>().single.approved, isFalse);
+      expect(
+          log.events.whereType<PlanDecisionEvent>().single.approved, isFalse);
     });
   });
 

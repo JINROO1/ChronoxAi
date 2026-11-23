@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'plugin_api.dart';
 import 'plugin_runtime.dart';
+import 'web_search_parser.dart';
 
 /// Herramientas del núcleo, empaquetadas como plugins.
 ///
@@ -556,6 +557,54 @@ class _WebPlugin extends ChronoxPlugin {
 
   @override
   Future<void> mount(final PluginContext context) async {
+    context.provideTool(
+      PluginTool(
+        name: 'web_search',
+        description:
+            'Busca en la web y devuelve títulos, URLs y extractos breves. '
+            'Úsala para información actual o cuando necesites fuentes.',
+        requiresApproval: false,
+        inputSchema: _obj(<String, Object?>{
+          'query': _str('Consulta de búsqueda.'),
+          'limit': <String, Object?>{
+            'type': 'integer',
+            'description': 'Cantidad de resultados (1 a 8, por defecto 5).',
+          },
+        }, required: <String>[
+          'query'
+        ]),
+        execute: (final args) async {
+          final query = (args['query'] ?? '').toString().trim();
+          if (query.isEmpty) return ToolOutcome.error('La consulta está vacía.');
+          final requested = (args['limit'] as num?)?.toInt() ?? 5;
+          final limit = requested.clamp(1, 8).toInt();
+          final uri = Uri.https('html.duckduckgo.com', '/html/', <String, String>{
+            'q': query,
+          });
+          final response = await context.services.network.get(
+            uri,
+            headers: const <String, String>{
+              'User-Agent': 'Mozilla/5.0 ChronoxAI/0.2',
+              'Accept': 'text/html',
+            },
+          );
+          if (!response.isSuccess) {
+            return ToolOutcome.error('Búsqueda web: HTTP ${response.statusCode}.');
+          }
+          final results = WebSearchParser.parse(response.body, limit: limit);
+          if (results.isEmpty) {
+            return const ToolOutcome(content: 'No se encontraron resultados.');
+          }
+          return ToolOutcome(
+            content: results
+                .map((final result) =>
+                    '${result.title} · ${result.url}\n${result.snippet}')
+                .join('\n\n'),
+          );
+        },
+      ),
+    );
+
     context.provideTool(
       PluginTool(
         name: 'web_fetch',

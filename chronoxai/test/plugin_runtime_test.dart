@@ -36,7 +36,7 @@ PluginTool dummyTool(String name) => PluginTool(
       name: name,
       description: 'herramienta $name',
       inputSchema: const <String, Object?>{'type': 'object'},
-      execute: (final _) async => ToolOutcome(content: 'ok'),
+      execute: (final _) async => const ToolOutcome(content: 'ok'),
     );
 
 /// Plugin que registra una herramienta con un nombre dado.

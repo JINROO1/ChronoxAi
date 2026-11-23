@@ -182,7 +182,7 @@ void main() {
     });
 
     test('respeta las variables del usuario', () {
-      final config = const ProotConfig(
+      const config = ProotConfig(
         prootBinary: '/x/libproot.so',
         prootLoader: '/x/loader',
         rootfs: '/x/rootfs',

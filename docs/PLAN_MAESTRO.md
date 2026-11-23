@@ -44,14 +44,16 @@ Hoy `exit_plan_mode` solo devuelve texto: el loop **no se detiene**.
 
 El dominio ya tiene `fork`/`rewind`/`stats`; falta la superficie.
 
-- [ ] Pantalla de sesiones: lista desde `sessions/*.jsonl` con título, fecha,
+- [x] Pantalla de sesiones: lista desde `sessions/*.jsonl` con título, fecha,
       turnos y tokens
-- [ ] Abrir (resume) una sesión existente
-- [ ] Fork desde la sesión activa y desde la lista
-- [ ] Búsqueda de texto sobre los eventos de todas las sesiones
-- [ ] Vista Trajectory: línea temporal de pasos con tokens, TTFT y tiempo de
+- [x] Abrir (resume) una sesión existente con los ajustes de proveedor/mode
+      elegidos en Ajustes
+- [x] Fork desde la sesión activa y desde la lista
+- [x] Búsqueda de texto sobre los eventos de todas las sesiones
+- [x] Vista Trajectory: línea temporal de pasos con tokens, TTFT y tiempo de
       herramientas (de `SessionStats` + `StepEndEvent`)
-- [ ] Tests: listado, búsqueda, fork
+- [x] Tests de listado, búsqueda y fork de dominio: CI pasó en el run
+      `45289493568` (Analyze, Tests y Runtime Linux).
 
 ## Fase 4 — Búsqueda web (`web_search`)
 

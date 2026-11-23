@@ -8,9 +8,11 @@ import '../../data/runtime/local_runtime.dart';
 import '../../domain/agent/approval_policy.dart';
 import '../../domain/modes/work_modes.dart';
 import '../../domain/plugins/plugin_api.dart';
+import '../../platform/android_permissions.dart';
 import '../chat/approval_sheet.dart';
 import '../state/app_state.dart';
 import '../widgets/chronox_widgets.dart';
+import 'diagnostics_screen.dart';
 
 /// Ajustes: proveedor de modelo, modo de trabajo, permisos y estado del runtime.
 ///
@@ -147,6 +149,7 @@ class SettingsScreen extends ConsumerWidget {
                   accent: ChronoxColors.warning,
                   onTap: () async {
                     await session?.dispose();
+                    await const AndroidPermissions().stopTerminalService();
                     ref.read(sessionProvider.notifier).state = null;
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -158,6 +161,27 @@ class SettingsScreen extends ConsumerWidget {
                   },
                 ),
               ],
+            ),
+          ),
+          const SectionLabel('Compatibilidad'),
+          GlassPanel(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            child: SettingsRow(
+              icon: Icons.health_and_safety_outlined,
+              title: 'Diagnóstico del dispositivo',
+              subtitle:
+                  'Comprueba si este Android permite ejecutar el contenedor, y '
+                  'por qué no.',
+              accent: ChronoxColors.success,
+              onTap: () => Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  builder: (final context) => const DiagnosticsScreen(),
+                ),
+              ),
+              trailing: const Icon(
+                Icons.chevron_right_rounded,
+                color: ChronoxColors.textMuted,
+              ),
             ),
           ),
           const SectionLabel('Acerca de'),
@@ -248,6 +272,7 @@ class SettingsScreen extends ConsumerWidget {
     final session = ref.read(sessionProvider);
     if (session == null) return;
     await session.dispose();
+    await const AndroidPermissions().stopTerminalService();
     ref.read(sessionProvider.notifier).state = null;
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -615,19 +640,32 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
             isHighRisk: ApprovalPolicy.isHighRisk(request.toolName),
           );
 
+      // El servicio en primer plano es lo que impide que Android congele el
+      // proceso (y mate proot) en cuanto la app pasa a segundo plano. Se arranca
+      // desde aquí, con la actividad visible, porque desde API 31 no se puede
+      // iniciar un servicio en primer plano en segundo plano.
+      const permissions = AndroidPermissions();
+      final notificationsGranted = await permissions.requestNotifications();
+      final serviceStarted = await permissions.startTerminalService(
+        title: 'Chronox: sesión ${mode.name}',
+      );
+
       ref.read(sessionProvider.notifier).state = session;
       ref.read(agentViewProvider.notifier).sync();
       if (!mounted) return;
       Navigator.of(context).pop();
-      if (!status.isReady) {
+      final degraded = !status.isReady || !serviceStarted;
+      if (degraded) {
+        final message = !status.isReady
+            ? 'Sesión abierta sin runtime Linux: ${status.title}. Los comandos '
+                  'todavía no se pueden ejecutar.'
+            : notificationsGranted
+            ? 'No se pudo mantener la sesión en segundo plano: Android puede '
+                  'detener los comandos largos al cambiar de app.'
+            : 'Sin permiso de notificaciones, el sistema puede detener los '
+                  'comandos largos al cambiar de app.';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Sesión abierta sin runtime Linux: ${status.title}. Los comandos '
-              'todavía no se pueden ejecutar.',
-            ),
-            duration: const Duration(seconds: 6),
-          ),
+          SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
         );
       }
     } catch (error) {

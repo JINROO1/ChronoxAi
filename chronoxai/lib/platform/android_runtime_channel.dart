@@ -25,6 +25,11 @@ class PlatformFacts {
     required this.cacheDir,
     required this.selinuxEnforcing,
     required this.targetSdk,
+    this.selinuxDomain,
+    this.canExecuteFromData,
+    this.manufacturer = '',
+    this.model = '',
+    this.release = '',
   });
 
   final bool isAndroid;
@@ -39,14 +44,39 @@ class PlatformFacts {
   /// `targetSdkVersion` con el que se compiló la app.
   final int targetSdk;
 
+  /// Dominio SELinux real del proceso (`u:r:untrusted_app_27:s0:…`), si se pudo
+  /// leer. Es lo que decide si `execve` funciona, no una suposición.
+  final String? selinuxDomain;
+
+  /// Resultado de intentar ejecutar un binario del APK. `null` si no se pudo
+  /// comprobar (escritorio, canal ausente).
+  final bool? canExecuteFromData;
+
+  final String manufacturer;
+  final String model;
+  final String release;
+
   /// `true` si el dispositivo usa páginas de 16 KB.
   bool get has16KPages => pageSize >= 16384;
 
-  /// `true` si el SO va a bloquear `execve` sobre el directorio privado.
+  /// `true` si el SO bloquea `execve` sobre el almacenamiento privado.
   ///
-  /// Android 10 (API 29) introdujo la restricción; las apps con `targetSdk <= 28`
-  /// conservan la excepción de compatibilidad `untrusted_app_27`.
-  bool get appDataExecBlocked => isAndroid && sdkInt >= 29 && targetSdk >= 29;
+  /// Se prefiere el dato medido; si no está disponible se cae a la regla
+  /// documentada de Android: la restricción llegó en API 29 y las apps con
+  /// `targetSdk <= 28` conservan el dominio `untrusted_app_27`.
+  bool get appDataExecBlocked {
+    final measured = canExecuteFromData;
+    if (measured != null) return !measured;
+    return isAndroid && sdkInt >= 29 && targetSdk >= 29;
+  }
+
+  /// Dominio esperado para el `targetSdk` actual, solo para diagnóstico.
+  String get expectedDomain {
+    final domain = selinuxDomain;
+    if (domain == null) return 'desconocido';
+    final suffix = domain.split(':');
+    return suffix.length > 1 ? suffix[1] : domain;
+  }
 
   /// `true` si el ABI es uno para el que empaquetamos binarios.
   bool get isSupportedAbi =>
@@ -55,7 +85,8 @@ class PlatformFacts {
   @override
   String toString() => 'PlatformFacts(android: $isAndroid, sdk: $sdkInt, '
       'abi: $abi, pageSize: $pageSize, targetSdk: $targetSdk, '
-      'selinux: $selinuxEnforcing, nativeLib: $nativeLibraryDir)';
+      'selinux: $selinuxEnforcing, domain: $expectedDomain, '
+      'exec: $canExecuteFromData, nativeLib: $nativeLibraryDir)';
 }
 
 /// Puente hacia `MainActivity` para leer [PlatformFacts].
@@ -101,6 +132,11 @@ class AndroidRuntimeChannel {
         cacheDir: (result['cacheDir'] as String?) ?? Directory.systemTemp.path,
         selinuxEnforcing: (result['selinuxEnforcing'] as bool?) ?? false,
         targetSdk: (result['targetSdk'] as num?)?.toInt() ?? 0,
+        selinuxDomain: result['selinuxDomain'] as String?,
+        canExecuteFromData: result['canExecuteFromData'] as bool?,
+        manufacturer: (result['manufacturer'] as String?) ?? '',
+        model: (result['model'] as String?) ?? '',
+        release: (result['release'] as String?) ?? '',
       );
     } on MissingPluginException {
       return _fallback(filesDir, note: 'falta el lado Kotlin del canal');

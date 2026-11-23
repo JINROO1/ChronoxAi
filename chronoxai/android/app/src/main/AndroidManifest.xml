@@ -5,11 +5,14 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-    <!-- Servicio en primer plano: mantiene el shell proot vivo en segundo plano -->
+    <!-- Servicio en primer plano: mantiene el shell proot vivo en segundo plano.
+         En API 34+ el tipo (dataSync) es obligatorio y debe coincidir con el que
+         se declara al llamar a startForeground, o el sistema lanza excepción. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:name="${applicationName}"
@@ -18,6 +21,7 @@
         android:extractNativeLibs="true"
         android:requestLegacyExternalStorage="true"
         android:allowBackup="false"
+        android:usesCleartextTraffic="false"
         tools:targetApi="28">
 
         <activity
@@ -38,6 +42,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".TerminalService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync"
+            android:stopWithTask="false" />
 
         <meta-data
             android:name="flutterEmbedding"

@@ -6,7 +6,9 @@ import 'package:path/path.dart' as p;
 
 import '../../domain/plugins/seams.dart';
 import '../../domain/terminal/linux_paths.dart';
+import '../../domain/terminal/elf_inspector.dart';
 import '../../domain/terminal/proot_command.dart';
+import '../../domain/terminal/runtime_compat.dart';
 import '../../platform/android_runtime_channel.dart';
 
 /// Por qué el runtime no puede usarse todavía.
@@ -29,6 +31,9 @@ enum RuntimeProblem {
 
   /// El servicio de privilegios de proot no está disponible.
   unavailable,
+
+  /// Los binarios del APK no pueden cargarse con el tamaño de página del kernel.
+  pageSizeMismatch,
 }
 
 class RuntimeStatus {
@@ -99,6 +104,9 @@ class LocalRuntime {
 
   Future<PlatformFacts> facts() async => _facts ??= await _channel.read();
 
+  /// Últimos hallazgos de compatibilidad, para la pantalla de diagnóstico.
+  List<CompatIssue> compatIssues = const <CompatIssue>[];
+
   /// Comprueba, sin lanzar nada, si el runtime puede usarse.
   Future<RuntimeStatus> status() async {
     final facts = await this.facts();
@@ -132,6 +140,36 @@ class LocalRuntime {
     _prootPath = proot;
     _loaderPath = loader;
 
+    // El diagnóstico completo se calcula siempre, incluso con el rootfs ya
+    // instalado: los avisos (batería, páginas de 16 KB, aviso de app antigua)
+    // siguen siendo útiles para el usuario.
+    //
+    // Solo se inspeccionan los ELF si el kernel usa 16 KB: con páginas de 4 KB la
+    // alineación es indiferente y nos ahorramos leer el fichero.
+    final aligned = facts.has16KPages ? await verifyBinaries() : null;
+    compatIssues = RuntimeCompatibility.evaluate(
+      facts,
+      binariesAligned16K: aligned,
+    );
+    final blocking = compatIssues.where((final i) => i.isBlocking).toList();
+
+    if (blocking.isNotEmpty) {
+      final issue = blocking.first;
+      final problem = switch (issue.title) {
+        final t when t.contains('16 KB') => RuntimeProblem.pageSizeMismatch,
+        final t when t.contains('Procesador') =>
+          RuntimeProblem.unsupportedDevice,
+        _ => RuntimeProblem.execBlocked,
+      };
+      return RuntimeStatus(
+        isReady: false,
+        problem: problem,
+        detail: issue.advice.isEmpty
+            ? issue.detail
+            : '${issue.detail} ${issue.advice}',
+      );
+    }
+
     // El rootfs existe si tiene un `/bin/sh` real. Comprobar solo el directorio
     // daría falsos positivos con una descarga a medias.
     final guestShell = File(p.join(paths.rootfsDir, 'bin', 'sh'));
@@ -143,15 +181,22 @@ class LocalRuntime {
       );
     }
 
-    if (facts.appDataExecBlocked) {
-      return RuntimeStatus(
-        isReady: false,
-        problem: RuntimeProblem.execBlocked,
-        detail: 'Android ${facts.sdkInt} con targetSdk ${facts.targetSdk}.',
-      );
-    }
-
     return RuntimeStatus(isReady: true, prootPath: proot);
+  }
+
+  /// Verifica los ELF empaquetados contra el tamaño de página del kernel.
+  ///
+  /// Devuelve `null` si no se pudieron inspeccionar (no es un fallo: solo impide
+  /// afirmar nada).
+  Future<bool?> verifyBinaries() async {
+    final proot = _prootPath;
+    if (proot == null) return null;
+    try {
+      final info = await ElfInspector.inspectFile(proot);
+      return info.supports16KPages;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Ejecuta un comando dentro del contenedor y espera a que termine.

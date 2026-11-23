@@ -28,7 +28,11 @@ if (hasReleaseSigning) {
 
 android {
     namespace = "app.chronoxai"
-    compileSdk = 34
+    // Android 15 exige targetSdk 35 para publicar, pero aquí el targetSdk se
+    // queda en 28 a propósito (ver docs/INVESTIGACION.md §1): es lo que asigna
+    // el dominio SELinux untrusted_app_27, el único que permite execve sobre el
+    // almacenamiento privado. compileSdk solo afecta a qué APIs se compilan.
+    compileSdk = 35
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -54,6 +58,7 @@ android {
             abiFilters += ["arm64-v8a", "x86_64"]
         }
     }
+
 
     signingConfigs {
         if (hasReleaseSigning) {
@@ -95,8 +100,16 @@ android {
 
     packagingOptions {
         jniLibs {
-            // Necesario para poder ejecutar binarios empaquetados como librerías
-            // nativas (proot se empaqueta como libproot.so).
+            // `useLegacyPackaging = true` + `extractNativeLibs="true"` hacen que
+            // el instalador deje una COPIA EN DISCO de cada .so en
+            // `nativeLibraryDir`. Es imprescindible: hay que poder hacer
+            // `execve(libproot.so)` y exportar `LD_LIBRARY_PATH` hacia ese
+            // directorio. Con el empaquetado moderno las librerías se mapean
+            // desde el propio APK y no hay fichero que ejecutar.
+            //
+            // La alineación a 16 KB (Android 15) se resuelve en el ELF, no en el
+            // zip: `tools/fetch_runtime.sh` rechaza cualquier binario cuyos
+            // segmentos LOAD no estén alineados a 16 KB.
             useLegacyPackaging = true
         }
     }

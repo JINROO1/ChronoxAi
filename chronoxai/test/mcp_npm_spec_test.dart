@@ -14,11 +14,13 @@ void main() {
 
   test('rejects floating versions and unsafe bin names', () {
     expect(
-      () => PinnedMcpPackage.parse(<String>['npm-package', 'example@latest', 'server']),
+      () => PinnedMcpPackage.parse(
+          <String>['npm-package', 'example@latest', 'server']),
       throwsFormatException,
     );
     expect(
-      () => PinnedMcpPackage.parse(<String>['npm-package', 'example@1.0.0', '../server']),
+      () => PinnedMcpPackage.parse(
+          <String>['npm-package', 'example@1.0.0', '../server']),
       throwsFormatException,
     );
   });

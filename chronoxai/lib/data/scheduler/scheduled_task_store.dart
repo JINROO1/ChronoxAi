@@ -13,7 +13,7 @@ class ScheduledTaskStore {
     final decoded = jsonDecode(await file.readAsString());
     if (decoded is! List) throw const FormatException('Invalid task store.');
     return decoded
-        .whereType<Map>()
+        .whereType<Map<Object?, Object?>>()
         .map((final row) => ScheduledTask.fromJson(row.cast<String, Object?>()))
         .toList(growable: false);
   }

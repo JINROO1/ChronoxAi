@@ -29,6 +29,10 @@ void main() {
       ),
       returnsNormally,
     );
+    expect(
+      NpmLockfilePolicy.describeJson(jsonEncode(lockfile('https://registry.npmjs.org/@scope/server/-/server-1.2.3.tgz'))),
+      <String>['node_modules/@scope/server 1.2.3'],
+    );
   });
 
   test('rejects custom registries and missing integrity', () {

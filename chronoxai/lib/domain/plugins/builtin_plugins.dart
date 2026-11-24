@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'plugin_api.dart';
 import 'mcp_http_client.dart';
+import 'mcp_stdio_client.dart';
 import 'plugin_runtime.dart';
 import 'web_search_parser.dart';
 
@@ -662,25 +664,42 @@ class _WebPlugin extends ChronoxPlugin {
 // ---------------------------------------------------------------------------
 
 class _McpPlugin extends ChronoxPlugin {
-  _McpPlugin(this.serverUrl);
+  _McpPlugin(this.serverUrl, this.startMcpProcess);
 
   final String? serverUrl;
+  final Future<Process> Function(List<String> command)? startMcpProcess;
+  McpStdioClient? _stdioClient;
 
   @override
   Future<void> mount(final PluginContext context) async {
     final configured = serverUrl?.trim() ?? '';
     if (configured.isEmpty) return;
-    final endpoint = Uri.tryParse(configured);
-    if (endpoint == null ||
-        (endpoint.scheme != 'https' && endpoint.scheme != 'http') ||
-        endpoint.host.isEmpty) {
-      throw const FormatException('La URL del servidor MCP debe ser HTTP(S).');
+    late final Future<List<Map<String, Object?>>> Function() listTools;
+    late final Future<String> Function(String, Map<String, Object?>) callTool;
+    final Future<Process> Function(List<String>)? startProcess = startMcpProcess;
+    if (configured.startsWith('stdio:')) {
+      final command = configured.substring('stdio:'.length).trim().split(RegExp(r'\s+'));
+      if (command.isEmpty || command.first.isEmpty || startProcess == null) {
+        throw const FormatException('Configura stdio:npx --yes paquete-mcp y un runtime Linux listo.');
+      }
+      _stdioClient = McpStdioClient(await startProcess(command));
+      listTools = _stdioClient!.listTools;
+      callTool = _stdioClient!.callTool;
+    } else {
+      final endpoint = Uri.tryParse(configured);
+      if (endpoint == null ||
+          (endpoint.scheme != 'https' && endpoint.scheme != 'http') ||
+          endpoint.host.isEmpty) {
+        throw const FormatException('Configura una URL MCP HTTP(S) o stdio:<comando>.');
+      }
+      final client = McpHttpClient(
+        network: context.services.network,
+        endpoint: endpoint,
+      );
+      listTools = client.listTools;
+      callTool = client.callTool;
     }
-    final client = McpHttpClient(
-      network: context.services.network,
-      endpoint: endpoint,
-    );
-    final tools = await client.listTools();
+    final tools = await listTools();
     for (final remote in tools) {
       final remoteName = (remote['name'] as String?)?.trim() ?? '';
       if (remoteName.isEmpty) continue;
@@ -703,7 +722,7 @@ class _McpPlugin extends ChronoxPlugin {
         execute: (final args) async {
           try {
             return ToolOutcome(
-                content: await client.callTool(remoteName, args));
+                content: await callTool(remoteName, args));
           } catch (error) {
             return ToolOutcome.error(
                 'Error en la herramienta MCP $remoteName: $error');
@@ -711,6 +730,13 @@ class _McpPlugin extends ChronoxPlugin {
         },
       ));
     }
+  }
+
+  @override
+  Future<void> unmount() async {
+    final client = _stdioClient;
+    _stdioClient = null;
+    await client?.dispose();
   }
 }
 
@@ -1064,6 +1090,7 @@ List<BuiltinPlugin> builtinPlugins({
   PluginHost? host,
   List<Map<String, Object?>> Function()? pluginLister,
   String? mcpServerUrl,
+  Future<Process> Function(List<String>)? startMcpProcess,
 }) {
   PluginManifest manifest({
     required final String id,
@@ -1196,7 +1223,7 @@ List<BuiltinPlugin> builtinPlugins({
         capabilities: const <PluginCapability>[PluginCapability.network],
         icon: 'hub',
       ),
-      create: () => _McpPlugin(mcpServerUrl),
+      create: () => _McpPlugin(mcpServerUrl, startMcpProcess),
     ),
     BuiltinPlugin(
       manifest: manifest(

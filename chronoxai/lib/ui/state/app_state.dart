@@ -274,6 +274,7 @@ class SessionBootstrap {
     this.network,
     this.mcpServerUrl = '',
     this.startPluginProcess,
+    this.startMcpProcess,
   });
 
   final LlmProvider provider;
@@ -284,6 +285,7 @@ class SessionBootstrap {
   final NetworkSeam? network;
   final String mcpServerUrl;
   final Future<Process> Function(String guestScript)? startPluginProcess;
+  final Future<Process> Function(List<String> command)? startMcpProcess;
 }
 
 /// Arranca una sesión completa: log, registro de herramientas, plugins y motor.
@@ -348,6 +350,7 @@ Future<SessionRuntime> startSession(
     },
     host: host,
     mcpServerUrl: bootstrap.mcpServerUrl,
+    startMcpProcess: bootstrap.startMcpProcess,
     pluginLister: () => host.plugins
         .map((final p) => <String, Object?>{
               'id': p.manifest.id,

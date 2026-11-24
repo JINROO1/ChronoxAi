@@ -403,10 +403,10 @@ class SettingsScreen extends ConsumerWidget {
     final value = await _prompt(
       context,
       title: 'Servidor MCP',
-      hint: 'https://example.com/mcp',
+      hint: 'https://example.com/mcp o stdio:npx --yes paquete-mcp',
       initial: settings.mcpServerUrl,
       helper:
-          'Chronox conecta por HTTP(S); stdio no está disponible en Android.',
+          'HTTP(S) Streamable o comando stdio local. Para npm/npx instala nodejs/npm en Debian; cada herramienta remota pide aprobación.',
     );
     if (value == null) return;
     ref.read(providerSettingsProvider.notifier).state =
@@ -735,6 +735,8 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
           mcpServerUrl: settings.mcpServerUrl,
           startPluginProcess:
               status.isReady ? runtime.startPluginProcess : null,
+          startMcpProcess:
+              status.isReady ? runtime.startMcpProcess : null,
         ),
         mode: mode,
         approvalLevel: level,

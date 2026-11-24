@@ -166,7 +166,33 @@ dsh la marca experimental; aquí se implementa con el reconocimiento del sistema
 - [x] Botón de micrófono en el composer: dicta y rellena el campo
 - [x] Tests del lado Dart con canal falso (CI `45307427771` en verde)
 
-## Fase 13 — Firma y publicación
+## Fase 13 — Compatibilidad con plugins DSH y MCP del ecosistema npm
+
+La investigación del contrato DSH muestra que `dsh.bundle` declara uno o más
+`cordis.patch.yml`, cuyo perfil carga plugins Node que exportan `apply(ctx)`;
+MCP puede servirse por stdio o Streamable HTTP. No son el mismo protocolo ni es
+posible prometer que un plugin UI arbitrario de Cordis sea portable a Flutter.
+Compatibilidad por capas: herramientas/skills declarativas, servidores MCP npm,
+y API shim para módulos Node; los slots/UI/servicios exclusivos de Cordis se
+rechazan con diagnóstico, no se ejecutan como si fueran compatibles.
+
+Fuentes: `docs/user/develop/basic/publish.md` del repo oficial
+`deepseek-ai/deepseek-harness`; documentación MCP y pruebas con paquetes reales.
+
+- [x] MCP stdio: initialize/initialized, tools/list/call, timeout, logs stderr,
+      cierre y tests con transporte falso (pendiente verificación CI)
+- [ ] Configuración de servidores MCP múltiples: HTTP y comando stdio npm, env,
+      habilitar/deshabilitar, restaurar tras reinicio
+- [ ] Instalador npm con pins/lockfile, preview de scripts, aprobación antes de
+      instalar/ejecutar y límites de tamaño/tiempo
+- [ ] Adaptador de paquetes `dsh.bundle`: leer package.json + patches declarados,
+      soportar filas de plugins de herramientas/skills mediante shim Node
+- [ ] Compatibilidad declarada por capability y reportes para bundles con
+      Cordis UI/servicios no soportados; no ejecutar silenciosamente
+- [ ] Fixtures y pruebas de compatibilidad con MCP npm y bundles DSH seleccionados
+- [ ] UI de catálogo/instalación, permisos, actualización y desinstalación
+
+## Fase 14 — Firma y publicación
 
 - [x] Versión `0.2.0` en `pubspec.yaml` y notas de release actualizadas
 - [ ] Configurar secrets de firma en GitHub Actions (`KEYSTORE_BASE64`,

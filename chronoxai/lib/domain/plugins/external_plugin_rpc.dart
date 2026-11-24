@@ -12,7 +12,7 @@ abstract interface class ExternalPluginTransport {
 
 /// Adaptador de stdin/stdout de un proceso iniciado en el contenedor proot.
 class ProcessPluginTransport implements ExternalPluginTransport {
-  ProcessPluginTransport(this.process)
+  ProcessPluginTransport(this.process, {this.sendShutdown = true})
       : stdoutLines = process.stdout
             .transform(utf8.decoder)
             .transform(const LineSplitter()),
@@ -24,6 +24,7 @@ class ProcessPluginTransport implements ExternalPluginTransport {
   }
 
   final Process process;
+  final bool sendShutdown;
 
   @override
   final Stream<String> stdoutLines;
@@ -38,14 +39,16 @@ class ProcessPluginTransport implements ExternalPluginTransport {
 
   @override
   Future<void> close() async {
-    try {
-      process.stdin.writeln(jsonEncode(<String, Object?>{
-        'jsonrpc': '2.0',
-        'method': 'shutdown',
-        'params': <String, Object?>{},
-      }));
-      await process.stdin.flush().timeout(const Duration(seconds: 1));
-    } catch (_) {}
+    if (sendShutdown) {
+      try {
+        process.stdin.writeln(jsonEncode(<String, Object?>{
+          'jsonrpc': '2.0',
+          'method': 'shutdown',
+          'params': <String, Object?>{},
+        }));
+        await process.stdin.flush().timeout(const Duration(seconds: 1));
+      } catch (_) {}
+    }
     await process.stdin.close();
     try {
       await process.exitCode.timeout(const Duration(seconds: 2));
@@ -71,6 +74,15 @@ class ExternalPluginRpc {
   late final StreamSubscription<String> _subscription;
   int _nextId = 0;
   bool _closed = false;
+
+  void notify(final String method, final Map<String, Object?> params) {
+    if (_closed) throw const ExternalPluginException('plugin cerrado');
+    transport.sendLine(jsonEncode(<String, Object?>{
+      'jsonrpc': '2.0',
+      'method': method,
+      'params': params,
+    }));
+  }
 
   Future<Map<String, Object?>> request(
     final String method,

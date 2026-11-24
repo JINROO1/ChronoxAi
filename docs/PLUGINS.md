@@ -174,3 +174,14 @@ malicioso podría intentar abusar de ese entorno. Instala solo plugins que hayas
 El APK no evalúa código Python dentro del proceso Flutter: el script corre como proceso
 separado dentro de Debian. Android sin root no ofrece Landlock/Seatbelt para convertirlo en
 una frontera de seguridad fuerte.
+
+### MCP npm por stdio
+
+El campo «Servidor MCP» también admite `stdio:npx --yes <paquete>` o
+`stdio:node /workspace/ruta/server.js`, si `node`/`npm`/`npx` están instalados
+por el usuario en Debian. El cliente negocia MCP, descubre `tools/list` y llama
+`tools/call`; cada herramienta remota requiere aprobación. `npx` puede descargar
+código arbitrario y ejecutarlo: Chronox no lo instala silenciosamente; revisa el
+paquete y sus scripts antes de autorizarlo. La configuración actual permite un
+servidor MCP en la sesión; el gestor de múltiples servidores, variables de
+entorno y lockfiles queda como trabajo de compatibilidad.

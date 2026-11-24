@@ -123,5 +123,4 @@ void main() {
     expect(session.state, PtyState.exited);
     expect(PtySession.listActive(), isEmpty);
   });
-
 }

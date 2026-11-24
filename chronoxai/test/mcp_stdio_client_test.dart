@@ -50,7 +50,8 @@ class _Transport implements ExternalPluginTransport {
 }
 
 void main() {
-  test('performs MCP handshake, tool discovery and invocation over stdio', () async {
+  test('performs MCP handshake, tool discovery and invocation over stdio',
+      () async {
     final transport = _Transport();
     final client = McpStdioClient.withTransport(transport);
 
@@ -59,9 +60,16 @@ void main() {
 
     expect(tools.single['name'], 'demo');
     expect(response, 'done');
-    expect(transport.input.map((final row) => row['method']), containsAllInOrder(
-      <String>['initialize', 'notifications/initialized', 'tools/list', 'tools/call'],
-    ));
+    expect(
+        transport.input.map((final row) => row['method']),
+        containsAllInOrder(
+          <String>[
+            'initialize',
+            'notifications/initialized',
+            'tools/list',
+            'tools/call'
+          ],
+        ));
     await client.dispose();
   });
 }

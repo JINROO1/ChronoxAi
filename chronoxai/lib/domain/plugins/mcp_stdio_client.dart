@@ -26,7 +26,8 @@ class McpStdioClient {
       },
     });
     if (result['protocolVersion'] is! String) {
-      throw const FormatException('MCP server did not negotiate protocol version.');
+      throw const FormatException(
+          'MCP server did not negotiate protocol version.');
     }
     _rpc.notify('notifications/initialized', const <String, Object?>{});
     _initialized = true;
@@ -54,10 +55,14 @@ class McpStdioClient {
     });
     final contents = result['content'];
     final text = contents is List
-        ? contents.map((final item) {
-            if (item is Map) return (item['text'] ?? item['uri'] ?? '').toString();
-            return item.toString();
-          }).where((final value) => value.isNotEmpty).join('\n')
+        ? contents
+            .map((final item) {
+              if (item is Map)
+                return (item['text'] ?? item['uri'] ?? '').toString();
+              return item.toString();
+            })
+            .where((final value) => value.isNotEmpty)
+            .join('\n')
         : '';
     if (result['isError'] == true) {
       throw McpStdioException('MCP tool $name failed: $text');

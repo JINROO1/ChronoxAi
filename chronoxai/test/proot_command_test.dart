@@ -27,6 +27,12 @@ void main() {
         lessThan(argv.indexOf('--sysvipc')),
       );
       expect(argv, contains('--change-id=0:0'));
+      expect(
+        argv,
+        contains(
+          '--env=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
+        ),
+      );
     });
 
     test('rootfs y cwd llevan el formato --opcion=valor', () {

@@ -158,7 +158,13 @@ abstract final class ProotCommandBuilder {
       );
     }
 
-    // 10. Comando interior.
+    // 10. Entorno invitado explícito. No heredar PATH de Android: el shell
+    // podría entonces no encontrar /usr/bin/id ni otras utilidades del rootfs.
+    for (final entry in guestEnvironment(config).entries) {
+      args.add('--env=${entry.key}=${entry.value}');
+    }
+
+    // 11. Comando interior.
     final command = inner ?? <String>[shell, '-l'];
     args.addAll(command);
 

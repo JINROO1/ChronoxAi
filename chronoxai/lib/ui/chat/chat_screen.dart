@@ -129,7 +129,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 value: level,
                 decoration: const InputDecoration(labelText: 'Confirmación'),
                 items: ApprovalLevel.values
-                    .map((v) => DropdownMenuItem(value: v, child: Text(v.label)))
+                    .map(
+                        (v) => DropdownMenuItem(value: v, child: Text(v.label)))
                     .toList(),
                 onChanged: (value) {
                   if (value != null) setDialogState(() => level = value);
@@ -150,7 +151,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 Navigator.pop(dialogContext);
                 if (session != null && session.mode.id != mode.id && mounted) {
                   ScaffoldMessenger.of(this.context).showSnackBar(
-                    const SnackBar(content: Text(
+                    const SnackBar(
+                        content: Text(
                       'Modo actualizado. Abre una nueva sesión para cargar sus herramientas.',
                     )),
                   );

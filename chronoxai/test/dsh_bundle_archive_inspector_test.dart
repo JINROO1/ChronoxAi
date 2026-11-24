@@ -36,7 +36,8 @@ void main() {
 
   test('rejects invalid and oversized archive input', () {
     expect(
-      () => DshBundleArchiveInspector.inspectBytes(<int>[1, 2], bundleName: 'bad'),
+      () => DshBundleArchiveInspector.inspectBytes(<int>[1, 2],
+          bundleName: 'bad'),
       throwsFormatException,
     );
     expect(

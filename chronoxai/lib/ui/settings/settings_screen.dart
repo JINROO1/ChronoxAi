@@ -440,12 +440,14 @@ class SettingsScreen extends ConsumerWidget {
             TextField(
               controller: serverController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Número de servidor (fila)'),
+              decoration:
+                  const InputDecoration(labelText: 'Número de servidor (fila)'),
             ),
             TextField(
               controller: nameController,
               textCapitalization: TextCapitalization.characters,
-              decoration: const InputDecoration(labelText: 'Nombre (p. ej. API_TOKEN)'),
+              decoration:
+                  const InputDecoration(labelText: 'Nombre (p. ej. API_TOKEN)'),
             ),
             TextField(
               controller: valueController,
@@ -459,7 +461,9 @@ class SettingsScreen extends ConsumerWidget {
             onPressed: () async {
               final index = int.tryParse(serverController.text.trim());
               final name = nameController.text.trim();
-              if (index == null || index < 1 || index > settings.mcpServerUrl.split('\n').length ||
+              if (index == null ||
+                  index < 1 ||
+                  index > settings.mcpServerUrl.split('\n').length ||
                   !RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$').hasMatch(name)) return;
               await store.delete('mcp.${index - 1}.$name');
               if (dialogContext.mounted) Navigator.pop(dialogContext);
@@ -474,7 +478,9 @@ class SettingsScreen extends ConsumerWidget {
             onPressed: () async {
               final index = int.tryParse(serverController.text.trim());
               final name = nameController.text.trim();
-              if (index == null || index < 1 || index > settings.mcpServerUrl.split('\n').length ||
+              if (index == null ||
+                  index < 1 ||
+                  index > settings.mcpServerUrl.split('\n').length ||
                   !RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$').hasMatch(name) ||
                   valueController.text.isEmpty) return;
               await store.write('mcp.${index - 1}.$name', valueController.text);
@@ -808,7 +814,8 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
       final mcpEnvironments = <int, Map<String, String>>{};
       final mcpRows = settings.mcpServerUrl.split('\n');
       for (var index = 0; index < mcpRows.length; index++) {
-        if (mcpRows[index].trim().isEmpty || mcpRows[index].trim().startsWith('#')) {
+        if (mcpRows[index].trim().isEmpty ||
+            mcpRows[index].trim().startsWith('#')) {
           continue;
         }
         final values = await secretStore.readPrefix('mcp.$index.');

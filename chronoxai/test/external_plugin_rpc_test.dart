@@ -27,7 +27,8 @@ class _FakeTransport implements ExternalPluginTransport {
   Future<void> close() async {
     closed = true;
     await stdout.close();
-    await stderr.close();
+    // The RPC client intentionally need not subscribe to diagnostic stderr.
+    unawaited(stderr.close());
   }
 }
 

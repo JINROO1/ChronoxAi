@@ -168,11 +168,14 @@ dsh la marca experimental; aquí se implementa con el reconocimiento del sistema
 
 ## Fase 13 — Firma y publicación
 
-- [ ] Versión `0.2.0` en `pubspec.yaml` y notas de release actualizadas
-- [ ] Commit con `[apk]` + tag `v0.2.0` → el CI firma con la clave de release
-      (secrets `KEYSTORE_*`) y publica el APK en GitHub Releases
-- [ ] Verificación: release creada con el APK firmado (huella SHA-256 de la
-      clave `chronoxai`)
+- [x] Versión `0.2.0` en `pubspec.yaml` y notas de release actualizadas
+- [ ] Configurar secrets de firma en GitHub Actions (`KEYSTORE_BASE64`,
+      `KEYSTORE_PASSWORD`, `KEY_PASSWORD`, `KEY_ALIAS`). El build actual
+      `45308310906` compiló y verificó un APK con la clave DEBUG porque esos
+      secrets no están disponibles; no es publicable ni actualizable como release.
+- [ ] Tras restaurar la clave `chronoxai`, ejecutar build firmado y verificar
+      su certificado SHA-256; entonces crear tag `v0.2.0` para publicar el APK
+      firmado en GitHub Releases
 
 ---
 

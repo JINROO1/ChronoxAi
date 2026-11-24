@@ -65,25 +65,32 @@ void main() {
 
   test('starts the process with exact args, cwd, environment and PTY size',
       () async {
-    expect(await session.start(
-      binary: '/data/app/lib/libproot.so',
-      arguments: const <String>['--rootfs=/rootfs', '/bin/bash', '-l'],
-      environment: const <String, String>{'LD_LIBRARY_PATH': '/data/app/lib'},
-      workingDirectory: '/data/data/app/files',
-      rows: 31,
-      columns: 97,
-    ), isTrue);
+    expect(
+        await session.start(
+          binary: '/data/app/lib/libproot.so',
+          arguments: const <String>['--rootfs=/rootfs', '/bin/bash', '-l'],
+          environment: const <String, String>{
+            'LD_LIBRARY_PATH': '/data/app/lib'
+          },
+          workingDirectory: '/data/data/app/files',
+          rows: 31,
+          columns: 97,
+        ),
+        isTrue);
 
     expect(captured['executable'], '/data/app/lib/libproot.so');
-    expect(captured['arguments'], <String>['--rootfs=/rootfs', '/bin/bash', '-l']);
+    expect(
+        captured['arguments'], <String>['--rootfs=/rootfs', '/bin/bash', '-l']);
     expect(captured['workingDirectory'], '/data/data/app/files');
-    expect(captured['environment'], <String, String>{'LD_LIBRARY_PATH': '/data/app/lib'});
+    expect(captured['environment'],
+        <String, String>{'LD_LIBRARY_PATH': '/data/app/lib'});
     expect(captured['rows'], 31);
     expect(captured['columns'], 97);
   });
 
   test('forwards PTY output and writes UTF-8 input bytes', () async {
-    await session.start(binary: '/bin/sh', arguments: const [], environment: const {});
+    await session
+        .start(binary: '/bin/sh', arguments: const [], environment: const {});
     final received = <Uint8List>[];
     session.output.listen(received.add);
     process.outputController.add(Uint8List.fromList('salud'.codeUnits));
@@ -94,7 +101,8 @@ void main() {
   });
 
   test('writes control bytes and propagates window resize', () async {
-    await session.start(binary: '/bin/sh', arguments: const [], environment: const {});
+    await session
+        .start(binary: '/bin/sh', arguments: const [], environment: const {});
     await session.writeBytes(const <int>[3]);
     session.resize(40, 120);
     expect(process.writes.single, Uint8List.fromList(<int>[3]));
@@ -103,7 +111,8 @@ void main() {
 
   test('exit event is published and session is removed from active list',
       () async {
-    await session.start(binary: '/bin/sh', arguments: const [], environment: const {});
+    await session
+        .start(binary: '/bin/sh', arguments: const [], environment: const {});
     final codes = <int>[];
     session.exit.listen(codes.add);
     process.exitCompleter.complete(7);
@@ -116,11 +125,19 @@ void main() {
   test('factory failure is reported without throwing', () async {
     final broken = PtySession(
       command: 'broken',
-      processFactory: ({required executable, required arguments, required workingDirectory,
-        required environment, required rows, required columns}) =>
+      processFactory: (
+              {required executable,
+              required arguments,
+              required workingDirectory,
+              required environment,
+              required rows,
+              required columns}) =>
           throw const ProcessException('missing'),
     );
-    expect(await broken.start(binary: '', arguments: const [], environment: const {}), isFalse);
+    expect(
+        await broken
+            .start(binary: '', arguments: const [], environment: const {}),
+        isFalse);
     expect(broken.state, PtyState.failed);
     await broken.close();
   });

@@ -41,8 +41,7 @@ class _FlutterPtyProcess implements PtyProcess {
   void write(final Uint8List data) => _pty.write(data);
 
   @override
-  void resize(final int rows, final int columns) =>
-      _pty.resize(rows, columns);
+  void resize(final int rows, final int columns) => _pty.resize(rows, columns);
 
   @override
   bool kill(final ProcessSignal signal) => _pty.kill(signal);

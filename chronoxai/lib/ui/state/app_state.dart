@@ -263,7 +263,8 @@ final sessionProvider = StateProvider<SessionRuntime?>((final ref) => null);
 
 /// Identificadores deshabilitados por el usuario, conservados entre sesiones y
 /// reinicios. Los plugins nuevos permanecen habilitados por defecto.
-final disabledPluginIdsProvider = StateNotifierProvider<DisabledPluginIdsNotifier, Set<String>>(
+final disabledPluginIdsProvider =
+    StateNotifierProvider<DisabledPluginIdsNotifier, Set<String>>(
   (final ref) => DisabledPluginIdsNotifier(),
 );
 

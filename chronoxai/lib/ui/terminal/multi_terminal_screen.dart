@@ -14,7 +14,8 @@ class MultiTerminalScreen extends ConsumerStatefulWidget {
   const MultiTerminalScreen({super.key});
 
   @override
-  ConsumerState<MultiTerminalScreen> createState() => _MultiTerminalScreenState();
+  ConsumerState<MultiTerminalScreen> createState() =>
+      _MultiTerminalScreenState();
 }
 
 class _MultiTerminalScreenState extends ConsumerState<MultiTerminalScreen> {
@@ -59,8 +60,8 @@ class _MultiTerminalScreenState extends ConsumerState<MultiTerminalScreen> {
     if (_terminals.isEmpty) {
       await _addTerminal();
     } else {
-      setState(() => _selected =
-          _selected.clamp(0, _terminals.length - 1).toInt());
+      setState(
+          () => _selected = _selected.clamp(0, _terminals.length - 1).toInt());
     }
   }
 
@@ -98,7 +99,8 @@ class _MultiTerminalScreenState extends ConsumerState<MultiTerminalScreen> {
             SizedBox(
               height: 48,
               child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 scrollDirection: Axis.horizontal,
                 itemCount: _terminals.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),

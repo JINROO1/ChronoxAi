@@ -125,7 +125,8 @@ class _SessionsBrowserState extends ConsumerState<_SessionsBrowser> {
                             onSelected: (action) {
                               if (action == 'delete') _delete(session);
                             },
-                            itemBuilder: (context) => const <PopupMenuEntry<String>>[
+                            itemBuilder: (context) =>
+                                const <PopupMenuEntry<String>>[
                               PopupMenuItem(
                                 value: 'delete',
                                 child: Text('Eliminar chat'),

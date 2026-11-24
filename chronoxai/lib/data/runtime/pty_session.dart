@@ -38,7 +38,7 @@ class PtySession {
     if (id is int) await _sessionsById[id]?._handleNative(call);
   }
 
-  static Future<List<Map<String, Object?>>> listActive({ 
+  static Future<List<Map<String, Object?>>> listActive({
     final MethodChannel? channel,
   }) async {
     final rows = await (channel ?? const MethodChannel('app.chronoxai/pty'))

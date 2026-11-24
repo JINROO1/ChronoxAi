@@ -116,15 +116,16 @@ dsh acepta `hooks.json` con puntos de intercepción.
 Los plugins actuales son Dart compilado en el APK. dsh instala plugins en
 runtime desde npm/comunidad.
 
-- [ ] Protocolo JSON-RPC 2.0 por stdio (líneas) para plugins externos:
+- [x] Protocolo JSON-RPC 2.0 por stdio (líneas) para plugins externos:
       `initialize`, `tools/list`, `tools/call`, `shutdown`
-- [ ] `ExternalPluginProcess`: proceso persistente dentro del contenedor
+- [x] `ExternalPluginProcess`: proceso persistente dentro del contenedor
       (proot vía `Process.start`, como ya hace `LocalRuntime.run`)
-- [ ] `ExternalPluginLoader`: escanea `<soporte>/plugins/<id>/` (`manifest.json`
-      + `plugin.py`), registra adaptadores `ChronoxPlugin` y los monta como
-      cualquier otro plugin
-- [ ] Plugin de ejemplo en `assets/plugins/` + documentación del protocolo
-- [ ] Tests del framing JSON-RPC con proceso falso
+- [x] `ExternalPluginLoader`: escanea `<workspace>/.chronox/plugins/<id>/`
+      (`manifest.json` + `plugin.py`), registra herramientas con aprobación
+      obligatoria y las monta como plugins de sesión
+- [x] Plugin de ejemplo en `assets/plugins/echo/` + documentación en
+      `docs/PLUGINS.md` (limitaciones de seguridad incluidas)
+- [x] Tests del framing JSON-RPC con transporte falso (CI `45305665733` en verde)
 
 ## Fase 10 — Endurecimiento del sandbox
 
@@ -133,15 +134,13 @@ el límite real es el sandbox de la app Android (UID + SELinux + seccomp-bpf
 del sistema) más la política de aprobación. Se endurece lo endurecible y se
 documenta lo demás.
 
-- [ ] `SandboxPolicy`: lista de patrones destructivos evidentes en comandos de
-      shell (`rm -rf /`, `mkfs`, `dd ... of=/dev/`, fork bombs) que se
-      bloquean o escalan a aprobación obligatoria
-- [ ] `SandboxPolicy` se aplica en el seam de shell antes de ejecutar
-- [ ] Binds de proot revisados: solo `/dev`, `/proc`, `/sys`, workspace, home
-      y tmp (ya es así; se deja constancia en un test)
-- [ ] §12 en `docs/ARQUITECTURA.md`: modelo de seguridad honesto (qué protege
-      cada capa y qué no)
-- [ ] Tests de la política
+- [x] `SandboxPolicy`: bloquea patrones destructivos evidentes (`rm -rf /`,
+      `mkfs`, `dd ... of=/dev/`, fork bombs); es defensa heurística, no sandbox
+- [x] `SandboxPolicy` se aplica en `ProotShellSeam` antes de ejecutar
+- [x] Binds de proot revisados en `ProotCommandBuilder`; solo `/dev`, `/proc`,
+      `/sys`, workspace, home y tmp
+- [x] Modelo de seguridad honesto documentado en `docs/PLUGINS.md`
+- [x] Tests de patrones bloqueados y comandos seguros
 
 ## Fase 11 — Tareas programadas y trabajos en segundo plano
 

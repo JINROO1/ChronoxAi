@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../../domain/plugins/seams.dart';
+import '../../domain/plugins/sandbox_policy.dart';
 import '../../domain/terminal/linux_paths.dart';
 import '../../domain/terminal/elf_inspector.dart';
 import '../../domain/terminal/proot_command.dart';
@@ -364,18 +365,28 @@ class RuntimeException implements Exception {
 
 /// `ctx.shell` sobre el runtime local.
 class ProotShellSeam implements ShellSeam {
-  const ProotShellSeam(this.runtime);
+  const ProotShellSeam(this.runtime, {this.policy = const SandboxPolicy()});
 
   final LocalRuntime runtime;
+  final SandboxPolicy policy;
 
   @override
   Future<ShellResult> run(
     final String command, {
     final String? workingDirectory,
     final Duration? timeout,
-  }) =>
-      runtime.run(command,
-          workingDirectory: workingDirectory, timeout: timeout);
+  }) {
+    final violation = policy.violation(command);
+    if (violation != null) {
+      return Future<ShellResult>.value(ShellResult(
+        exitCode: 126,
+        stdout: '',
+        stderr: 'Comando bloqueado por SandboxPolicy: $violation.',
+      ));
+    }
+    return runtime.run(command,
+        workingDirectory: workingDirectory, timeout: timeout);
+  }
 }
 
 /// Shell de sustitución cuando el runtime todavía no está instalado.

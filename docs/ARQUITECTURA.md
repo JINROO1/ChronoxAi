@@ -259,7 +259,23 @@ llegar partido en dos lecturas, y un carácter UTF-8 también. El parser guarda 
 estado y el decodificador es incremental, porque `utf8.decode` por trozo lanzaría
 con las `ñ` en cuanto cayeran en la frontera.
 
-## 11. Verificación en CI
+## 12. Modelo de seguridad del runtime local
+
+`proot` cambia la vista del sistema de archivos de procesos invitados; no es un
+sandbox de kernel ni un límite contra código hostil. El proceso mantiene el UID
+Android de la app y queda sujeto a las políticas del sistema (incluidos SELinux
+y seccomp cuando están activos), pero las capas no deben presentarse como una
+jaula adicional que proot no ofrece.
+
+La aplicación confina las operaciones de archivos a los directorios de trabajo,
+limita los binds configurados a `/dev`, `/proc`, `/sys`, workspace, home y tmp,
+y exige aprobación para herramientas externas. `SandboxPolicy` bloquea algunos
+comandos evidentemente destructivos antes de la ejecución; es una heurística,
+puede tener falsos positivos y no reemplaza revisión ni aprobación. Un plugin
+Python corre como proceso separado dentro de Debian, pero puede abusar de los
+recursos visibles al mismo UID. Instala solo código de confianza.
+
+## 13. Verificación en CI
 
 Los tests corren en cada empujón, pero durante un tiempo el paso llevaba
 `continue-on-error: true`. El job salía en verde con tests fallando: las

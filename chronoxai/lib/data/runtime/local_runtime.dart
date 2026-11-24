@@ -368,9 +368,11 @@ class LocalRuntime {
   Future<String> preparePinnedMcpPackage(List<String> command) async {
     final pinned = PinnedMcpPackage.parse(command);
     final current = await status();
-    if (!current.isReady) throw StateError('Runtime no listo: ${current.title}.');
+    if (!current.isReady)
+      throw StateError('Runtime no listo: ${current.title}.');
     if (!(await run('command -v npm')).isSuccess) {
-      throw StateError('Instala nodejs y npm en Debian para usar paquetes MCP.');
+      throw StateError(
+          'Instala nodejs y npm en Debian para usar paquetes MCP.');
     }
     final packageId =
         sha256.convert(utf8.encode(pinned.spec)).toString().substring(0, 20);
@@ -391,7 +393,8 @@ class LocalRuntime {
     if (await packageJson.exists()) {
       final existing = jsonDecode(await packageJson.readAsString());
       final dependencies = existing is Map ? existing['dependencies'] : null;
-      if (dependencies is! Map || dependencies[pinned.package] != pinned.version) {
+      if (dependencies is! Map ||
+          dependencies[pinned.package] != pinned.version) {
         throw StateError('package.json local no coincide con el pin MCP.');
       }
     }
@@ -405,7 +408,8 @@ class LocalRuntime {
         timeout: const Duration(minutes: 10),
       );
       if (!result.isSuccess || !await lockFile.exists()) {
-        throw StateError('No se pudo generar package-lock.json: ${result.stderr}');
+        throw StateError(
+            'No se pudo generar package-lock.json: ${result.stderr}');
       }
     }
     final lockText = await lockFile.readAsString();

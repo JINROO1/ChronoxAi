@@ -69,7 +69,7 @@ class McpStdioClient {
 }
 
 class McpStdioException implements Exception {
-  const McpException(this.message);
+  const McpStdioException(this.message);
   final String message;
   @override
   String toString() => message;

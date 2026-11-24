@@ -113,7 +113,9 @@ class ExternalPluginRpc {
       if (id == null) return; // notification/log line: no response expected.
       final completer = _pending.remove(id);
       if (completer == null || completer.isCompleted) return;
-      if (message['error'] case final Map<String, Object?> error) {
+      final rpcError = message['error'];
+      if (rpcError is Map) {
+        final error = rpcError.cast<Object?, Object?>();
         completer.completeError(ExternalPluginException(
           '${error['code'] ?? ''}: ${error['message'] ?? 'JSON-RPC error'}',
         ));

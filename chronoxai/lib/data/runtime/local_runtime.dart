@@ -210,8 +210,8 @@ class LocalRuntime {
       // hechas por versiones anteriores, todas las entradas regulares quedaron
       // sin x-bit; el lado nativo identifica ELF/scripts y repara los permisos.
       if ((stat.mode & 0x49) == 0) {
-        final repaired = await _channel
-            .repairRootfsExecutableBits(paths.rootfsDir);
+        final repaired =
+            await _channel.repairRootfsExecutableBits(paths.rootfsDir);
         if (!repaired) {
           return RuntimeStatus(
             isReady: false,
@@ -227,7 +227,8 @@ class LocalRuntime {
         return RuntimeStatus(
           isReady: false,
           problem: RuntimeProblem.unavailable,
-          detail: 'No se pudo marcar /bin/sh como ejecutable. Reinstala Debian.',
+          detail:
+              'No se pudo marcar /bin/sh como ejecutable. Reinstala Debian.',
         );
       }
     }

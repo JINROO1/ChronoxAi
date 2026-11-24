@@ -62,20 +62,27 @@ class DshBundleArchiveInspector {
       final nameLength = u16(offset + 28);
       final extraLength = u16(offset + 30);
       final commentLength = u16(offset + 32);
-      if ((flags & 1) != 0 || (method != 0 && method != 8) ||
-          compressedSize == 0xffffffff || expandedSize == 0xffffffff) {
-        throw const FormatException('ZIP cifrado, ZIP64 o compresión no permitida.');
+      if ((flags & 1) != 0 ||
+          (method != 0 && method != 8) ||
+          compressedSize == 0xffffffff ||
+          expandedSize == 0xffffffff) {
+        throw const FormatException(
+            'ZIP cifrado, ZIP64 o compresión no permitida.');
       }
       final end = offset + 46 + nameLength + extraLength + commentLength;
       if (end > directoryOffset + directorySize || end > bytes.length) {
         throw const FormatException('Entrada ZIP truncada.');
       }
-      final name = utf8.decode(
-        bytes.sublist(offset + 46, offset + 46 + nameLength),
-        allowMalformed: true,
-      ).replaceAll('\\', '/');
-      if (name.startsWith('/') || name.split('/').any((final part) => part == '..')) {
-        throw const FormatException('El bundle contiene rutas fuera del archivo.');
+      final name = utf8
+          .decode(
+            bytes.sublist(offset + 46, offset + 46 + nameLength),
+            allowMalformed: true,
+          )
+          .replaceAll('\\', '/');
+      if (name.startsWith('/') ||
+          name.split('/').any((final part) => part == '..')) {
+        throw const FormatException(
+            'El bundle contiene rutas fuera del archivo.');
       }
       if (expandedSize > maxEntryBytes) {
         throw FormatException('Entrada demasiado grande: $name');

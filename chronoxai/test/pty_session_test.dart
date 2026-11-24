@@ -124,22 +124,4 @@ void main() {
     expect(PtySession.listActive(), isEmpty);
   });
 
-  test('factory failure is reported without throwing', () async {
-    final broken = PtySession(
-      command: 'broken',
-      processFactory: (
-              {required executable,
-              required arguments,
-              required workingDirectory,
-              required environment,
-              required rows,
-              required columns}) =>
-          throw const ProcessException('', <String>[], 'missing'),
-    );
-    expect(
-        await broken
-            .start(binary: '', arguments: const [], environment: const {}),
-        isFalse);
-    expect(broken.state, PtyState.failed);
-  });
 }

@@ -1,7 +1,9 @@
 package app.chronoxai
 
 import android.Manifest
+import android.app.Activity
 import android.content.Intent
+import android.speech.RecognizerIntent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -34,6 +36,7 @@ class MainActivity : FlutterActivity() {
     private val permissionsChannel = "app.chronoxai/permissions"
     private val ptyChannelName = "app.chronoxai/pty"
     private val schedulerChannelName = "app.chronoxai/scheduler"
+    private val voiceChannelName = "app.chronoxai/voice"
 
     private val sessions = mutableMapOf<Int, PtySession>()
     private val nextSessionId = AtomicInteger(1)
@@ -42,6 +45,9 @@ class MainActivity : FlutterActivity() {
     /** Resultado pendiente del diálogo de permisos, que es asíncrono. */
     private var pendingPermissionResult: MethodChannel.Result? = null
     private val notificationRequestCode = 4001
+    private val voiceRequestCode = 4002
+    private val voiceActivityRequestCode = 4003
+    private var pendingVoiceResult: MethodChannel.Result? = null
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -76,6 +82,24 @@ class MainActivity : FlutterActivity() {
             when (call.method) {
                 "facts" -> result.success(platformFacts())
                 else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            voiceChannelName,
+        ).setMethodCallHandler { call, result ->
+            if (call.method != "recognize") {
+                result.notImplemented()
+            } else if (pendingVoiceResult != null) {
+                result.error("voice_busy", "Ya hay un reconocimiento en curso.", null)
+            } else {
+                pendingVoiceResult = result
+                if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                    launchRecognition()
+                } else {
+                    requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), voiceRequestCode)
+                }
             }
         }
 
@@ -195,11 +219,48 @@ class MainActivity : FlutterActivity() {
         grantResults: IntArray,
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == voiceRequestCode) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                launchRecognition()
+            } else {
+                pendingVoiceResult?.error("voice_permission", "Se necesita permiso de micrófono.", null)
+                pendingVoiceResult = null
+            }
+            return
+        }
         if (requestCode != notificationRequestCode) return
         val granted = grantResults.isNotEmpty() &&
             grantResults[0] == PackageManager.PERMISSION_GRANTED
         pendingPermissionResult?.success(granted)
         pendingPermissionResult = null
+    }
+
+    private fun launchRecognition() {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Habla ahora")
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, java.util.Locale.getDefault().toLanguageTag())
+        }
+        try {
+            startActivityForResult(intent, voiceActivityRequestCode)
+        } catch (error: Throwable) {
+            pendingVoiceResult?.error("voice_unavailable", "El reconocimiento de voz no está disponible.", error.message)
+            pendingVoiceResult = null
+        }
+    }
+
+    @Deprecated("SpeechRecognizer result returned through the platform channel")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != voiceActivityRequestCode) return
+        val result = pendingVoiceResult
+        pendingVoiceResult = null
+        if (resultCode == Activity.RESULT_OK) {
+            val phrases = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            result?.success(phrases?.firstOrNull())
+        } else {
+            result?.success(null)
+        }
     }
 
     private fun isBatteryUnrestricted(): Boolean {

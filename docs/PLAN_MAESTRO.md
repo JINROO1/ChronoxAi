@@ -161,10 +161,10 @@ dsh tiene tareas programadas (experimental) y jobs en segundo plano.
 
 dsh la marca experimental; aquí se implementa con el reconocimiento del sistema.
 
-- [ ] Canal `app.chronoxai/voice` sobre `SpeechRecognizer` de Android
-- [ ] Permiso `RECORD_AUDIO` en el manifest
-- [ ] Botón de micrófono en el composer: dicta y rellena el campo
-- [ ] Tests del lado Dart (canal falso)
+- [x] Canal `app.chronoxai/voice` usando reconocimiento de voz del sistema
+- [x] Permiso `RECORD_AUDIO` solicitado al primer uso
+- [x] Botón de micrófono en el composer: dicta y rellena el campo
+- [x] Tests del lado Dart con canal falso
 
 ## Fase 13 — Firma y publicación
 

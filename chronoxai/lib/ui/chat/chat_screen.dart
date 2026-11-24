@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../domain/agent/approval_policy.dart';
 import '../../platform/scheduler_channel.dart';
+import '../../platform/voice_channel.dart';
 import '../settings/settings_screen.dart';
 import '../state/app_state.dart';
 import '../widgets/chronox_widgets.dart';
@@ -100,6 +101,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     await session?.loop.cancel();
   }
 
+  Future<void> _dictate() async {
+    try {
+      final phrase = await const VoiceChannel().recognize();
+      if (phrase != null && phrase.trim().isNotEmpty && mounted) {
+        final current = _input.text.trim();
+        _input.text = current.isEmpty ? phrase.trim() : '$current ${phrase.trim()}';
+      }
+    } on PlatformException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.message ?? 'No se pudo reconocer la voz.')),
+        );
+      }
+    } on MissingPluginException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('La entrada de voz solo está disponible en Android.')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(final BuildContext context) {
     final session = ref.watch(sessionProvider);
@@ -174,6 +197,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               activity: view.activity,
               onSend: _send,
               onCancel: _cancel,
+              onDictate: _dictate,
             ),
           ],
         ),
@@ -344,6 +368,7 @@ class _ComposerBar extends StatelessWidget {
     required this.activity,
     required this.onSend,
     required this.onCancel,
+    required this.onDictate,
   });
 
   final TextEditingController controller;
@@ -352,6 +377,7 @@ class _ComposerBar extends StatelessWidget {
   final String activity;
   final VoidCallback onSend;
   final VoidCallback onCancel;
+  final VoidCallback onDictate;
 
   @override
   Widget build(final BuildContext context) {
@@ -432,7 +458,13 @@ class _ComposerBar extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
+              IconButton(
+                onPressed: isRunning ? null : onDictate,
+                tooltip: 'Dictar',
+                icon: const Icon(Icons.mic_none_rounded),
+              ),
+              const SizedBox(width: 4),
               _SendButton(
                   isRunning: isRunning, onSend: onSend, onCancel: onCancel),
             ],

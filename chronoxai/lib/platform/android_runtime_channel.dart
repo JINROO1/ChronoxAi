@@ -108,6 +108,22 @@ class AndroidRuntimeChannel {
 
   final MethodChannel _channel;
 
+  /// Restaura el bit de ejecución de los binarios y scripts de un rootfs que
+  /// fue extraído por Dart (que no expone chmod en dart:io).
+  Future<bool> repairRootfsExecutableBits(String rootfsPath) async {
+    try {
+      return await _channel.invokeMethod<bool>(
+            'repairRootfsExecutableBits',
+            <String, Object?>{'root': rootfsPath},
+          ) ??
+          false;
+    } on PlatformException {
+      return false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
+
   /// Pide los datos al lado nativo. En escritorio devuelve una aproximación
   /// basada en `dart:io`, para poder probar la lógica sin teléfono.
   Future<PlatformFacts> read() async {

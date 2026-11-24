@@ -88,6 +88,23 @@ class MainActivity : FlutterActivity() {
         ).setMethodCallHandler { call, result ->
             when (call.method) {
                 "facts" -> result.success(platformFacts())
+                "repairRootfsExecutableBits" -> {
+                    val root = call.argument<String>("root")
+                    if (root.isNullOrBlank()) {
+                        result.error("invalid_root", "Falta la ruta del rootfs.", null)
+                    } else {
+                        Thread({
+                            try {
+                                val repaired = repairRootfsExecutableBits(root)
+                                runOnUiThread { result.success(repaired) }
+                            } catch (error: Exception) {
+                                runOnUiThread {
+                                    result.error("repair_failed", error.message, null)
+                                }
+                            }
+                        }, "chronox-rootfs-mode-repair").start()
+                    }
+                }
                 else -> result.notImplemented()
             }
         }
@@ -433,6 +450,65 @@ class MainActivity : FlutterActivity() {
         // recrea la actividad y no debe matar la sesión del usuario.
         if (isFinishing) closeAllSessions()
         super.onDestroy()
+    }
+
+    /**
+     * Dart's standard File API cannot chmod extracted OCI entries. Restore the
+     * executable bit for ELF files, shebang scripts, and files in Debian's
+     * command directories. The rootfs is private app data and the canonical
+     * path check prevents a malicious image symlink escaping that tree.
+     */
+    private fun repairRootfsExecutableBits(rootPath: String): Boolean {
+        val root = File(rootPath).canonicalFile
+        val allowedRoot = File(filesDir, "linux/rootfs").canonicalPath + File.separator
+        if (!root.isDirectory || !root.path.startsWith(allowedRoot)) return false
+        val rootPrefix = root.path + File.separator
+        val pending = ArrayDeque<File>()
+        val visited = HashSet<String>()
+        pending.add(root)
+
+        while (pending.isNotEmpty()) {
+            val directory = pending.removeLast()
+            val children = directory.listFiles() ?: continue
+            for (entry in children) {
+                val canonical = try { entry.canonicalFile } catch (_: Exception) { continue }
+                if (canonical.path != root.path && !canonical.path.startsWith(rootPrefix)) continue
+                // Do not follow symlinks; their real targets will be visited in
+                // their actual directory entry and cycles cannot occur.
+                if (entry.absolutePath != canonical.path) continue
+                if (canonical.isDirectory) {
+                    if (visited.add(canonical.path)) pending.add(canonical)
+                    continue
+                }
+                if (!canonical.isFile || !looksLikeExecutable(canonical, root)) continue
+                if (!canonical.canExecute()) canonical.setExecutable(true, true)
+            }
+        }
+        val shell = File(root, "bin/sh")
+        return shell.exists() && shell.canExecute()
+    }
+
+    private fun looksLikeExecutable(file: File, root: File): Boolean {
+        val relative = file.relativeTo(root).invariantSeparatorsPath
+        val inCommandDirectory = relative.startsWith("bin/") ||
+            relative.startsWith("sbin/") ||
+            relative.startsWith("usr/bin/") ||
+            relative.startsWith("usr/sbin/") ||
+            relative.startsWith("usr/local/bin/") ||
+            relative.startsWith("usr/local/sbin/")
+        if (inCommandDirectory) return true
+        return try {
+            file.inputStream().use { input ->
+                val first = input.read()
+                val second = input.read()
+                val third = input.read()
+                val fourth = input.read()
+                (first == 0x7f && second == 'E'.code && third == 'L'.code && fourth == 'F'.code) ||
+                    (first == '#'.code && second == '!'.code)
+            }
+        } catch (_: Exception) {
+            false
+        }
     }
 
     private fun platformFacts(): Map<String, Any?> {

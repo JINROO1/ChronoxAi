@@ -158,17 +158,25 @@ abstract final class ProotCommandBuilder {
       );
     }
 
-    // 10. Entorno invitado explícito. No heredar PATH de Android: el shell
-    // podría entonces no encontrar /usr/bin/id ni otras utilidades del rootfs.
-    for (final entry in guestEnvironment(config).entries) {
-      args.add('--env=${entry.key}=${entry.value}');
-    }
-
-    // 11. Comando interior.
+    // 10. Comando interior.
     final command = inner ?? <String>[shell, '-l'];
     args.addAll(command);
 
     return args;
+  }
+
+  /// Arranca una shell de login interactiva con un PATH del rootfs conocido.
+  /// Se fija desde bash en vez de usar `proot --env`, opción no soportada por
+  /// algunas builds Android de PRoot que usa el proyecto.
+  static List<String> interactiveShell(final ProotConfig config) {
+    final path = guestEnvironment(config)['PATH']!;
+    return <String>[
+      '/bin/bash',
+      '--noprofile',
+      '--norc',
+      '-c',
+      "export PATH='$path'; exec /bin/bash -il",
+    ];
   }
 
   /// Variables de entorno del **proceso proot** en el dispositivo (no del invitado).

@@ -617,7 +617,10 @@ class LocalRuntime {
     final config = await _config(workingDirectory: workingDirectory);
     return (
       binary: config.prootBinary,
-      args: ProotCommandBuilder.build(config),
+      args: ProotCommandBuilder.build(
+        config,
+        inner: ProotCommandBuilder.interactiveShell(config),
+      ),
       env: ProotCommandBuilder.hostEnvironment(
         nativeLibraryDir: p.dirname(config.prootBinary),
         tempDir: paths.tempDir,

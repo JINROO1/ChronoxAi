@@ -27,12 +27,7 @@ void main() {
         lessThan(argv.indexOf('--sysvipc')),
       );
       expect(argv, contains('--change-id=0:0'));
-      expect(
-        argv,
-        contains(
-          '--env=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
-        ),
-      );
+      expect(argv, isNot(contains(startsWith('--env='))));
     });
 
     test('rootfs y cwd llevan el formato --opcion=valor', () {
@@ -91,6 +86,19 @@ void main() {
       final argv = ProotCommandBuilder.build(baseConfig());
 
       expect(argv.sublist(argv.length - 2), <String>['/bin/bash', '-l']);
+    });
+
+    test('shell interactiva fija PATH antes de leer perfiles del usuario', () {
+      final command = ProotCommandBuilder.interactiveShell(baseConfig());
+      expect(command.sublist(0, 4), <String>[
+        '/bin/bash',
+        '--noprofile',
+        '--norc',
+        '-c',
+      ]);
+      expect(command.last, contains('export PATH='));
+      expect(command.last, contains('exec /bin/bash -il'));
+      expect(command.last, contains('/usr/bin:/bin'));
     });
 
     test('acepta un comando interior explícito', () {

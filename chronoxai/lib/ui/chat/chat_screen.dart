@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../domain/agent/approval_policy.dart';
 import '../../domain/modes/work_modes.dart';
+import '../../domain/plugins/plugin_api.dart';
 import '../../platform/scheduler_channel.dart';
 import '../../platform/voice_channel.dart';
 import '../settings/settings_screen.dart';
@@ -104,8 +105,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
   Future<void> _quickSettings() async {
     final session = ref.read(sessionProvider);
-    var mode = ref.read(activeModeProvider);
-    var level = session?.policy.level ?? ref.read(approvalLevelProvider);
+    PluginMode mode = ref.read(activeModeProvider);
+    ApprovalLevel level = session?.policy.level ??
+        ref.read(approvalLevelProvider);
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(

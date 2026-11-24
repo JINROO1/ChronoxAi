@@ -764,7 +764,8 @@ class _SubagentPlugin extends ChronoxPlugin {
     context.provideTool(
       PluginTool(
         name: 'subagents',
-        description: 'Ejecuta en paralelo hasta cuatro subtareas independientes '
+        description:
+            'Ejecuta en paralelo hasta cuatro subtareas independientes '
             'con subagentes read-only y devuelve cada resultado etiquetado.',
         requiresApproval: false,
         inputSchema: _obj(<String, Object?>{
@@ -779,25 +780,30 @@ class _SubagentPlugin extends ChronoxPlugin {
         execute: (final args) async {
           final run = parallelRunner;
           if (run == null) {
-            return const ToolOutcome.error('Los subagentes paralelos no están disponibles.');
+            return const ToolOutcome.error(
+                'Los subagentes paralelos no están disponibles.');
           }
           final rawTasks = args['tasks'] as List<Object?>? ?? const <Object?>[];
           if (rawTasks.isEmpty || rawTasks.length > 4) {
             return const ToolOutcome.error('Indica entre 1 y 4 tareas.');
           }
-          final tasks = rawTasks.whereType<Map<String, Object?>>().map((final task) =>
-              <String, String>{
-                'prompt': (task['prompt'] ?? '').toString(),
-                if (task['description'] != null)
-                  'description': task['description'].toString(),
-              }).toList();
+          final tasks = rawTasks
+              .whereType<Map<String, Object?>>()
+              .map((final task) => <String, String>{
+                    'prompt': (task['prompt'] ?? '').toString(),
+                    if (task['description'] != null)
+                      'description': task['description'].toString(),
+                  })
+              .toList();
           if (tasks.any((final task) => task['prompt']!.trim().isEmpty)) {
-            return const ToolOutcome.error('Cada tarea necesita un prompt no vacío.');
+            return const ToolOutcome.error(
+                'Cada tarea necesita un prompt no vacío.');
           }
           final results = await run(tasks);
           return ToolOutcome(
             content: results.indexed
-                .map((final entry) => '### Subagente ${entry.$1 + 1}\n${entry.$2}')
+                .map((final entry) =>
+                    '### Subagente ${entry.$1 + 1}\n${entry.$2}')
                 .join('\n\n'),
           );
         },
@@ -1052,7 +1058,8 @@ class BuiltinPlugin {
 /// argumentos, de ahí que `create` sea una función y no una constante.
 List<BuiltinPlugin> builtinPlugins({
   Future<String> Function(String, String?)? subagentRunner,
-  Future<List<String>> Function(List<Map<String, String>>)? parallelSubagentRunner,
+  Future<List<String>> Function(List<Map<String, String>>)?
+      parallelSubagentRunner,
   Map<String, Object?> Function()? inspectProvider,
   PluginHost? host,
   List<Map<String, Object?>> Function()? pluginLister,

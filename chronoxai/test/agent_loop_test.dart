@@ -645,7 +645,8 @@ void main() {
         const LlmResponse(
           content: '',
           toolCalls: <LlmToolCall>[
-            LlmToolCall(id: 'sub-call', name: 'read', arguments: <String, Object?>{}),
+            LlmToolCall(
+                id: 'sub-call', name: 'read', arguments: <String, Object?>{}),
           ],
         ),
         const LlmResponse(content: 'Encontré el contenido.'),

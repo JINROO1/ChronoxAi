@@ -919,7 +919,8 @@ class AgentLoop {
     final String prompt, {
     final String? description,
   }) async {
-    final directory = await Directory.systemTemp.createTemp('chronox-subagent-');
+    final directory =
+        await Directory.systemTemp.createTemp('chronox-subagent-');
     final subLog = await SessionLog.open(
       directory,
       'subagent-${DateTime.now().microsecondsSinceEpoch}',

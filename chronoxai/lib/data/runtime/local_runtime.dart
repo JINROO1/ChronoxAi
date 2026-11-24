@@ -4,8 +4,6 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:crypto/crypto.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 
 import '../../domain/plugins/seams.dart';
 import '../../domain/plugins/sandbox_policy.dart';
@@ -106,6 +104,7 @@ class LocalRuntime {
   PlatformFacts? _facts;
   String? _prootPath;
   String? _loaderPath;
+  bool _prootSmokeValidated = false;
 
   /// Ruta del workspace tal y como se ve **dentro** del contenedor.
   static const String guestWorkspace = '/workspace';
@@ -246,6 +245,34 @@ class LocalRuntime {
         problem: RuntimeProblem.missingRootfs,
         detail: 'Se esperaba ${guestShell.path}.',
       );
+    }
+
+    // No basta con que los ELF estén en el APK: el primer chequeo del rootfs
+    // arranca PRoot de verdad y ejecuta un comando invitado. Así se detectan
+    // errores de PROOT_LOADER/ptrace/ABI antes de abrir una terminal vacía.
+    if (!_prootSmokeValidated) {
+      try {
+        final smoke = await run(
+          "printf '%s' 'CHRONOX_PROOT_OK'",
+          timeout: const Duration(seconds: 20),
+        );
+        if (!smoke.isSuccess || !smoke.stdout.contains('CHRONOX_PROOT_OK')) {
+          return RuntimeStatus(
+            isReady: false,
+            problem: RuntimeProblem.unavailable,
+            detail: 'PRoot no pudo ejecutar el smoke test del rootfs '
+                '(exit ${smoke.exitCode}). '
+                '${smoke.stderr.isEmpty ? smoke.stdout : smoke.stderr}',
+          );
+        }
+        _prootSmokeValidated = true;
+      } on Object catch (error) {
+        return RuntimeStatus(
+          isReady: false,
+          problem: RuntimeProblem.unavailable,
+          detail: 'No se pudo iniciar PRoot desde nativeLibraryDir: $error',
+        );
+      }
     }
 
     return RuntimeStatus(isReady: true, prootPath: proot);

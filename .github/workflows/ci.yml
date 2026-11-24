@@ -315,7 +315,9 @@ jobs:
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           chmod +x tools/fetch_runtime.sh
-          ./tools/fetch_runtime.sh --abi "${RUNTIME_ARCH:-aarch64}"
+          # El APK declara ambas ABIs: recopila PRoot y su loader para las dos.
+          ./tools/fetch_runtime.sh --abi aarch64
+          ./tools/fetch_runtime.sh --abi x86_64
 
       - name: Compilar APK
         working-directory: ${{ env.PROJECT_DIR }}
@@ -331,6 +333,28 @@ jobs:
           # Gradle se publican como anotaciones para poder diagnosticarlos.
           python3 tools/ci/gradle_to_annotations.py /tmp/build.txt
           exit $rc
+
+      - name: Verificar PRoot y loader dentro del APK
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          python3 - <<'PY'
+          import glob, sys, zipfile
+          apks = glob.glob('build/app/outputs/flutter-apk/*-release.apk')
+          if not apks:
+              sys.exit('::error::No se generó ningún APK release')
+          required = {
+              f'lib/{abi}/{name}'
+              for abi in ('arm64-v8a', 'x86_64')
+              for name in ('libproot.so', 'libproot_loader.so', 'libtalloc.so', 'libandroid-shmem.so')
+          }
+          for apk in apks:
+              with zipfile.ZipFile(apk) as bundle:
+                  missing = sorted(required - set(bundle.namelist()))
+              if missing:
+                  for entry in missing:
+                      print(f'::error file={apk}::Falta {entry} en el APK')
+                  sys.exit(1)
+              print(f'::notice::Runtime PRoot completo en {apk}')
 
       - name: Comprobar que la clave restaurada es válida
         if: steps.signing.outputs.signed == 'true'

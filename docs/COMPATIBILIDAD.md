@@ -1,9 +1,9 @@
 # Compatibilidad de dispositivos
 
-Chronox AI ejecuta un contenedor Linux con `proot` dentro del APK. Eso impone
-tres requisitos que **no dependen del código de la app** sino de lo que Android
-permita en cada dispositivo: arquitectura, permiso de ejecución y tamaño de
-página.
+Chronox AI ejecuta un rootfs Linux mediante PRoot empaquetado dentro del APK.
+La app usa `targetSdk 35`: el proceso host arranca desde `nativeLibraryDir` y
+PRoot ejecuta los ELF invitados mediante su loader nativo, también empaquetado
+en `nativeLibraryDir`. No se ejecutan directamente ELF del rootfs desde `filesDir`.
 
 Esta página resume qué funciona, qué no, y qué hacer en cada caso. La app tiene la
 misma información en **Ajustes → Diagnóstico**, pero medida en *tu* dispositivo en
@@ -17,33 +17,30 @@ lugar de deducida.
 |---|---|---|
 | Android | **7.0 (API 24) o superior** | Es el mínimo del proyecto y donde `proot` funciona de forma fiable. |
 | Arquitectura | **ARM64** (`arm64-v8a`) | El rootfs y los binarios de Termux se empaquetan para AArch64. `x86_64` solo para emuladores. |
-| Permiso de ejecución | **dominio SELinux `untrusted_app_27`** | Es lo que permite `execve` sobre el almacenamiento privado. Se consigue con `targetSdk 28`. |
+| Ejecución | **PRoot + loader nativo** | `libproot.so` y `libproot_loader.so` se extraen del APK a `nativeLibraryDir`; el rootfs queda en almacenamiento privado y PRoot intercepta la ejecución. |
 | Páginas de memoria | 4 KB o **16 KB** | Desde Android 15 hay dispositivos con páginas de 16 KB; los ELF deben estar alineados a ese tamaño. |
 
-## El punto crítico: `targetSdk 28`
+## Ejecución con `targetSdk 35`
 
-Desde Android 10, SELinux impide a las apps con `targetSdk >= 29` ejecutar
-ficheros de su propio almacenamiento. Android elige el dominio del proceso a
-partir del `targetSdk`:
+Android 10+ bloquea `execve` directo de los archivos de `filesDir` para una app
+con target moderno. Por eso **no** se usa `ProcessBuilder` sobre un binario del
+rootfs ni se rebaja el target. La cadena soportada es:
 
-| `targetSdk` | Dominio | `execve` en datos privados |
-|---|---|---|
-| ≤ 25 | `untrusted_app_25` | permitido |
-| 26–28 | `untrusted_app_27` | **permitido** |
-| ≥ 29 | `untrusted_app` | denegado |
+1. El APK incluye `libproot.so`, `libproot_loader.so` y dependencias Bionic bajo
+   `jniLibs/<abi>/`; Android las extrae a `ApplicationInfo.nativeLibraryDir`.
+2. Gradle usa `useLegacyPackaging = true` y el manifiesto declara
+   `extractNativeLibs="true"`; CI inspecciona el APK final y exige ambos ELF.
+3. La app ejecuta `libproot.so` desde `nativeLibraryDir`, configura
+   `PROOT_LOADER` con el loader instalado allí y `PROOT_TMP_DIR` en almacenamiento
+   privado escribible. `PROOT_UNBUNDLE_LOADER` **no** es una variable runtime:
+   Termux la fija al compilar PRoot como directorio de instalación.
+4. PRoot intercepta los `execve` invitados y sustituye cada ELF por su loader,
+   que carga el programa y sus bibliotecas del rootfs. No se usa QEMU para una
+   distro de la misma arquitectura, ni se ejecuta directamente el ELF invitado
+   mediante el kernel Android.
 
-Por eso Chronox declara `targetSdk 28` y `compileSdk 35`. No es un descuido: es
-la única forma de ejecutar `proot` sin root. Termux hace exactamente lo mismo.
-
-**Consecuencia visible:** Android 15 muestra el aviso «esta app se creó para una
-versión anterior de Android». Es esperado y no reduce funcionalidad.
-
-**Excepción que se comprueba en tiempo de ejecución:** algunas ROMs no siguen
-esta regla (o dejan el dominio «pegado» de una instalación anterior). Por eso la
-app **lee** `/proc/self/attr/current` y **prueba** a ejecutar un binario del APK
-en lugar de suponer. Si el dispositivo permite ejecutar, la app funciona aunque
-el `targetSdk` diga lo contrario.
-
+Esta arquitectura debe validarse con el APK instalado en dispositivos API 29+
+(arm64 y emulador x86_64). La build/los tests no reemplazan esa prueba en hardware.
 ## Páginas de 16 KB (Android 15+)
 
 Algunos dispositivos con Android 15, sobre todo con kernels 6.6+, usan páginas de

@@ -12,8 +12,8 @@ import 'package:path_provider/path_provider.dart';
 ///   que tiene permiso de ejecución (`apk_data_file`) incluso con `targetSdk >= 29`;
 /// * `PAGE_SIZE`: en Android 15+ puede ser 16384 y romper binarios ELF alineados
 ///   a 4 KB;
-/// * estado de SELinux, que en algunos OEM impide `execve` incluso con
-///   `targetSdk 28`.
+/// * el estado de SELinux y del proceso; el runtime no usa `execve` sobre
+///   binarios del rootfs, incluso con `targetSdk >= 29`.
 class PlatformFacts {
   const PlatformFacts({
     required this.isAndroid,
@@ -61,9 +61,9 @@ class PlatformFacts {
 
   /// `true` si el SO bloquea `execve` sobre el almacenamiento privado.
   ///
-  /// Se prefiere el dato medido; si no está disponible se cae a la regla
-  /// documentada de Android: la restricción llegó en API 29 y las apps con
-  /// `targetSdk <= 28` conservan el dominio `untrusted_app_27`.
+  /// Se prefiere el dato medido; si no está disponible se usa la regla de
+  /// compatibilidad de Android 10+: la restricción aplica a targets modernos.
+  /// Esto solo sirve para diagnóstico; la terminal usa el loader de PRoot.
   bool get appDataExecBlocked {
     final measured = canExecuteFromData;
     if (measured != null) return !measured;

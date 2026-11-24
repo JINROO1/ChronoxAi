@@ -3,8 +3,7 @@
 > Base técnica: [`INVESTIGACION.md`](INVESTIGACION.md). Cada bloque tiene criterio de aceptación.
 > Marca `[x]` cuando esté hecho y verificado en dispositivo.
 
-**Decisiones cerradas (no reabrir sin evidencia nueva):**
-Debian bookworm arm64 por defecto · `proot` de Termux 5.1.107.x + `libtalloc` + `libandroid-shmem` **empaquetados en el APK** (`jniLibs`) → **cero dependencia de la app Termux, funciona offline** · PTY real con `flutter_pty` + `xterm` · rootfs vía capa OCI (tar+gzip) · verificación de páginas de 16 KB en runtime · `targetSdk 28` como vía garantizada, con *flavor* `playstore` experimental (§10.1 de la investigación).
+**Decisiones vigentes:** Debian bookworm · PRoot de Termux + loader PRoot + `libtalloc` + `libandroid-shmem` empaquetados por ABI en `jniLibs` · `targetSdk 35` · `PROOT_LOADER` apunta al loader extraído en `nativeLibraryDir` (no `PROOT_UNBUNDLE_LOADER`) · rootfs OCI · verificación ELF 16 KB · sin depender de Termux ni de otra app. La integración requiere prueba de instalación y arranque en Android API 29+ antes de marcarla como verificada.
 
 ---
 
@@ -12,7 +11,7 @@ Debian bookworm arm64 por defecto · `proot` de Termux 5.1.107.x + `libtalloc` +
 
 - [x] `pubspec.yaml` con Dart 3.5 / Flutter 3.24 (Riverpod, http, xterm, flutter_pty, archive, crypto, path_provider, shared_preferences)
 - [x] `analysis_options.yaml` estricto
-- [x] Gradle + `AndroidManifest.xml` con `minSdk 24` / `targetSdk 28`, `extractNativeLibs`, permisos de servicio en primer plano y notificaciones
+- [x] Gradle + `AndroidManifest.xml` con `minSdk 24` / `targetSdk 35`, `extractNativeLibs`, permisos de servicio en primer plano y notificaciones
 - [x] Sistema de diseño (`core/theme.dart`): paleta, radios, tipografía mono, Material 3
 - [x] **Clave de firma única** generada (RSA-4096, v1+v2+v3, 30 años) + `tools/generate_keystore.sh` + `docs/FIRMA.md`; secretos excluidos de Git; build avisa si compila release sin clave
 - [x] Corregir README (el borrador afirmaba que se usa el `proot` estático de `proot-me`; es glibc y no sirve)
@@ -23,7 +22,7 @@ Debian bookworm arm64 por defecto · `proot` de Termux 5.1.107.x + `libtalloc` +
 ## Fase 1 — Runtime Linux (el corazón del proyecto)
 
 - [x] `LinuxPaths`: resuelve `filesDir/linux/{runtime,rootfs,home,overlay}`
-- [x] `tools/fetch_runtime.sh`: descarga `proot` + `libtalloc` + `libandroid-shmem` (deb de Termux, ABI `aarch64`), los coloca en `jniLibs/arm64-v8a/` y verifica hashes (corre en dev/CI, **nunca en el teléfono**)
+- [ ] `tools/fetch_runtime.sh`: descarga por ABI PRoot + loader + dependencias de Termux, empaqueta en `jniLibs` y valida ELF/arquitectura/alineación (corre en dev/CI, **nunca en el teléfono**); además el APK final verifica que todas las entradas esperadas estén presentes
 - [x] Parser ELF de verificación aplicado en el script: rechaza el build si algún `.so` no está alineado a 16 KB o no es `EM_AARCH64`
 - [x] `AndroidRuntimeChannel.prootBinaryPath()`: obtiene `nativeLibraryDir` y localiza `libproot.so`
 - [ ] `THIRD_PARTY_NOTICES.md` + pantalla de Licencias (GPLv2 de proot exige ofrecer el fuente)
@@ -32,13 +31,13 @@ Debian bookworm arm64 por defecto · `proot` de Termux 5.1.107.x + `libtalloc` +
 - [ ] `OciLayerFetcher`: resuelve `library/debian:bookworm` en Docker Hub (token anónimo → manifest → capa) para tener una fuente mantenida sin depender de un CDN propio
 - [ ] `RootfsExtractor`: gunzip (`dart:io`) + `archive` en **isolate** con progreso, soporte de `tar.xz` vía `xz` del runtime (fallback)
 - [x] `ProotCommandBuilder`: genera el argv canónico (flags de §2 de la investigación) desde `LinuxConfig`
-- [x] `LocalRuntime.run()`: `Process.start` de `proot` desde `nativeLibraryDir`, entorno completo (`LD_LIBRARY_PATH`, `PROOT_UNBUNDLE_LOADER`, `PROOT_TMP_DIR`, `TERM`, `PROOT_NO_SECCOMP`) y tiempo máximo por comando
+- [ ] `LocalRuntime.run()`: arranca `proot` desde `nativeLibraryDir`; `PROOT_LOADER` apunta al loader nativo del APK, `PROOT_TMP_DIR`/`LD_LIBRARY_PATH` se preparan para sus dependencias; validar por CI y en dispositivo API 29+
 - [x] `LocalRuntime.status()`: diagnóstico como **estado** (ABI, binarios, rootfs, `exec` bloqueado, SELinux) para que la app pueda explicarlo en vez de fallar
 - [x] `AndroidRuntimeChannel`: canal de plataforma mínimo (Kotlin) que expone `nativeLibraryDir`, `PAGE_SIZE`, `abi`, `sdkInt`, `isSelinuxEnforcing`
 - [ ] `RuntimeHealth`: smoke test (`uname -a`, `whoami`, `ls /`) tras la primera instalación
 - [ ] Limpieza de sesiones huérfanas al arrancar (PID guardado en `SessionStore`)
 - **Aceptación:** en un Pixel/Samsung arm64 se instala Debian y `whoami` devuelve `root` dentro del contenedor, **con el móvil en modo avión** después de instalar el rootfs (prueba de autocontención).
-- **Aceptación extra (hipótesis §10.1):** con el *flavor* `playstore` (`targetSdk 34`), el mismo flujo funciona. Si falla, se documenta por qué y se queda `targetSdk 28`.
+- **Aceptación target moderno:** el mismo flujo debe arrancar en Android API 29+ con `targetSdk 35`, sin depender de que `execve` sobre `filesDir` esté permitido; pendiente validación en teléfono/emulador.
 
 ## Fase 2 — Terminal
 

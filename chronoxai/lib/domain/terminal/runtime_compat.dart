@@ -46,7 +46,7 @@ abstract final class RuntimeCompatibility {
   static List<CompatIssue> evaluate(
     final PlatformFacts facts, {
     final bool? binariesAligned16K,
-    final bool guestExecViaQemu = false,
+    final bool guestExecViaProotLoader = false,
   }) {
     final issues = <CompatIssue>[];
 
@@ -90,7 +90,7 @@ abstract final class RuntimeCompatibility {
     }
 
     // --- Permiso de ejecución (el punto crítico) ---------------------------
-    if (!guestExecViaQemu && facts.appDataExecBlocked) {
+    if (!guestExecViaProotLoader && facts.appDataExecBlocked) {
       final domain = facts.expectedDomain;
       issues.add(
         CompatIssue(
@@ -149,13 +149,13 @@ abstract final class RuntimeCompatibility {
       }
     }
 
-    if (guestExecViaQemu) {
+    if (guestExecViaProotLoader) {
       issues.add(
         const CompatIssue(
           severity: CompatSeverity.note,
-          title: 'Ejecución Linux mediante QEMU',
+          title: 'Ejecución Linux mediante PRoot',
           detail:
-              'Los ELF del rootfs se ejecutan por QEMU user-mode empaquetado '
+              'Los ELF del rootfs se ejecutan por loader nativo de PRoot empaquetado '
               'en Chronox. Android sólo ejecuta el binario nativo del APK; no se '
               'requiere execve sobre los ficheros privados del rootfs.',
         ),
@@ -216,12 +216,12 @@ abstract final class RuntimeCompatibility {
   static bool canRun(
     final PlatformFacts facts, {
     final bool? binariesAligned16K,
-    final bool guestExecViaQemu = false,
+    final bool guestExecViaProotLoader = false,
   }) =>
       !evaluate(
         facts,
         binariesAligned16K: binariesAligned16K,
-        guestExecViaQemu: guestExecViaQemu,
+        guestExecViaProotLoader: guestExecViaProotLoader,
       ).any((final issue) => issue.isBlocking);
 
   /// Nombre comercial de una versión de Android, para mensajes legibles.

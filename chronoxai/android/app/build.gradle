@@ -28,8 +28,8 @@ if (hasReleaseSigning) {
 
 android {
     namespace = "app.chronoxai"
-    // Runtime Linux ejecuta los ELF invitados mediante QEMU user-mode empaquetado
-    // en el APK; no depende de execve sobre filesDir, bloqueado desde targetSdk 29.
+    // PRoot y su loader se empaquetan en jniLibs/nativeLibraryDir para que el
+    // rootfs pueda ejecutarse sin execve directo sobre filesDir en targetSdk 29+.
     compileSdk = 35
 
     compileOptions {
@@ -44,8 +44,7 @@ android {
     defaultConfig {
         applicationId = "app.chronoxai"
         minSdk = 24
-        // La terminal usa QEMU user-mode empaquetado en jniLibs para ejecutar
-        // el rootfs privado sin depender de execve(app_data_file).
+        // PRoot y su loader en nativeLibraryDir evitan execve directo desde filesDir.
         targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName

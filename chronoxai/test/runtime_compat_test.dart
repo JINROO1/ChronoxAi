@@ -8,7 +8,7 @@ PlatformFacts facts({
   int pageSize = 4096,
   int targetSdk = 35,
   bool? canExecuteFromData = true,
-  String? selinuxDomain = 'u:r:untrusted_app_27:s0:c1,c2',
+  String? selinuxDomain = 'u:r:untrusted_app:s0:c1,c2',
   String manufacturer = 'Google',
   String model = 'Pixel',
   bool isAndroid = true,
@@ -32,15 +32,15 @@ PlatformFacts facts({
 
 void main() {
   group('RuntimeCompatibility — permiso de ejecución', () {
-    test('Android 15 con targetSdk 35 puede ejecutar el runtime QEMU', () {
+    test('Android 15 con targetSdk 35 puede ejecutar el runtime mediante PRoot', () {
       final facts35 = facts(canExecuteFromData: false);
       final issues = RuntimeCompatibility.evaluate(
         facts35,
-        guestExecViaQemu: true,
+        guestExecViaProotLoader: true,
       );
       expect(issues.where((final i) => i.isBlocking), isEmpty);
       expect(
-        RuntimeCompatibility.canRun(facts35, guestExecViaQemu: true),
+        RuntimeCompatibility.canRun(facts35, guestExecViaProotLoader: true),
         isTrue,
       );
     });
@@ -58,19 +58,19 @@ void main() {
 
       final issue = issues.singleWhere((final i) => i.isBlocking);
       expect(issue.title, contains('bloquea ejecutar'));
-      expect(issue.detail, contains('untrusted_app_27'));
+      expect(issue.detail, contains('untrusted_app'));
       expect(issue.advice, contains('Desinstala'));
       expect(RuntimeCompatibility.canRun(blocked), isFalse);
     });
 
-    test('QEMU invitado evita depender del execve de app_data_file', () {
+    test('el loader de PRoot evita depender del execve de app_data_file', () {
       final target35 = facts(targetSdk: 35, canExecuteFromData: false);
       expect(
-        RuntimeCompatibility.canRun(target35, guestExecViaQemu: true),
+        RuntimeCompatibility.canRun(target35, guestExecViaProotLoader: true),
         isTrue,
       );
       expect(
-        RuntimeCompatibility.evaluate(target35, guestExecViaQemu: true)
+        RuntimeCompatibility.evaluate(target35, guestExecViaProotLoader: true)
             .where((final issue) => issue.isBlocking),
         isEmpty,
       );
@@ -80,8 +80,14 @@ void main() {
       final unknown = facts(targetSdk: 34, canExecuteFromData: null);
       expect(RuntimeCompatibility.canRun(unknown), isFalse);
 
-      final exempt = facts(targetSdk: 28, canExecuteFromData: null);
-      expect(RuntimeCompatibility.canRun(exempt), isTrue);
+      final target35WithLoader = facts(targetSdk: 35, canExecuteFromData: null);
+      expect(
+        RuntimeCompatibility.canRun(
+          target35WithLoader,
+          guestExecViaProotLoader: true,
+        ),
+        isTrue,
+      );
     });
   });
 
@@ -110,14 +116,14 @@ void main() {
     test('no muestra el aviso de versión anterior en Android 15', () {
       final issues = RuntimeCompatibility.evaluate(
         facts(sdkInt: 35, canExecuteFromData: false),
-        guestExecViaQemu: true,
+        guestExecViaProotLoader: true,
       );
       expect(
         issues.any((final i) => i.title.contains('versión anterior')),
         isFalse,
       );
       expect(
-        issues.any((final i) => i.title.contains('QEMU')),
+        issues.any((final i) => i.title.contains('PRoot')),
         isTrue,
       );
     });

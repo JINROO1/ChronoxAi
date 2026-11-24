@@ -4,9 +4,10 @@ import 'package:path/path.dart' as p;
 
 /// Layout de directorios del runtime Linux dentro del almacenamiento privado.
 ///
-/// Todo vive bajo `getFilesDir()` de la app (`/data/data/app.chronoxai/files`),
-/// que es la única ubicación escribible sin permisos y, con `targetSdk 28`,
-/// también ejecutable.
+/// Los datos mutables viven bajo `getFilesDir()` de la app. El ejecutable PRoot
+/// y su loader se empaquetan como JNI en `nativeLibraryDir`, que Android extrae
+/// del APK y permite ejecutar con `targetSdk 29+`; el rootfs no se ejecuta con
+/// `execve` directo desde este directorio de datos.
 ///
 /// ```
 /// files/

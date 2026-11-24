@@ -9,7 +9,6 @@ class ProotConfig {
     required this.prootBinary,
     required this.prootLoader,
     required this.rootfs,
-    this.qemuCommand,
     required this.workingDirectory,
     this.homeDirectory = '/root',
     this.bindMounts = const <BindMount>[],
@@ -27,19 +26,13 @@ class ProotConfig {
   /// Ruta al `proot` ejecutable (en Android: `nativeLibraryDir/libproot.so`).
   final String prootBinary;
 
-  /// Ruta al loader de proot (`PROOT_UNBUNDLE_LOADER`).
-  ///
-  /// Termux desempaqueta el loader a disco en lugar de usar el embebido, porque
-  /// Android prohíbe cargar código ejecutable desde un fichero que no esté en
-  /// una ubicación ejecutable.
+  /// Ruta al loader nativo de PRoot dentro de `nativeLibraryDir`.
+  /// Se publica al hijo como `PROOT_LOADER` (no como PROOT_UNBUNDLE_LOADER, que
+  /// es una ruta de instalación fijada en tiempo de compilación de PRoot).
   final String prootLoader;
 
   /// Rootfs de la distro (p. ej. `filesDir/linux/debian`).
   final String rootfs;
-
-  /// Comando QEMU user-mode del APK. PRoot antepone este emulador a cada ELF
-  /// invitado; el kernel ejecuta QEMU desde nativeLibraryDir, no el ELF privado.
-  final String? qemuCommand;
 
   /// Directorio de trabajo dentro del invitado (p. ej. `/workspace`).
   final String workingDirectory;
@@ -124,12 +117,6 @@ abstract final class ProotCommandBuilder {
     // 3. `-L`: corrige `lstat` para que dpkg no avise de symlinks falsos.
     args.add('-L');
 
-    // 4. En targetSdk 29+ Android deniega execve sobre filesDir. Con -q, PRoot
-    // ejecuta el QEMU nativo (JNI, permitido) que interpreta los ELF invitados.
-    if (config.qemuCommand != null) {
-      args.add('--qemu=${config.qemuCommand} -L ${config.rootfs}');
-    }
-
     // 5. Identidad falsa. Dentro de proot siempre somos "root" sin privilegios
     //    reales; sirve para que apt no se queje.
     args.add('--change-id=${config.uid}:${config.gid}');
@@ -186,7 +173,6 @@ abstract final class ProotCommandBuilder {
     required final String nativeLibraryDir,
     required final String tempDir,
     required final String prootLoader,
-    final String? qemuLibraryDir,
     final Map<String, String> extra = const <String, String>{},
   }) {
     return <String, String>{
@@ -194,14 +180,16 @@ abstract final class ProotCommandBuilder {
       'LD_LIBRARY_PATH': <String>[
         nativeLibraryDir,
         tempDir,
-        if (qemuLibraryDir != null) qemuLibraryDir,
       ].join(':'),
-      // proot escribe su loader y ficheros temporales aquí; debe ser escribible.
+      // El PRoot de Termux usa PROOT_UNBUNDLE_LOADER como directorio en tiempo
+      // de compilación; PROOT_LOADER lo sobreescribe con el loader APK ejecutable.
+      'PROOT_LOADER': prootLoader,
+      // Archivos temporales de PRoot siempre fuera de nativeLibraryDir.
       'PROOT_TMP_DIR': tempDir,
-      // Evita que proot intente desempaquetar el loader en una ruta no escribible.
-      'PROOT_UNBUNDLE_LOADER': prootLoader,
       // Seccomp puede interferir con ptrace en algunos kernels de Android.
       'PROOT_NO_SECCOMP': '1',
+      // Evita fallos de glibc rseq en invitados modernos bajo ptrace.
+      'GLIBC_TUNABLES': 'glibc.pthread.rseq=0',
       // Termux exporta estos en el invitado; algunos paquetes los esperan.
       'TERM': 'xterm-256color',
       'LANG': 'C.UTF-8',
@@ -239,7 +227,7 @@ abstract final class ProotCommandBuilder {
       problems.add('Falta la ruta al binario de proot.');
     }
     if (config.prootLoader.trim().isEmpty) {
-      problems.add('Falta la ruta al loader de proot (PROOT_UNBUNDLE_LOADER).');
+      problems.add('Falta la ruta al loader ejecutable de proot (PROOT_LOADER).');
     }
     if (!config.rootfs.startsWith('/')) {
       problems.add('El rootfs debe ser una ruta absoluta: "${config.rootfs}".');

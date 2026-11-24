@@ -62,7 +62,7 @@ chronoxai/
 │   └── ui/
 │       ├── screens/     home · chat · terminal · settings · setup
 │       └── widgets/     glass_card · tool_call_card · diff_view · composer
-└── android/             targetSdk 28 (requisito de proot en Android 10+)
+└── android/             targetSdk 35 · PRoot y loader en jniLibs
 ```
 
 ## Requisitos
@@ -102,21 +102,19 @@ Primera vez en la app:
 
 Decisiones derivadas de [`docs/INVESTIGACION.md`](docs/INVESTIGACION.md), no de intuición:
 
-1. **`targetSdkVersion = 28`.** Desde Android 10, SELinux (W^X) prohíbe `execve()` sobre
-   ficheros bajo `/data/data/<pkg>/` a apps con `targetSdk ≥ 29`. La excepción de
-   compatibilidad `untrusted_app_27` (≤ 28) es la que permite ejecutar el runtime.
-   Es la misma razón por la que Termux no está en Play Store: esta app se distribuye por
-   **F-Droid / GitHub Releases**.
-2. **`proot` de Termux** (`5.1.107.x`), no el de `proot-me` (ese está enlazado a glibc y no
-   arranca en Android). Se descargan los `.deb` de `proot`, `libtalloc` y `libandroid-shmem`,
-   se desempaquetan en el directorio privado y se ejecuta con `LD_LIBRARY_PATH` y
-   `PROOT_UNBUNDLE_LOADER` apuntando ahí.
-3. **PTY dentro del contenedor, no en Android.** `flutter_pty` y `openpty` por JNI no sirven:
-   `Os.ioctlInt` está `@hide` y `libandroid.so` no exporta `openpty`. El PTY lo crea `script(1)`
-   (paquete `bsdutils`, ya presente en Debian) dentro del invitado; Android solo mueve bytes por
-   dos tuberías. La salida la interpreta un emulador ANSI propio, así que `nano`, `less` y los
-   prompts interactivos funcionan. Detalles en
-   [`docs/ARQUITECTURA.md` §10](docs/ARQUITECTURA.md#10-terminal-interactiva-sin-pty-nativo).
+1. **`targetSdk = 35`.** Android 10+ no permite ejecutar directamente archivos
+   de `filesDir`. El APK distribuye `libproot.so`, su loader y sus dependencias en
+   `jniLibs`; Android los extrae a `nativeLibraryDir`, desde donde sí puede
+   arrancarse el runtime. El proceso invitado lo media PRoot; no se rebaja el
+   target y no se depende de Termux.
+2. **PRoot de Termux para Android.** CI empaqueta sus ELF por ABI, verifica que
+   `libproot.so` y `libproot_loader.so` existen y valida arquitectura/alineación.
+   En runtime `PROOT_LOADER` apunta al loader ejecutable del APK y `PROOT_TMP_DIR`
+   a almacenamiento escribible. `PROOT_UNBUNDLE_LOADER` es una opción de
+   compilación de PRoot, no el override de entorno para iniciar una sesión.
+3. **PTY nativo Android.** La sesión arranca PRoot en el PTY gestionado por Kotlin;
+   la app transmite bytes a xterm. La terminal y el arranque del contenedor deben
+   validarse en dispositivos Android API 29+ además de pasar CI.
 4. **Debian bookworm arm64 por defecto**, no Alpine: glibc es lo que da compatibilidad con
    binarios precompilados, wheels `manylinux` y extensiones nativas. Alpine (musl) queda como
    opción experimental marcada como tal.

@@ -33,11 +33,11 @@ void main() {
       'nativeLibraryDir': '/data/app/lib/arm64',
       'filesDir': '/data/data/x/files',
       'cacheDir': '/data/data/x/cache',
-      'targetSdk': 28,
+      'targetSdk': 35,
       'manufacturer': 'nubia',
       'model': 'REDMAGIC 8S Pro',
       'selinuxEnforcing': true,
-      'selinuxDomain': 'u:r:untrusted_app_27:s0:c1,c2',
+      'selinuxDomain': 'u:r:untrusted_app:s0:c1,c2',
       'canExecuteFromData': true,
     });
 
@@ -46,8 +46,8 @@ void main() {
     expect(facts.sdkInt, 35);
     expect(facts.pageSize, 16384);
     expect(facts.has16KPages, isTrue);
-    expect(facts.selinuxDomain, 'u:r:untrusted_app_27:s0:c1,c2');
-    expect(facts.expectedDomain, 'untrusted_app_27');
+    expect(facts.selinuxDomain, 'u:r:untrusted_app:s0:c1,c2');
+    expect(facts.expectedDomain, 'untrusted_app');
     expect(facts.canExecuteFromData, isTrue);
     expect(facts.appDataExecBlocked, isFalse);
     expect(facts.manufacturer, 'nubia');

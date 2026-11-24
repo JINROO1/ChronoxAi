@@ -185,14 +185,18 @@ Fuentes: `docs/user/develop/basic/publish.md` del repo oficial
       asigna namespace de herramientas por servidor; configuración guardada en provider
       settings (CI `45313077839` en verde)
 - [x] Deshabilitar una entrada individual MCP anteponiendo `#` en Ajustes
-- [ ] Gestor dedicado y variables de entorno seguras (secretos en almacenamiento
-      seguro), lockfiles y aprobación granular por servidor
+- [x] Variables secretas por servidor cifradas con Android Keystore e inyectadas
+      a procesos stdio (CI `45315887115` Analyze/Tests/Format en verde)
+- [ ] Instalación segura de npm con lockfiles y aprobación antes de ejecutar.
+      MCP mantiene aprobación obligatoria por invocación; faltan políticas por servidor.
 - [ ] Instalador npm con pins/lockfile, preview de scripts, aprobación antes de
       instalar/ejecutar y límites de tamaño/tiempo
 - [ ] Adaptador de paquetes `dsh.bundle`: leer package.json + patches declarados,
       soportar filas de plugins de herramientas/skills mediante shim Node
-- [ ] Compatibilidad declarada por capability y reportes para bundles con
-      Cordis UI/servicios no soportados; no ejecutar silenciosamente
+- [x] Diagnóstico de preflight `DshBundleDiagnostic` con clasificación MCP
+      candidata y lista explícita de capacidades Cordis incompatibles (no instala)
+- [ ] Inspección de archivo real `.dsh.bundle`, compatibilidad declarada por
+      capability y fixtures seleccionados; no ejecutar silenciosamente
 - [ ] Fixtures y pruebas de compatibilidad con MCP npm y bundles DSH seleccionados
 - [ ] UI de catálogo/instalación, permisos, actualización y desinstalación
 

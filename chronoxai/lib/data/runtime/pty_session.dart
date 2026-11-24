@@ -27,6 +27,17 @@ class PtySession {
 
   final MethodChannel _channel;
 
+  static Future<List<Map<String, Object?>>> listActive({
+    final MethodChannel? channel,
+  }) async {
+    final rows = await (channel ?? const MethodChannel('app.chronoxai/pty'))
+        .invokeListMethod<Object?>('list');
+    return (rows ?? const <Object?>[])
+        .whereType<Map<Object?, Object?>>()
+        .map((final row) => row.cast<String, Object?>())
+        .toList(growable: false);
+  }
+
   final StreamController<Uint8List> _output =
       StreamController<Uint8List>.broadcast();
   final StreamController<int> _exit = StreamController<int>.broadcast();

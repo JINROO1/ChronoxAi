@@ -15,6 +15,7 @@ import '../state/app_state.dart';
 import '../widgets/chronox_widgets.dart';
 import 'diagnostics_screen.dart';
 import 'install_screen.dart';
+import 'background_jobs_screen.dart';
 import 'scheduled_tasks_screen.dart';
 import 'provider_selector.dart';
 
@@ -149,6 +150,21 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           const SectionLabel('Sesión'),
+          GlassPanel(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            child: SettingsRow(
+              icon: Icons.work_history_outlined,
+              title: 'Trabajos en segundo plano',
+              subtitle: 'Consulta y detén terminales activas',
+              onTap: () => Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  builder: (final context) => const BackgroundJobsScreen(),
+                ),
+              ),
+              trailing: const Icon(Icons.chevron_right_rounded),
+            ),
+          ),
+          const SizedBox(height: 8),
           GlassPanel(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
             child: SettingsRow(

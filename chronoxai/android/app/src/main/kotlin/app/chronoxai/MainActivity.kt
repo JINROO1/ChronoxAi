@@ -285,6 +285,9 @@ class MainActivity : FlutterActivity() {
                 closeAllSessions()
                 result.success(null)
             }
+            "list" -> result.success(sessions.keys.map { id ->
+                mapOf("id" to id, "running" to true, "command" to "Terminal")
+            })
             "resize" -> {
                 // Sin PTY del kernel no hay tamaño de ventana que comunicar:
                 // el shell del invitado corre con el ancho por defecto. Se

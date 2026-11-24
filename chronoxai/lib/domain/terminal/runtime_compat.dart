@@ -108,9 +108,10 @@ abstract final class RuntimeCompatibility {
                   'dominio "$domain" y la app declara targetSdk ${facts.targetSdk}.',
           advice: facts.canExecuteFromData == false
               ? 'Reinicia el dispositivo para que Android aplique el dominio '
-                  'SELinux actualizado. Si persiste, el firmware de este '
-                  'dispositivo bloquea execve en datos privados; Chronox necesita '
-                  'un build compatible con ese fabricante/ROM.'
+                  'SELinux actualizado. Si persiste y tienes una copia de tus '
+                  'datos, desinstala por completo y reinstala la app. Si tampoco '
+                  'funciona, el firmware bloquea execve en datos privados y '
+                  'Chronox necesita un build compatible con ese fabricante/ROM.'
               : 'Si el dominio no es untrusted_app_27, puede que otra app con el '
                   'mismo uid haya forzado el dominio, o que una instalación anterior '
                   'lo haya dejado pegado. Reinicia el dispositivo; si no basta, '

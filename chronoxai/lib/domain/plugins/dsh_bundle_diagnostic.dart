@@ -96,8 +96,11 @@ class DshBundleDiagnostic {
             ? bin.keys.first.toString()
             : null;
     String? suggestion;
-    if (usesMcpProtocol && !hasCordisPatch &&
-        packageName is String && packageVersion is String && binary != null) {
+    if (usesMcpProtocol &&
+        !hasCordisPatch &&
+        packageName is String &&
+        packageVersion is String &&
+        binary != null) {
       try {
         final pinned = PinnedMcpPackage.parse(<String>[
           'npm-package',

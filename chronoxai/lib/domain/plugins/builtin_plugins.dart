@@ -1140,7 +1140,8 @@ List<BuiltinPlugin> builtinPlugins({
   List<Map<String, Object?>> Function()? pluginLister,
   String? mcpServerUrl,
   Future<Process> Function(List<String>, Map<String, String>)? startMcpProcess,
-  Map<int, Map<String, String>> mcpServerEnvironments = const <int, Map<String, String>>{},
+  Map<int, Map<String, String>> mcpServerEnvironments =
+      const <int, Map<String, String>>{},
 }) {
   PluginManifest manifest({
     required final String id,

@@ -473,9 +473,9 @@ class MainActivity : FlutterActivity() {
             for (entry in children) {
                 val canonical = try { entry.canonicalFile } catch (_: Exception) { continue }
                 if (canonical.path != root.path && !canonical.path.startsWith(rootPrefix)) continue
-                // Do not follow symlinks; their real targets will be visited in
-                // their actual directory entry and cycles cannot occur.
-                if (entry.absolutePath != canonical.path) continue
+                // Resolve links only after containment validation above. This
+                // repairs aliases such as /usr/bin/sh -> dash without allowing
+                // a link to escape the private rootfs.
                 if (canonical.isDirectory) {
                     if (visited.add(canonical.path)) pending.add(canonical)
                     continue

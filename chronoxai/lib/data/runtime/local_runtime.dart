@@ -205,22 +205,18 @@ class LocalRuntime {
     // daría falsos positivos con una descarga a medias.
     final guestShell = File(p.join(paths.rootfsDir, 'bin', 'sh'));
     if (guestShell.existsSync() && facts.isAndroid) {
-      final stat = await guestShell.stat();
-      // TarExtractor no puede aplicar chmod mediante dart:io. En instalaciones
-      // hechas por versiones anteriores, todas las entradas regulares quedaron
-      // sin x-bit; el lado nativo identifica ELF/scripts y repara los permisos.
-      if ((stat.mode & 0x49) == 0) {
-        final repaired = await _channel
-            .repairRootfsExecutableBits(paths.rootfsDir);
-        if (!repaired) {
-          return RuntimeStatus(
-            isReady: false,
-            problem: RuntimeProblem.unavailable,
-            detail: 'El rootfs existe, pero /bin/sh no tiene permiso de '
-                'ejecución y Android no pudo reparar sus permisos. Reinstala '
-                'Debian desde Ajustes.',
-          );
-        }
+      // Reparar en cada comprobación: distintas entradas de shell pueden ser
+      // copias/enlaces distintos (/bin/sh y /usr/bin/sh), y una versión previa
+      // del rootfs pudo dejar ejecutable uno pero no el otro.
+      final repaired = await _channel
+          .repairRootfsExecutableBits(paths.rootfsDir);
+      if (!repaired) {
+        return RuntimeStatus(
+          isReady: false,
+          problem: RuntimeProblem.unavailable,
+          detail: 'El rootfs existe, pero Android no pudo reparar los permisos '
+              'de ejecución de sus comandos. Reinstala Debian desde Ajustes.',
+        );
       }
       final repairedStat = await guestShell.stat();
       if ((repairedStat.mode & 0x49) == 0) {

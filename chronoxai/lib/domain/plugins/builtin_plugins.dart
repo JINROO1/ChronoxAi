@@ -5,6 +5,8 @@ import 'plugin_api.dart';
 import 'mcp_http_client.dart';
 import 'mcp_stdio_client.dart';
 import 'mcp_command_parser.dart';
+import 'mcp_server_config.dart';
+import 'mcp_server_config.dart';
 import 'plugin_runtime.dart';
 import 'web_search_parser.dart';
 
@@ -673,16 +675,17 @@ class _McpPlugin extends ChronoxPlugin {
 
   @override
   Future<void> mount(final PluginContext context) async {
-    final servers = (serverUrl ?? '')
-        .split('\n')
-        .map((final row) => row.trim())
-        .toList(growable: false);
+    final configuration = serverUrl ?? '';
+    final servers = parseMcpServerEntries(configuration);
+    final serverCount = configuration.split('\n').length;
     try {
-      for (var index = 0; index < servers.length; index++) {
-        final server = servers[index];
-        // A leading # disables just this saved server without removing it.
-        if (server.isEmpty || server.startsWith('#')) continue;
-        await _mountServer(context, server, index, servers.length);
+      for (final server in servers) {
+        await _mountServer(
+          context,
+          server.command,
+          server.index,
+          serverCount,
+        );
       }
     } catch (_) {
       await _disposeStdioClients();

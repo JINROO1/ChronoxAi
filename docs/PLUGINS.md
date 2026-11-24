@@ -185,5 +185,6 @@ por el usuario en Debian. El cliente negocia MCP, descubre `tools/list` y llama
 código arbitrario y ejecutarlo: Chronox no lo instala silenciosamente; revisa el
 paquete y sus scripts antes de autorizarlo. Ajustes permite varias entradas,
 una URL o comando por línea; anteponer `#` deshabilita una entrada sin borrarla.
+La posición de cada fila se conserva para mantener estables los nombres de herramientas al alternar servidores.
 La gestión de variables de entorno seguras, lockfiles y aprobación por servidor
 queda como trabajo pendiente de compatibilidad.

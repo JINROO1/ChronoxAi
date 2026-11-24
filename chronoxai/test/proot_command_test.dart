@@ -100,7 +100,8 @@ void main() {
       expect(command.last, contains('exec /bin/bash -il'));
       expect(
         command.last,
-        contains('/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'),
+        contains(
+            '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'),
       );
     });
 

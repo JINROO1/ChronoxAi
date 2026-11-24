@@ -345,8 +345,7 @@ class LocalRuntime {
     // Bound CPU time, individual file growth and open descriptors for the MCP
     // process tree. npm dependency installation has a separate 10-minute wall
     // clock timeout above.
-    final guestCommand =
-        'ulimit -t 1800; ulimit -f 131072; ulimit -n 128; '
+    final guestCommand = 'ulimit -t 1800; ulimit -f 131072; ulimit -n 128; '
         'exec ${launchCommand.map(_shellQuote).join(' ')}';
     final args = ProotCommandBuilder.build(config,
         inner: <String>['/bin/bash', '-lc', guestCommand]);

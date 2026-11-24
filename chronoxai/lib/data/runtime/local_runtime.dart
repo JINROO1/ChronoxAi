@@ -218,7 +218,6 @@ class LocalRuntime {
               'de ejecución de sus comandos. Reinstala Debian desde Ajustes.',
         );
       }
-      }
       final repairedStat = await guestShell.stat();
       if ((repairedStat.mode & 0x49) == 0) {
         return RuntimeStatus(

@@ -17,7 +17,8 @@ void main() {
     });
   });
 
-  tearDown(() => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+  tearDown(() => TestDefaultBinaryMessengerBinding
+      .instance.defaultBinaryMessenger
       .setMockMethodCallHandler(channel, null));
 
   test('serializes a weekly prompt and forwards cancellation', () async {

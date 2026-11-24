@@ -39,18 +39,35 @@ class _ScheduledTasksScreenState extends State<ScheduledTasksScreen> {
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('Programar tarea'),
           content: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(controller: prompt, maxLines: 3, decoration: const InputDecoration(labelText: 'Instrucción para Chronox')),
+            TextField(
+                controller: prompt,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                    labelText: 'Instrucción para Chronox')),
             const SizedBox(height: 12),
             DropdownButtonFormField<TaskRepeat>(
               initialValue: repeat,
               decoration: const InputDecoration(labelText: 'Repetición'),
-              items: TaskRepeat.values.map((value) => DropdownMenuItem(value: value, child: Text(switch (value) { TaskRepeat.none => 'Una vez', TaskRepeat.daily => 'Diaria', TaskRepeat.weekly => 'Semanal' }))).toList(),
-              onChanged: (value) => setDialogState(() => repeat = value ?? TaskRepeat.none),
+              items: TaskRepeat.values
+                  .map((value) => DropdownMenuItem(
+                      value: value,
+                      child: Text(switch (value) {
+                        TaskRepeat.none => 'Una vez',
+                        TaskRepeat.daily => 'Diaria',
+                        TaskRepeat.weekly => 'Semanal'
+                      })))
+                  .toList(),
+              onChanged: (value) =>
+                  setDialogState(() => repeat = value ?? TaskRepeat.none),
             ),
           ]),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Siguiente')),
+            TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancelar')),
+            FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Siguiente')),
           ],
         ),
       ),
@@ -59,25 +76,43 @@ class _ScheduledTasksScreenState extends State<ScheduledTasksScreen> {
     prompt.dispose();
     if (accepted != true || text.isEmpty || !mounted) return;
     final now = DateTime.now();
-    final day = await showDatePicker(context: context, firstDate: now, lastDate: now.add(const Duration(days: 365)), initialDate: now);
+    final day = await showDatePicker(
+        context: context,
+        firstDate: now,
+        lastDate: now.add(const Duration(days: 365)),
+        initialDate: now);
     if (day == null || !mounted) return;
-    final time = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(now.add(const Duration(minutes: 5))));
+    final time = await showTimePicker(
+        context: context,
+        initialTime:
+            TimeOfDay.fromDateTime(now.add(const Duration(minutes: 5))));
     if (time == null || !mounted) return;
     final date = DateTime(day.year, day.month, day.day, time.hour, time.minute);
     if (!date.isAfter(DateTime.now())) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Elige una hora futura.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Elige una hora futura.')));
       return;
     }
-    final task = ScheduledTask(id: '${date.millisecondsSinceEpoch}-${Random().nextInt(1 << 20)}', prompt: text, scheduledAt: date, repeat: repeat);
+    final task = ScheduledTask(
+        id: '${date.millisecondsSinceEpoch}-${Random().nextInt(1 << 20)}',
+        prompt: text,
+        scheduledAt: date,
+        repeat: repeat);
     final store = await _store();
     final tasks = await store.readAll();
     await store.writeAll([...tasks, task]);
     try {
       await _bridge.schedule(task);
     } on PlatformException {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Guardada; la alarma Android no está disponible ahora.')));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content:
+                Text('Guardada; la alarma Android no está disponible ahora.')));
     } on MissingPluginException {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Guardada localmente; las alarmas requieren Android.')));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content:
+                Text('Guardada localmente; las alarmas requieren Android.')));
     }
     await _refresh();
   }
@@ -99,22 +134,33 @@ class _ScheduledTasksScreenState extends State<ScheduledTasksScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('Tareas programadas')),
-        floatingActionButton: FloatingActionButton.extended(onPressed: _create, icon: const Icon(Icons.add), label: const Text('Programar')),
+        floatingActionButton: FloatingActionButton.extended(
+            onPressed: _create,
+            icon: const Icon(Icons.add),
+            label: const Text('Programar')),
         body: FutureBuilder<List<ScheduledTask>>(
           future: _tasks,
           builder: (context, snapshot) {
-            if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+            if (!snapshot.hasData)
+              return const Center(child: CircularProgressIndicator());
             final tasks = snapshot.data!;
-            if (tasks.isEmpty) return const Center(child: Text('No hay tareas programadas.'));
-            return ListView.builder(itemCount: tasks.length, itemBuilder: (context, index) {
-              final task = tasks[index];
-              return ListTile(
-                leading: const Icon(Icons.schedule),
-                title: Text(task.prompt, maxLines: 2, overflow: TextOverflow.ellipsis),
-                subtitle: Text('${task.scheduledAt.toLocal()} · ${task.repeat.name}'),
-                trailing: IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => _delete(task)),
-              );
-            });
+            if (tasks.isEmpty)
+              return const Center(child: Text('No hay tareas programadas.'));
+            return ListView.builder(
+                itemCount: tasks.length,
+                itemBuilder: (context, index) {
+                  final task = tasks[index];
+                  return ListTile(
+                    leading: const Icon(Icons.schedule),
+                    title: Text(task.prompt,
+                        maxLines: 2, overflow: TextOverflow.ellipsis),
+                    subtitle: Text(
+                        '${task.scheduledAt.toLocal()} · ${task.repeat.name}'),
+                    trailing: IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () => _delete(task)),
+                  );
+                });
           },
         ),
       );

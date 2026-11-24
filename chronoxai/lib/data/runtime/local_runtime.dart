@@ -204,6 +204,48 @@ class LocalRuntime {
     }
   }
 
+  /// Inicia un proceso persistente de plugin dentro del rootfs.
+  /// Solo se permite ejecutar scripts bajo `/workspace/.chronox/plugins/`.
+  Future<Process> startPluginProcess(final String guestScript) async {
+    final normalized = p.posix.normalize(guestScript);
+    if (!normalized.startsWith('/workspace/.chronox/plugins/') ||
+        normalized.contains('/../')) {
+      throw ArgumentError.value(
+        guestScript,
+        'guestScript',
+        'Ruta de plugin no permitida.',
+      );
+    }
+    final current = await status();
+    if (!current.isReady) {
+      throw StateError('No se puede iniciar un plugin: ${current.title}.');
+    }
+    final config = await _config(workingDirectory: '/workspace');
+    final args = ProotCommandBuilder.build(
+      config,
+      inner: <String>[
+        '/bin/bash',
+        '-lc',
+        'python3 -u ${_shellQuote(normalized)}',
+      ],
+    );
+    final environment = ProotCommandBuilder.hostEnvironment(
+      nativeLibraryDir: p.dirname(config.prootBinary),
+      tempDir: paths.tempDir,
+      prootLoader: config.prootLoader,
+    );
+    await Directory(paths.tempDir).create(recursive: true);
+    return Process.start(
+      config.prootBinary,
+      args,
+      environment: environment,
+      workingDirectory: paths.filesDir,
+    );
+  }
+
+  static String _shellQuote(final String value) =>
+      "'${value.replaceAll("'", "'\\''")}'";
+
   /// Ejecuta un comando dentro del contenedor y espera a que termine.
   ///
   /// Es el camino que usan las herramientas del agente: sin PTY, con la salida

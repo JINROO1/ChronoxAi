@@ -154,12 +154,23 @@ test('mi plugin registra su herramienta y la retira al desmontar', () async {
 });
 ```
 
-## 8. Plugins de terceros
+## 8. Plugins externos en runtime (experimental)
 
-En v1 solo se admiten plugins **Dart compilados** con la app o incluidos en una build. No hay
-`eval` ni carga de código interpretado: el runtime ya ejecuta binarios de Linux, y añadir
-ejecución de código arbitrario en el proceso de la app sería una superficie de ataque
-inaceptable.
+Chronox puede cargar un plugin de herramientas desde
+`<workspace>/.chronox/plugins/<id>/` sin recompilar el APK. Cada carpeta contiene:
 
-La carga desde `filesDir/plugins/<id>/` está en el roadmap: se validará el manifest y las
-capacidades, y se mostrará el aviso de riesgo antes de montar.
+- `manifest.json`: `PluginManifest` JSON, con `kind: "tool"` y capacidades declaradas.
+- `plugin.py`: proceso Python del rootfs Debian que habla JSON-RPC 2.0, una petición JSON
+  por línea en stdin y una respuesta por línea en stdout.
+
+El host envía `initialize`, `tools/list`, `tools/call` y al cerrar `shutdown`. La salida
+no-JSON de logs debe ir a stderr. Todas las herramientas externas exigen aprobación del
+usuario aunque el plugin pida lo contrario. Ejemplo funcional:
+`chronoxai/assets/plugins/echo/`.
+
+**Límite de seguridad:** proot no es un sandbox. El proceso corre con el UID de la app,
+con los binds del runtime y el confinamiento del sistema de archivos al workspace; un plugin
+malicioso podría intentar abusar de ese entorno. Instala solo plugins que hayas revisado.
+El APK no evalúa código Python dentro del proceso Flutter: el script corre como proceso
+separado dentro de Debian. Android sin root no ofrece Landlock/Seatbelt para convertirlo en
+una frontera de seguridad fuerte.

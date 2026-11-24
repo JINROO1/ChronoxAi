@@ -702,6 +702,8 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
           ),
           workspaceDir: Directory(runtime.hostWorkspace),
           mcpServerUrl: settings.mcpServerUrl,
+          startPluginProcess:
+              status.isReady ? runtime.startPluginProcess : null,
         ),
         mode: mode,
         approvalLevel: level,

@@ -20,6 +20,7 @@ import '../../domain/agent/tool_registry.dart';
 import '../../domain/llm/llm_types.dart';
 import '../../domain/modes/work_modes.dart';
 import '../../domain/plugins/builtin_plugins.dart';
+import '../../domain/plugins/external_plugin_loader.dart';
 import '../../domain/plugins/plugin_api.dart';
 import '../../domain/plugins/plugin_runtime.dart';
 import '../../domain/plugins/seams.dart';
@@ -272,6 +273,7 @@ class SessionBootstrap {
     this.terminals,
     this.network,
     this.mcpServerUrl = '',
+    this.startPluginProcess,
   });
 
   final LlmProvider provider;
@@ -281,6 +283,7 @@ class SessionBootstrap {
   final TerminalsSeam? terminals;
   final NetworkSeam? network;
   final String mcpServerUrl;
+  final Future<Process> Function(String guestScript)? startPluginProcess;
 }
 
 /// Arranca una sesión completa: log, registro de herramientas, plugins y motor.
@@ -382,6 +385,18 @@ Future<SessionRuntime> startSession(
 
   for (final pluginId in mode.pluginIds) {
     await host.mount(pluginId);
+  }
+
+  final startPluginProcess = bootstrap.startPluginProcess;
+  if (startPluginProcess != null) {
+    final pluginDirectory = Directory(
+      '${bootstrap.workspaceDir.path}/.chronox/plugins',
+    );
+    await ExternalPluginLoader.loadAndMount(
+      pluginDirectory: pluginDirectory,
+      host: host,
+      startProcess: startPluginProcess,
+    );
   }
 
   return SessionRuntime(

@@ -151,6 +151,7 @@ dsh tiene tareas programadas (experimental) y jobs en segundo plano.
 - [x] Canal Android `app.chronoxai/scheduler` + `AlarmManager`
       inexacto y `BroadcastReceiver` con notificación para precargar el prompt
 - [x] Pantalla de tareas programadas (crear, listar, borrar)
+      (CI `45306569789` en verde; channel fake test incluido)
 - [ ] Vista de trabajos en segundo plano: terminales activas (ya existe
       `terminal_list`; se expone en UI)
 - [x] Tests del store JSON (CI `45306207341` en verde)

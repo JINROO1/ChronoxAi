@@ -106,8 +106,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   Future<void> _quickSettings() async {
     final session = ref.read(sessionProvider);
     PluginMode mode = ref.read(activeModeProvider);
-    ApprovalLevel level = session?.policy.level ??
-        ref.read(approvalLevelProvider);
+    ApprovalLevel level =
+        session?.policy.level ?? ref.read(approvalLevelProvider);
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -338,21 +338,21 @@ class _SessionHeader extends StatelessWidget {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: <Widget>[
-                    StatusPill(
-                      label: session.mode.name,
-                      dense: true,
-                      color: ChronoxColors.accent,
-                      icon: Icons.layers_outlined,
-                    ),
-                    const SizedBox(width: 6),
-                    StatusPill(
-                      label: session.policy.level.label,
-                      dense: true,
-                      color: session.policy.level == ApprovalLevel.yolo
-                          ? ChronoxColors.danger
-                          : ChronoxColors.primary,
-                      icon: Icons.shield_outlined,
-                    ),
+                      StatusPill(
+                        label: session.mode.name,
+                        dense: true,
+                        color: ChronoxColors.accent,
+                        icon: Icons.layers_outlined,
+                      ),
+                      const SizedBox(width: 6),
+                      StatusPill(
+                        label: session.policy.level.label,
+                        dense: true,
+                        color: session.policy.level == ApprovalLevel.yolo
+                            ? ChronoxColors.danger
+                            : ChronoxColors.primary,
+                        icon: Icons.shield_outlined,
+                      ),
                     ],
                   ),
                 ),
@@ -373,9 +373,11 @@ class _SessionHeader extends StatelessWidget {
               }
             },
             itemBuilder: (context) => const <PopupMenuEntry<String>>[
-              PopupMenuItem(value: 'settings', child: Text('Modo y confirmación')),
+              PopupMenuItem(
+                  value: 'settings', child: Text('Modo y confirmación')),
               PopupMenuItem(value: 'new', child: Text('Nueva sesión')),
-              PopupMenuItem(value: 'history', child: Text('Sesiones e historial')),
+              PopupMenuItem(
+                  value: 'history', child: Text('Sesiones e historial')),
             ],
           ),
           IconButton(

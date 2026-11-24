@@ -42,7 +42,8 @@ class DshBundleDiagnostic {
 
   Map<String, Object?> toJson() => <String, Object?>{
         'bundle': bundleName,
-        'classification': canImportAsMcp ? 'mcp_candidate' : 'manual_port_required',
+        'classification':
+            canImportAsMcp ? 'mcp_candidate' : 'manual_port_required',
         'supported': supported,
         'unsupported': unsupported,
         'actions': <String>[
@@ -61,14 +62,22 @@ class DshBundleDiagnostic {
     required Iterable<String> files,
     Map<String, Object?> metadata = const <String, Object?>{},
   }) {
-    final normalized = files.map((final path) => path.replaceAll('\\', '/').toLowerCase()).toList();
+    final normalized = files
+        .map((final path) => path.replaceAll('\\', '/').toLowerCase())
+        .toList();
     final metadataText = jsonEncode(metadata).toLowerCase();
-    final hasCordisPatch = normalized.any((final path) => path.endsWith('cordis.patch.yml'));
+    final hasCordisPatch =
+        normalized.any((final path) => path.endsWith('cordis.patch.yml'));
     final hasNodePlugins = normalized.any((final path) =>
-        path.endsWith('package.json') || path.contains('/plugins/') && path.endsWith('.js'));
-    final hasUi = metadataText.contains('ui') || normalized.any((final path) =>
-        path.contains('/ui/') || path.endsWith('.tsx') || path.endsWith('.vue'));
-    final hasService = metadataText.contains('service') || metadataText.contains('inject') ||
+        path.endsWith('package.json') ||
+        path.contains('/plugins/') && path.endsWith('.js'));
+    final hasUi = metadataText.contains('ui') ||
+        normalized.any((final path) =>
+            path.contains('/ui/') ||
+            path.endsWith('.tsx') ||
+            path.endsWith('.vue'));
+    final hasService = metadataText.contains('service') ||
+        metadataText.contains('inject') ||
         metadataText.contains('provider');
     return DshBundleDiagnostic(
       bundleName: bundleName,

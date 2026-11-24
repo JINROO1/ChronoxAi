@@ -78,8 +78,9 @@ class RuntimeStatus {
               'app. Suele ocurrir en dispositivos con políticas de seguridad '
               'estrictas o en apps con targetSdk reciente.',
         RuntimeProblem.missingBinaries =>
-          'El APK no incluye los binarios de proot. Es un fallo de compilación: '
-              'revisa que jniLibs contenga libproot.so y libproot_loader.so.',
+          'El APK no incluye proot. Revisa que jniLibs contenga libproot.so; '
+              'si el loader no viene separado, PRoot lo desempaqueta en el '
+              'directorio privado de runtime.',
         RuntimeProblem.missingRootfs =>
           'Todavía no hay un sistema Linux instalado. Descarga Debian para poder '
               'ejecutar comandos.',
@@ -196,16 +197,25 @@ class LocalRuntime {
     }
 
     final proot = p.join(nativeLibraryDir, 'libproot.so');
-    final loader = p.join(nativeLibraryDir, 'libproot_loader.so');
-    if (!File(proot).existsSync() || !File(loader).existsSync()) {
+    if (!File(proot).existsSync()) {
       return RuntimeStatus(
         isReady: false,
         problem: RuntimeProblem.missingBinaries,
-        detail: 'Se esperaban $proot y $loader.',
+        detail: 'No se encontró el ejecutable de proot empaquetado: $proot.',
       );
     }
     _prootPath = proot;
-    _loaderPath = loader;
+
+    // El loader puede venir separado dentro de jniLibs. Algunas builds de
+    // Termux lo incluyen embebido en proot; en ese caso PROOT_UNBUNDLE_LOADER
+    // debe apuntar al destino privado escribible donde PRoot lo desempaqueta.
+    final bundledLoader = p.join(nativeLibraryDir, 'libproot_loader.so');
+    if (File(bundledLoader).existsSync()) {
+      _loaderPath = bundledLoader;
+    } else {
+      await Directory(paths.runtimeDir).create(recursive: true);
+      _loaderPath = paths.prootLoaderPath;
+    }
 
     if (!await _prepareGuestEmulator(facts)) {
       return RuntimeStatus(
@@ -628,8 +638,7 @@ class LocalRuntime {
 
     return ProotConfig(
       prootBinary: _prootPath ?? p.join(nativeLibraryDir, 'libproot.so'),
-      prootLoader:
-          _loaderPath ?? p.join(nativeLibraryDir, 'libproot_loader.so'),
+      prootLoader: _loaderPath ?? paths.prootLoaderPath,
       rootfs: paths.rootfsDir,
       qemuCommand: _qemuPath,
       workingDirectory: workingDirectory ?? guestWorkspace,

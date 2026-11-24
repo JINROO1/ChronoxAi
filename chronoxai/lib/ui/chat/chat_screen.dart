@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../../domain/agent/approval_policy.dart';
+import '../../platform/scheduler_channel.dart';
 import '../settings/settings_screen.dart';
 import '../state/app_state.dart';
 import '../widgets/chronox_widgets.dart';
@@ -21,14 +23,41 @@ class ChatScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends ConsumerState<ChatScreen> {
+class _ChatScreenState extends ConsumerState<ChatScreen>
+    with WidgetsBindingObserver {
   final TextEditingController _input = TextEditingController();
   final ScrollController _scroll = ScrollController();
   final FocusNode _inputFocus = FocusNode();
   int _lastKnownLength = -1;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _loadScheduledPrompt();
+  }
+
+  @override
+  void didChangeAppLifecycleState(final AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _loadScheduledPrompt();
+  }
+
+  Future<void> _loadScheduledPrompt() async {
+    try {
+      final prompt = await const SchedulerChannel().takeLaunchPrompt();
+      if (prompt != null && prompt.isNotEmpty && mounted) {
+        _input.text = prompt;
+      }
+    } on PlatformException {
+      // Desktop/test environment has no Android scheduler bridge.
+    } on MissingPluginException {
+      // No-op outside Android.
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _input.dispose();
     _scroll.dispose();
     _inputFocus.dispose();

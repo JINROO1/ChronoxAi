@@ -15,6 +15,7 @@ import '../state/app_state.dart';
 import '../widgets/chronox_widgets.dart';
 import 'diagnostics_screen.dart';
 import 'install_screen.dart';
+import 'scheduled_tasks_screen.dart';
 import 'provider_selector.dart';
 
 /// Ajustes: proveedor de modelo, modo de trabajo, permisos y estado del runtime.
@@ -148,6 +149,20 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           const SectionLabel('Sesión'),
+          GlassPanel(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            child: SettingsRow(
+              icon: Icons.schedule_rounded,
+              title: 'Tareas programadas',
+              subtitle: 'Programa instrucciones para más tarde',
+              onTap: () => Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  builder: (final context) => const ScheduledTasksScreen(),
+                ),
+              ),
+              trailing: const Icon(Icons.chevron_right_rounded),
+            ),
+          ),
           GlassPanel(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
             child: Column(

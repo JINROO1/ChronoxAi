@@ -33,6 +33,7 @@ class MainActivity : FlutterActivity() {
     private val platformChannel = "app.chronoxai/platform"
     private val permissionsChannel = "app.chronoxai/permissions"
     private val ptyChannelName = "app.chronoxai/pty"
+    private val schedulerChannelName = "app.chronoxai/scheduler"
 
     private val sessions = mutableMapOf<Int, PtySession>()
     private val nextSessionId = AtomicInteger(1)
@@ -41,6 +42,11 @@ class MainActivity : FlutterActivity() {
     /** Resultado pendiente del diálogo de permisos, que es asíncrono. */
     private var pendingPermissionResult: MethodChannel.Result? = null
     private val notificationRequestCode = 4001
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+    }
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -75,6 +81,35 @@ class MainActivity : FlutterActivity() {
 
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
+            schedulerChannelName,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "schedule" -> {
+                    val id = call.argument<String>("id")
+                    val prompt = call.argument<String>("prompt")
+                    val atMillis = call.argument<Long>("atMillis")
+                    if (id.isNullOrBlank() || prompt.isNullOrBlank() || atMillis == null) {
+                        result.error("invalid_task", "Faltan datos de la tarea.", null)
+                    } else {
+                        val repeatDays = call.argument<Int>("repeatDays") ?: 0
+                        result.success(schedulePrompt(id, prompt, atMillis, repeatDays))
+                    }
+                }
+                "cancel" -> {
+                    val id = call.argument<String>("id")
+                    if (id == null) result.error("invalid_task", "Falta el id.", null)
+                    else { cancelPrompt(id); result.success(null) }
+                }
+                "takeLaunchPrompt" -> {
+                    result.success(intent.getStringExtra(ScheduledPromptReceiver.EXTRA_PROMPT))
+                    intent.removeExtra(ScheduledPromptReceiver.EXTRA_PROMPT)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
             permissionsChannel,
         ).setMethodCallHandler { call, result ->
             when (call.method) {
@@ -94,6 +129,33 @@ class MainActivity : FlutterActivity() {
                 }
                 else -> result.notImplemented()
             }
+        }
+    }
+
+    private fun schedulePrompt(id: String, prompt: String, atMillis: Long, repeatDays: Int): Boolean {
+        val alarm = getSystemService(ALARM_SERVICE) as android.app.AlarmManager
+        val taskIntent = Intent(this, ScheduledPromptReceiver::class.java).apply {
+            putExtra(ScheduledPromptReceiver.EXTRA_ID, id)
+            putExtra(ScheduledPromptReceiver.EXTRA_PROMPT, prompt)
+            putExtra(ScheduledPromptReceiver.EXTRA_REPEAT_DAYS, repeatDays)
+        }
+        val pending = android.app.PendingIntent.getBroadcast(
+            this, id.hashCode(), taskIntent,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+        )
+        alarm.setAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, atMillis, pending)
+        return true
+    }
+
+    private fun cancelPrompt(id: String) {
+        val taskIntent = Intent(this, ScheduledPromptReceiver::class.java)
+        val pending = android.app.PendingIntent.getBroadcast(
+            this, id.hashCode(), taskIntent,
+            android.app.PendingIntent.FLAG_NO_CREATE or android.app.PendingIntent.FLAG_IMMUTABLE,
+        )
+        if (pending != null) {
+            (getSystemService(ALARM_SERVICE) as android.app.AlarmManager).cancel(pending)
+            pending.cancel()
         }
     }
 

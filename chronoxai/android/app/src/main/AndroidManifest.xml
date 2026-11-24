@@ -44,6 +44,10 @@
             </intent-filter>
         </activity>
 
+        <receiver
+            android:name=".ScheduledPromptReceiver"
+            android:exported="false" />
+
         <service
             android:name=".TerminalService"
             android:exported="false"

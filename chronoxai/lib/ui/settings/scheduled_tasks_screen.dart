@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../data/scheduler/scheduled_task_store.dart';
@@ -46,7 +47,7 @@ class _ScheduledTasksScreenState extends State<ScheduledTasksScreen> {
                     labelText: 'Instrucción para Chronox')),
             const SizedBox(height: 12),
             DropdownButtonFormField<TaskRepeat>(
-              initialValue: repeat,
+              value: repeat,
               decoration: const InputDecoration(labelText: 'Repetición'),
               items: TaskRepeat.values
                   .map((value) => DropdownMenuItem(

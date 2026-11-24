@@ -468,9 +468,8 @@ class SettingsScreen extends ConsumerWidget {
               obscureText: obscure,
               minLines: maxLines > 1 ? 3 : 1,
               maxLines: maxLines,
-              keyboardType: maxLines > 1
-                  ? TextInputType.multiline
-                  : TextInputType.text,
+              keyboardType:
+                  maxLines > 1 ? TextInputType.multiline : TextInputType.text,
               style: const TextStyle(
                 color: ChronoxColors.textPrimary,
                 fontSize: 14,

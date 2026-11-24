@@ -698,10 +698,12 @@ class _McpPlugin extends ChronoxPlugin {
     late final Future<String> Function(String, Map<String, Object?>) callTool;
     McpStdioClient? stdioClient;
     if (configured.startsWith('stdio:')) {
-      final command = parseMcpStdioCommand(configured.substring('stdio:'.length));
+      final command =
+          parseMcpStdioCommand(configured.substring('stdio:'.length));
       final startProcess = startMcpProcess;
       if (command.isEmpty || command.first.isEmpty || startProcess == null) {
-        throw const FormatException('Configura stdio:npx --yes paquete-mcp y un runtime Linux listo.');
+        throw const FormatException(
+            'Configura stdio:npx --yes paquete-mcp y un runtime Linux listo.');
       }
       stdioClient = McpStdioClient(await startProcess(command));
       _stdioClients.add(stdioClient);
@@ -712,9 +714,11 @@ class _McpPlugin extends ChronoxPlugin {
       if (endpoint == null ||
           (endpoint.scheme != 'https' && endpoint.scheme != 'http') ||
           endpoint.host.isEmpty) {
-        throw const FormatException('Configura una URL MCP HTTP(S) o stdio:<comando>.');
+        throw const FormatException(
+            'Configura una URL MCP HTTP(S) o stdio:<comando>.');
       }
-      final client = McpHttpClient(network: context.services.network, endpoint: endpoint);
+      final client =
+          McpHttpClient(network: context.services.network, endpoint: endpoint);
       listTools = client.listTools;
       callTool = client.callTool;
     }
@@ -739,8 +743,12 @@ class _McpPlugin extends ChronoxPlugin {
       final schema = remote['inputSchema'];
       final inputSchema = schema is Map<String, Object?>
           ? schema
-          : <String, Object?>{'type': 'object', 'properties': <String, Object?>{}};
-      final description = (remote['description'] as String?) ?? 'MCP: $remoteName';
+          : <String, Object?>{
+              'type': 'object',
+              'properties': <String, Object?>{}
+            };
+      final description =
+          (remote['description'] as String?) ?? 'MCP: $remoteName';
       context.provideTool(PluginTool(
         name: safeName,
         description: description,
@@ -750,7 +758,8 @@ class _McpPlugin extends ChronoxPlugin {
           try {
             return ToolOutcome(content: await callTool(remoteName, args));
           } catch (error) {
-            return ToolOutcome.error('Error en la herramienta MCP $remoteName: $error');
+            return ToolOutcome.error(
+                'Error en la herramienta MCP $remoteName: $error');
           }
         },
       ));

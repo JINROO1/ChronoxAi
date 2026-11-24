@@ -41,7 +41,8 @@ List<String> parseMcpStdioCommand(String source) {
     }
   }
   if (escaped || quote != null) {
-    throw const FormatException('Comillas o escape sin cerrar en el comando MCP.');
+    throw const FormatException(
+        'Comillas o escape sin cerrar en el comando MCP.');
   }
   finish();
   return tokens;

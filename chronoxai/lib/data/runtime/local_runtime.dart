@@ -267,17 +267,18 @@ class LocalRuntime {
       final pinned = PinnedMcpPackage.parse(command);
       final npmCheck = await run('command -v npm');
       if (!npmCheck.isSuccess) {
-        throw StateError('Instala nodejs y npm en Debian para usar paquetes MCP.');
+        throw StateError(
+            'Instala nodejs y npm en Debian para usar paquetes MCP.');
       }
-      final packageId = sha256
-          .convert(utf8.encode(pinned.spec))
-          .toString()
-          .substring(0, 20);
-      final hostDir = Directory(p.join(hostWorkspace, '.chronox', 'mcp-packages', packageId));
+      final packageId =
+          sha256.convert(utf8.encode(pinned.spec)).toString().substring(0, 20);
+      final hostDir = Directory(
+          p.join(hostWorkspace, '.chronox', 'mcp-packages', packageId));
       await hostDir.create(recursive: true);
       final packageJson = File(p.join(hostDir.path, 'package.json'));
       final lockFile = File(p.join(hostDir.path, 'package-lock.json'));
-      final expectedJson = const JsonEncoder.withIndent('  ').convert(<String, Object?>{
+      final expectedJson =
+          const JsonEncoder.withIndent('  ').convert(<String, Object?>{
         'name': 'chronox-mcp-$packageId',
         'version': '1.0.0',
         'private': true,
@@ -298,7 +299,8 @@ class LocalRuntime {
           timeout: const Duration(minutes: 10),
         );
         if (!lockResult.isSuccess || !await lockFile.exists()) {
-          throw StateError('No se pudo generar package-lock.json: ${lockResult.stderr}');
+          throw StateError(
+              'No se pudo generar package-lock.json: ${lockResult.stderr}');
         }
       }
       NpmLockfilePolicy.validateJson(
@@ -318,7 +320,8 @@ class LocalRuntime {
         p.join(installPrefix, 'node_modules', '.bin', pinned.binary),
       ];
     } else {
-      if (!const <String>{'node', 'nodejs', 'npm', 'npx'}.contains(command.first)) {
+      if (!const <String>{'node', 'nodejs', 'npm', 'npx'}
+          .contains(command.first)) {
         throw ArgumentError.value(
             command, 'command', 'Usa node, npm, npx o npm-package fijado.');
       }

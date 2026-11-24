@@ -1,6 +1,7 @@
 /// A package/binary pair for isolated npm-based MCP servers.
 class PinnedMcpPackage {
-  const PinnedMcpPackage({required this.package, required this.version, required this.binary});
+  const PinnedMcpPackage(
+      {required this.package, required this.version, required this.binary});
 
   final String package;
   final String version;
@@ -23,7 +24,8 @@ class PinnedMcpPackage {
     final package = raw.substring(0, separator);
     final version = raw.substring(separator + 1);
     final validPackage = RegExp(r'^(?:@[a-z0-9._-]+/)?[a-z0-9._-]+$');
-    final exactVersion = RegExp(r'^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$');
+    final exactVersion =
+        RegExp(r'^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$');
     if (!validPackage.hasMatch(package) || !exactVersion.hasMatch(version)) {
       throw const FormatException(
         'Nombre inválido o versión no exacta; no se permiten tags como latest.',
@@ -31,7 +33,8 @@ class PinnedMcpPackage {
     }
     final binary = command[2];
     if (!RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(binary) ||
-        binary == '.' || binary == '..') {
+        binary == '.' ||
+        binary == '..') {
       throw const FormatException('Nombre de ejecutable npm inválido.');
     }
     return PinnedMcpPackage(package: package, version: version, binary: binary);

@@ -120,7 +120,8 @@ class DshBundleArchiveInspector {
       final normalized = file.name.replaceAll('\\', '/');
       if (normalized.startsWith('/') ||
           normalized.split('/').any((final segment) => segment == '..')) {
-        throw const FormatException('El bundle contiene rutas fuera del archivo.');
+        throw const FormatException(
+            'El bundle contiene rutas fuera del archivo.');
       }
       if (file.size > maxEntryBytes) {
         throw FormatException('Entrada demasiado grande: $normalized');
@@ -132,10 +133,12 @@ class DshBundleArchiveInspector {
       paths.add(normalized);
       if (normalized.toLowerCase().endsWith('cordis.patch.yml') ||
           normalized.toLowerCase().endsWith('cordis.patch.yaml')) {
-        patchFiles.add(utf8.decode(file.content as List<int>, allowMalformed: true));
+        patchFiles
+            .add(utf8.decode(file.content as List<int>, allowMalformed: true));
       }
       if (normalized.toLowerCase().endsWith('package.json')) {
-        packageText ??= utf8.decode(file.content as List<int>, allowMalformed: true);
+        packageText ??=
+            utf8.decode(file.content as List<int>, allowMalformed: true);
       }
     }
 

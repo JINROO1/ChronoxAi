@@ -5,6 +5,7 @@ import '../core/theme.dart';
 import 'chat/chat_screen.dart';
 import 'plugins/plugins_screen.dart';
 import 'settings/settings_screen.dart';
+import 'terminal/multi_terminal_screen.dart';
 
 /// Contenedor principal: barra inferior con las tres áreas de la app.
 ///
@@ -36,7 +37,24 @@ class _AppShellState extends ConsumerState<AppShell> {
       icon: Icons.tune_outlined,
       activeIcon: Icons.tune,
     ),
+    _Destination(
+      label: 'Terminal',
+      icon: Icons.terminal_outlined,
+      activeIcon: Icons.terminal,
+    ),
   ];
+
+  void _selectDestination(int index) {
+    if (index == 3) {
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => const MultiTerminalScreen(),
+        ),
+      );
+      return;
+    }
+    setState(() => _index = index);
+  }
 
   @override
   Widget build(final BuildContext context) {
@@ -53,7 +71,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       bottomNavigationBar: _ChronoxNavBar(
         index: _index,
         destinations: _destinations,
-        onSelected: (final i) => setState(() => _index = i),
+        onSelected: _selectDestination,
       ),
     );
   }

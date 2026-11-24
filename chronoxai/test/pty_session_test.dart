@@ -123,6 +123,41 @@ void main() {
       expect(recibido.join(), 'hola\n');
     });
 
+    test('varias sesiones del mismo canal reciben solo su salida', () async {
+      final canalReal = canal.instalar('app.chronoxai/pty');
+      final first = PtySession(command: 'shell-1', channel: canalReal);
+      final second = PtySession(command: 'shell-2', channel: canalReal);
+      await first.start(
+        binary: '/bin/sh',
+        arguments: const <String>[],
+        environment: const <String, String>{},
+      );
+      await second.start(
+        binary: '/bin/sh',
+        arguments: const <String>[],
+        environment: const <String, String>{},
+      );
+      final firstOutput = <String>[];
+      final secondOutput = <String>[];
+      first.output.listen((bytes) => firstOutput.add(String.fromCharCodes(bytes)));
+      second.output.listen((bytes) => secondOutput.add(String.fromCharCodes(bytes)));
+
+      await canal.emitir('output', <String, Object?>{
+        'id': 1,
+        'data': Uint8List.fromList('uno'.codeUnits),
+      });
+      await canal.emitir('output', <String, Object?>{
+        'id': 2,
+        'data': Uint8List.fromList('dos'.codeUnits),
+      });
+      await Future<void>.delayed(Duration.zero);
+
+      expect(firstOutput, <String>['uno']);
+      expect(secondOutput, <String>['dos']);
+      await first.close();
+      await second.close();
+    });
+
     test('el código de salida se publica y cierra la sesión', () async {
       final canalReal = canal.instalar('app.chronoxai/pty');
       final sesion = PtySession(command: 'proot', channel: canalReal);

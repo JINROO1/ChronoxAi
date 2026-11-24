@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -118,7 +120,18 @@ class _SessionsBrowserState extends ConsumerState<_SessionsBrowser> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          trailing: const Icon(Icons.chevron_right),
+                          trailing: PopupMenuButton<String>(
+                            tooltip: 'Acciones del chat',
+                            onSelected: (action) {
+                              if (action == 'delete') _delete(session);
+                            },
+                            itemBuilder: (context) => const <PopupMenuEntry<String>>[
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: Text('Eliminar chat'),
+                              ),
+                            ],
+                          ),
                           onTap: () => _showTrajectory(context, session),
                         );
                       },
@@ -131,6 +144,46 @@ class _SessionsBrowserState extends ConsumerState<_SessionsBrowser> {
         ),
       ),
     );
+  }
+
+  Future<void> _delete(final ArchivedSession archived) async {
+    final activeId = ref.read(sessionProvider)?.log.sessionId;
+    if (activeId == archived.id) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se puede eliminar el chat activo.')),
+      );
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Eliminar chat'),
+        content: Text('¿Eliminar “${archived.title}” permanentemente?'),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await File(archived.path).delete();
+      if (mounted) {
+        setState(() => _sessions = widget.archive.list(query: _query.text));
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo eliminar el chat: $error')),
+        );
+      }
+    }
   }
 
   Future<void> _resume(final ArchivedSession session) async {

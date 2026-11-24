@@ -209,10 +209,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             message:
                 'Abre una sesión para que el agente pueda leer, escribir y '
                 'ejecutar comandos en el contenedor Linux.',
-            action: FilledButton.icon(
-              onPressed: () => showNewSessionDialog(context, ref),
-              icon: const Icon(Icons.play_arrow_rounded),
-              label: const Text('Abrir sesión'),
+            action: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                FilledButton.icon(
+                  onPressed: () => showNewSessionDialog(context, ref),
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  label: const Text('Abrir sesión'),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () => showSessionsBrowser(context),
+                  icon: const Icon(Icons.forum_outlined),
+                  label: const Text('Chats guardados'),
+                ),
+              ],
             ),
           ),
         ),

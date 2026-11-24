@@ -1,12 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../../core/theme.dart';
 import '../state/app_state.dart';
-import '../terminal/terminal_controller.dart';
-import '../terminal/terminal_view.dart';
+import '../terminal/multi_terminal_screen.dart';
 
 /// Una entrada de la transcripción, con el estilo que le corresponde.
 ///
@@ -272,119 +267,10 @@ class _Notice extends StatelessWidget {
   }
 }
 
-/// Hoja inferior con una terminal interactiva sobre el contenedor.
+/// Abre la consola interactiva completa, con pestañas para varios PTY.
 Future<void> openTerminalSheet(final BuildContext context) =>
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (final context) => const _TerminalLauncher(),
-    );
-
-class _TerminalLauncher extends ConsumerStatefulWidget {
-  const _TerminalLauncher();
-
-  @override
-  ConsumerState<_TerminalLauncher> createState() => _TerminalLauncherState();
-}
-
-class _TerminalLauncherState extends ConsumerState<_TerminalLauncher> {
-  TerminalController? _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    // El runtime puede tardar (lee el canal nativo); se abre la sesión en
-    // cuanto esté disponible y se muestra el estado mientras tanto.
-    unawaited(_abrir());
-  }
-
-  Future<void> _abrir() async {
-    try {
-      final runtime = await ref.read(localRuntimeProvider.future);
-      if (!mounted) return;
-      final controller = TerminalController(runtime: runtime);
-      setState(() => _controller = controller);
-      await controller.open();
-    } catch (error) {
-      // Si el runtime ni siquiera se puede leer (canal nativo ausente, fichero
-      // bloqueado), la pantalla se queda en el indicador de carga; se registra
-      // para el diagnóstico en vez de tragárselo.
-      debugPrint('No se pudo abrir la terminal: $error');
-    }
-  }
-
-  @override
-  void dispose() {
-    // Cerrar el proceso al salir es obligatorio: si no, el shell del invitado
-    // sigue vivo y consumiendo batería detrás de una pantalla que ya no existe.
-    unawaited(_controller?.disposeSession() ?? Future<void>.value());
-    _controller?.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(final BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.94,
-      minChildSize: 0.75,
-      maxChildSize: 0.98,
-      builder: (final context, final controller) => Container(
-        decoration: const BoxDecoration(
-          color: ChronoxColors.backgroundElevated,
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(ChronoxRadius.lg),
-          ),
-          border: Border(
-            top: BorderSide(color: ChronoxColors.borderGlow),
-          ),
-        ),
-        child: Column(
-          children: <Widget>[
-            Container(
-              margin: const EdgeInsets.only(top: 10, bottom: 6),
-              width: 38,
-              height: 4,
-              decoration: BoxDecoration(
-                color: ChronoxColors.borderGlow,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 4, 10, 10),
-              child: Row(
-                children: <Widget>[
-                  const Icon(
-                    Icons.terminal_rounded,
-                    size: 17,
-                    color: ChronoxColors.primary,
-                  ),
-                  const SizedBox(width: 9),
-                  const Text(
-                    'Terminal',
-                    style: TextStyle(
-                      color: ChronoxColors.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close_rounded, size: 19),
-                    color: ChronoxColors.textMuted,
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: _controller == null
-                  ? const Center(child: CircularProgressIndicator())
-                  : TerminalView(controller: _controller!),
-            ),
-          ],
-        ),
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => const MultiTerminalScreen(),
       ),
     );
-  }
-}

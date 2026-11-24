@@ -27,7 +27,18 @@ class PtySession {
 
   final MethodChannel _channel;
 
-  static Future<List<Map<String, Object?>>> listActive({
+  // MethodChannel tiene un único callback por canal. Varias terminales no deben
+  // sobrescribirse el handler mutuamente: enruta los eventos nativos por el id
+  // del PTY a su sesión Dart correspondiente.
+  static final Map<int, PtySession> _sessionsById = <int, PtySession>{};
+
+  static Future<void> _dispatchNative(MethodCall call) async {
+    final args = call.arguments;
+    final id = args is Map ? args['id'] : null;
+    if (id is int) await _sessionsById[id]?._handleNative(call);
+  }
+
+  static Future<List<Map<String, Object?>>> listActive({ 
     final MethodChannel? channel,
   }) async {
     final rows = await (channel ?? const MethodChannel('app.chronoxai/pty'))
@@ -67,7 +78,7 @@ class PtySession {
   }) async {
     if (_state == PtyState.running) return true;
 
-    _channel.setMethodCallHandler(_handleNative);
+    _channel.setMethodCallHandler(_dispatchNative);
 
     try {
       final id = await _channel.invokeMethod<int>('start', <String, Object?>{
@@ -81,6 +92,7 @@ class PtySession {
         return false;
       }
       _id = id;
+      _sessionsById[id] = this;
       _state = PtyState.running;
       return true;
     } on PlatformException {
@@ -154,6 +166,7 @@ class PtySession {
   Future<void> close() async {
     final id = _id;
     _id = null;
+    if (id != null) _sessionsById.remove(id);
     _state = PtyState.exited;
     if (id != null) {
       try {
@@ -166,7 +179,6 @@ class PtySession {
     }
     await _output.close();
     await _exit.close();
-    _channel.setMethodCallHandler(null);
   }
 }
 

@@ -164,7 +164,7 @@ dsh la marca experimental; aquí se implementa con el reconocimiento del sistema
 - [x] Canal `app.chronoxai/voice` usando reconocimiento de voz del sistema
 - [x] Permiso `RECORD_AUDIO` solicitado al primer uso
 - [x] Botón de micrófono en el composer: dicta y rellena el campo
-- [x] Tests del lado Dart con canal falso
+- [x] Tests del lado Dart con canal falso (CI `45307427771` en verde)
 
 ## Fase 13 — Firma y publicación
 

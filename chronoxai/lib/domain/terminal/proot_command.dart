@@ -169,8 +169,8 @@ abstract final class ProotCommandBuilder {
 
   /// Variables de entorno del **proceso proot** en el dispositivo (no del invitado).
   ///
-  /// `LD_LIBRARY_PATH` debe apuntar a donde están `libtalloc` y
-  /// `libandroid-shmem`, o proot no arranca con "library not found".
+  /// `LD_LIBRARY_PATH` apunta a los JNI extraídos y al directorio temporal,
+  /// donde LocalRuntime crea el alias `libtalloc.so.2` que proot necesita.
   static Map<String, String> hostEnvironment({
     required final String nativeLibraryDir,
     required final String tempDir,
@@ -179,7 +179,7 @@ abstract final class ProotCommandBuilder {
   }) {
     return <String, String>{
       // Dependencias dinámicas de proot.
-      'LD_LIBRARY_PATH': nativeLibraryDir,
+      'LD_LIBRARY_PATH': '$nativeLibraryDir:$tempDir',
       // proot escribe su loader y ficheros temporales aquí; debe ser escribible.
       'PROOT_TMP_DIR': tempDir,
       // Evita que proot intente desempaquetar el loader en una ruta no escribible.

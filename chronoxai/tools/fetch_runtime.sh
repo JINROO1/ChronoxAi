@@ -312,15 +312,6 @@ for lib in libtalloc.so libandroid-shmem.so; do
   fi
 done
 
-# El ELF de proot solicita el SONAME `libtalloc.so.2`, mientras que la
-# distribución Termux puede instalar el archivo solo como `libtalloc.so`.
-# Android extrae cada entrada JNI por nombre (no crea symlinks del paquete),
-# por lo que se incluye el alias exacto que busca el linker del proceso.
-if [[ -f "$JNI_DIR/libtalloc.so" ]]; then
-  cp "$JNI_DIR/libtalloc.so" "$JNI_DIR/libtalloc.so.2"
-  chmod 0755 "$JNI_DIR/libtalloc.so.2"
-fi
-
 log "validando resultado"
 check_jni_dir || die "la validación falló"
 

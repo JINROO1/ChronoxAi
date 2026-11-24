@@ -149,6 +149,28 @@ class LocalRuntime {
     _prootPath = proot;
     _loaderPath = loader;
 
+    // Android empaqueta/extráe los JNI con nombre `*.so`, así que el alias
+    // libtalloc.so.2 no viaja en el APK. Proot lo pide por SONAME; crea ese
+    // alias en el tmp privado de la app y añádelo al linker path del proceso.
+    try {
+      final talloc = File(p.join(nativeLibraryDir, 'libtalloc.so'));
+      if (!await talloc.exists()) {
+        throw FileSystemException('No se empaquetó libtalloc.so', talloc.path);
+      }
+      await Directory(paths.tempDir).create(recursive: true);
+      final sonameAlias = File(p.join(paths.tempDir, 'libtalloc.so.2'));
+      if (!await sonameAlias.exists() ||
+          await sonameAlias.length() != await talloc.length()) {
+        await talloc.copy(sonameAlias.path);
+      }
+    } on FileSystemException catch (error) {
+      return RuntimeStatus(
+        isReady: false,
+        problem: RuntimeProblem.missingBinaries,
+        detail: 'No se pudo preparar la dependencia nativa de proot: $error',
+      );
+    }
+
     // El diagnóstico completo se calcula siempre, incluso con el rootfs ya
     // instalado: los avisos (batería, páginas de 16 KB, aviso de app antigua)
     // siguen siendo útiles para el usuario.

@@ -165,7 +165,10 @@ void main() {
             '/data/data/app.chronoxai/files/linux/runtime/proot-loader',
       );
 
-      expect(env['LD_LIBRARY_PATH'], '/data/app/app.chronoxai/lib/arm64');
+      expect(
+        env['LD_LIBRARY_PATH'],
+        '/data/app/app.chronoxai/lib/arm64:/data/data/app/tmp',
+      );
       expect(env['PROOT_TMP_DIR'], '/data/data/app.chronoxai/files/tmp');
       expect(env['PROOT_NO_SECCOMP'], '1');
       expect(env['TERM'], 'xterm-256color');

@@ -735,8 +735,7 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
           mcpServerUrl: settings.mcpServerUrl,
           startPluginProcess:
               status.isReady ? runtime.startPluginProcess : null,
-          startMcpProcess:
-              status.isReady ? runtime.startMcpProcess : null,
+          startMcpProcess: status.isReady ? runtime.startMcpProcess : null,
         ),
         mode: mode,
         approvalLevel: level,

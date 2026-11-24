@@ -247,21 +247,27 @@ class LocalRuntime {
   /// Inicia un servidor MCP de stdio dentro de Debian. Solo se admite un
   /// lanzador conocido (node/npm/npx); los argumentos se citan individualmente.
   Future<Process> startMcpProcess(final List<String> command) async {
-    if (command.isEmpty || !const <String>{'node', 'nodejs', 'npm', 'npx'}.contains(command.first)) {
-      throw ArgumentError.value(command, 'command', 'Usa node, npm o npx para un servidor MCP.');
+    if (command.isEmpty ||
+        !const <String>{'node', 'nodejs', 'npm', 'npx'}
+            .contains(command.first)) {
+      throw ArgumentError.value(
+          command, 'command', 'Usa node, npm o npx para un servidor MCP.');
     }
     if (command.any((final part) => part.contains('\u0000'))) {
       throw ArgumentError.value(command, 'command', 'Argumento inválido.');
     }
     final current = await status();
-    if (!current.isReady) throw StateError('Runtime no listo: ${current.title}.');
+    if (!current.isReady)
+      throw StateError('Runtime no listo: ${current.title}.');
     final executableCheck = await run('command -v ${command.first}');
     if (!executableCheck.isSuccess) {
-      throw StateError('Falta ${command.first} en Debian. Instala nodejs y npm antes de conectar servidores MCP npm.');
+      throw StateError(
+          'Falta ${command.first} en Debian. Instala nodejs y npm antes de conectar servidores MCP npm.');
     }
     final config = await _config(workingDirectory: '/workspace');
     final guestCommand = 'exec ${command.map(_shellQuote).join(' ')}';
-    final args = ProotCommandBuilder.build(config, inner: <String>['/bin/bash', '-lc', guestCommand]);
+    final args = ProotCommandBuilder.build(config,
+        inner: <String>['/bin/bash', '-lc', guestCommand]);
     final environment = ProotCommandBuilder.hostEnvironment(
       nativeLibraryDir: p.dirname(config.prootBinary),
       tempDir: paths.tempDir,

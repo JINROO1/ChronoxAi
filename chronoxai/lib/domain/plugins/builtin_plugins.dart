@@ -676,11 +676,14 @@ class _McpPlugin extends ChronoxPlugin {
     if (configured.isEmpty) return;
     late final Future<List<Map<String, Object?>>> Function() listTools;
     late final Future<String> Function(String, Map<String, Object?>) callTool;
-    final Future<Process> Function(List<String>)? startProcess = startMcpProcess;
+    final Future<Process> Function(List<String>)? startProcess =
+        startMcpProcess;
     if (configured.startsWith('stdio:')) {
-      final command = configured.substring('stdio:'.length).trim().split(RegExp(r'\s+'));
+      final command =
+          configured.substring('stdio:'.length).trim().split(RegExp(r'\s+'));
       if (command.isEmpty || command.first.isEmpty || startProcess == null) {
-        throw const FormatException('Configura stdio:npx --yes paquete-mcp y un runtime Linux listo.');
+        throw const FormatException(
+            'Configura stdio:npx --yes paquete-mcp y un runtime Linux listo.');
       }
       _stdioClient = McpStdioClient(await startProcess(command));
       listTools = _stdioClient!.listTools;
@@ -690,7 +693,8 @@ class _McpPlugin extends ChronoxPlugin {
       if (endpoint == null ||
           (endpoint.scheme != 'https' && endpoint.scheme != 'http') ||
           endpoint.host.isEmpty) {
-        throw const FormatException('Configura una URL MCP HTTP(S) o stdio:<comando>.');
+        throw const FormatException(
+            'Configura una URL MCP HTTP(S) o stdio:<comando>.');
       }
       final client = McpHttpClient(
         network: context.services.network,
@@ -721,8 +725,7 @@ class _McpPlugin extends ChronoxPlugin {
         requiresApproval: true,
         execute: (final args) async {
           try {
-            return ToolOutcome(
-                content: await callTool(remoteName, args));
+            return ToolOutcome(content: await callTool(remoteName, args));
           } catch (error) {
             return ToolOutcome.error(
                 'Error en la herramienta MCP $remoteName: $error');

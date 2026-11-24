@@ -17,6 +17,12 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
+import java.security.KeyStore
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
+import android.util.Base64
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -37,6 +43,7 @@ class MainActivity : FlutterActivity() {
     private val ptyChannelName = "app.chronoxai/pty"
     private val schedulerChannelName = "app.chronoxai/scheduler"
     private val voiceChannelName = "app.chronoxai/voice"
+    private val secureStoreChannelName = "app.chronoxai/secure_store"
 
     private val sessions = mutableMapOf<Int, PtySession>()
     private val nextSessionId = AtomicInteger(1)
@@ -82,6 +89,33 @@ class MainActivity : FlutterActivity() {
             when (call.method) {
                 "facts" -> result.success(platformFacts())
                 else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            secureStoreChannelName,
+        ).setMethodCallHandler { call, result ->
+            val key = call.argument<String>("key")
+            if (key.isNullOrBlank()) {
+                result.error("invalid_key", "Falta la clave del secreto.", null)
+            } else {
+                try {
+                    val prefs = getSharedPreferences("encrypted_secrets", MODE_PRIVATE)
+                    when (call.method) {
+                        "read" -> result.success(prefs.getString(key, null)?.let(::decryptSecret))
+                        "write" -> {
+                            val value = call.argument<String>("value")
+                                ?: throw IllegalArgumentException("Falta el valor.")
+                            prefs.edit().putString(key, encryptSecret(value)).apply()
+                            result.success(null)
+                        }
+                        "delete" -> { prefs.edit().remove(key).apply(); result.success(null) }
+                        else -> result.notImplemented()
+                    }
+                } catch (error: Exception) {
+                    result.error("secure_store_error", error.message, null)
+                }
             }
         }
 
@@ -474,6 +508,37 @@ class MainActivity : FlutterActivity() {
      * kernel lo rechazará por otras razones si no hay permiso, así que hay que
      * distinguir "denegado" (EACCES/EPERM) de "es una librería" (ENOEXEC).
      */
+    private fun secretKey(): SecretKey {
+        val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        val alias = "chronoxai_mcp_secrets_v1"
+        (store.getKey(alias, null) as? SecretKey)?.let { return it }
+        val generator = KeyGenerator.getInstance("AES", "AndroidKeyStore")
+        generator.init(android.security.keystore.KeyGenParameterSpec.Builder(
+            alias,
+            android.security.keystore.KeyProperties.PURPOSE_ENCRYPT or
+                android.security.keystore.KeyProperties.PURPOSE_DECRYPT,
+        ).setBlockModes(android.security.keystore.KeyProperties.BLOCK_MODE_GCM)
+            .setEncryptionPaddings(android.security.keystore.KeyProperties.ENCRYPTION_PADDING_NONE)
+            .setRandomizedEncryptionRequired(true)
+            .build())
+        return generator.generateKey()
+    }
+
+    private fun encryptSecret(value: String): String {
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey())
+        val payload = cipher.iv + cipher.doFinal(value.toByteArray(Charsets.UTF_8))
+        return Base64.encodeToString(payload, Base64.NO_WRAP)
+    }
+
+    private fun decryptSecret(value: String): String {
+        val payload = Base64.decode(value, Base64.NO_WRAP)
+        require(payload.size > 12) { "Secreto cifrado inválido." }
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.DECRYPT_MODE, secretKey(), GCMParameterSpec(128, payload.copyOfRange(0, 12)))
+        return String(cipher.doFinal(payload.copyOfRange(12, payload.size)), Charsets.UTF_8)
+    }
+
     private fun canExecuteFromData(context: android.content.Context, nativeLibDir: String?): Boolean {
         if (nativeLibDir == null) return false
         val candidate = File(nativeLibDir, "libproot.so")

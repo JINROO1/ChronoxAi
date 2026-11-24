@@ -186,5 +186,8 @@ código arbitrario y ejecutarlo: Chronox no lo instala silenciosamente; revisa e
 paquete y sus scripts antes de autorizarlo. Ajustes permite varias entradas,
 una URL o comando por línea; anteponer `#` deshabilita una entrada sin borrarla.
 La posición de cada fila se conserva para mantener estables los nombres de herramientas al alternar servidores.
-La gestión de variables de entorno seguras, lockfiles y aprobación por servidor
-queda como trabajo pendiente de compatibilidad.
+La gestión de variables de entorno por servidor y lockfiles queda pendiente.
+`DshBundleDiagnostic` genera un informe JSON de preflight para una lista de
+archivos de bundle ya inspeccionados; no extrae ni ejecuta paquetes. Un resultado
+`mcp_candidate` solo indica que podría configurarse manualmente un servidor MCP.
+Cordis, parches de runtime y UI/servicios no se portan automáticamente.

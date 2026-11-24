@@ -1,0 +1,12 @@
+{
+  "id": "echo",
+  "name": "Echo plugin",
+  "version": "1.0.0",
+  "kind": "tool",
+  "description": "Plugin de ejemplo que devuelve el texto recibido.",
+  "author": "Chronox AI",
+  "capabilities": [],
+  "icon": "chat",
+  "enabledByDefault": true,
+  "requires": []
+}

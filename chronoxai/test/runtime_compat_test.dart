@@ -6,7 +6,7 @@ PlatformFacts facts({
   int sdkInt = 35,
   String abi = 'arm64-v8a',
   int pageSize = 4096,
-  int targetSdk = 28,
+  int targetSdk = 35,
   bool? canExecuteFromData = true,
   String? selinuxDomain = 'u:r:untrusted_app_27:s0:c1,c2',
   String manufacturer = 'Google',
@@ -32,10 +32,17 @@ PlatformFacts facts({
 
 void main() {
   group('RuntimeCompatibility — permiso de ejecución', () {
-    test('Android 15 con targetSdk 28 y dominio _27 está soportado', () {
-      final issues = RuntimeCompatibility.evaluate(facts());
+    test('Android 15 con targetSdk 35 puede ejecutar el runtime QEMU', () {
+      final facts35 = facts(canExecuteFromData: false);
+      final issues = RuntimeCompatibility.evaluate(
+        facts35,
+        guestExecViaQemu: true,
+      );
       expect(issues.where((final i) => i.isBlocking), isEmpty);
-      expect(RuntimeCompatibility.canRun(facts()), isTrue);
+      expect(
+        RuntimeCompatibility.canRun(facts35, guestExecViaQemu: true),
+        isTrue,
+      );
     });
 
     test('el dato medido manda sobre la regla teórica', () {
@@ -100,17 +107,18 @@ void main() {
       );
     });
 
-    test('nombra la versión de Android en el diagnóstico', () {
-      final with15 = RuntimeCompatibility.evaluate(facts(sdkInt: 35));
-      final with13 = RuntimeCompatibility.evaluate(facts(sdkInt: 33));
-      // El aviso de "app antigua" solo aparece en Android 15+.
-      expect(
-        with15.any((final i) => i.title.contains('versión anterior')),
-        isTrue,
+    test('no muestra el aviso de versión anterior en Android 15', () {
+      final issues = RuntimeCompatibility.evaluate(
+        facts(sdkInt: 35, canExecuteFromData: false),
+        guestExecViaQemu: true,
       );
       expect(
-        with13.any((final i) => i.title.contains('versión anterior')),
+        issues.any((final i) => i.title.contains('versión anterior')),
         isFalse,
+      );
+      expect(
+        issues.any((final i) => i.title.contains('QEMU')),
+        isTrue,
       );
     });
   });

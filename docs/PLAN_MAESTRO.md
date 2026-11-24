@@ -104,11 +104,12 @@ dsh acepta `hooks.json` con puntos de intercepción.
 
 `runSubagent` hoy es una única llamada sin herramientas.
 
-- [ ] Subagente con **turno completo**: registry propio con un subconjunto de
-      herramientas, log propio, mismo proveedor
-- [ ] Herramienta `subagents` (plural): ejecuta varios subagentes en paralelo
-      con `Future.wait`
-- [ ] Tests: el subagente usa herramientas y no contamina el log principal
+- [x] Subagente con **turno completo**: registry read-only propio con un
+      subconjunto de herramientas, log temporal aislado, mismo proveedor
+- [x] Herramienta `subagents` (plural): ejecuta hasta cuatro subagentes en
+      paralelo con `Future.wait`
+- [x] Tests: el subagente usa herramientas y no contamina el log principal
+      (253 tests en verde, CI `45298338994`)
 
 ## Fase 9 — Plugins cargables en runtime (sin recompilar)
 

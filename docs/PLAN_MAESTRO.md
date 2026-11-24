@@ -180,7 +180,7 @@ Fuentes: `docs/user/develop/basic/publish.md` del repo oficial
 `deepseek-ai/deepseek-harness`; documentación MCP y pruebas con paquetes reales.
 
 - [x] MCP stdio: initialize/initialized, tools/list/call, timeout, logs stderr,
-      cierre y tests con transporte falso (pendiente verificación CI)
+      cierre y tests con transporte falso (CI `45312414820`; 263 tests en verde)
 - [ ] Configuración de servidores MCP múltiples: HTTP y comando stdio npm, env,
       habilitar/deshabilitar, restaurar tras reinicio
 - [ ] Instalador npm con pins/lockfile, preview de scripts, aprobación antes de

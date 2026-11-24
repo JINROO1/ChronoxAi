@@ -699,7 +699,14 @@ class _McpPlugin extends ChronoxPlugin {
       listTools = client.listTools;
       callTool = client.callTool;
     }
-    final tools = await listTools();
+    late final List<Map<String, Object?>> tools;
+    try {
+      tools = await listTools();
+    } catch (_) {
+      await _stdioClient?.dispose();
+      _stdioClient = null;
+      rethrow;
+    }
     for (final remote in tools) {
       final remoteName = (remote['name'] as String?)?.trim() ?? '';
       if (remoteName.isEmpty) continue;

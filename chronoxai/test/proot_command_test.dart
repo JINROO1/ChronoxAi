@@ -167,7 +167,7 @@ void main() {
 
       expect(
         env['LD_LIBRARY_PATH'],
-        '/data/app/app.chronoxai/lib/arm64:/data/data/app/tmp',
+        '/data/app/app.chronoxai/lib/arm64:/data/data/app.chronoxai/files/tmp',
       );
       expect(env['PROOT_TMP_DIR'], '/data/data/app.chronoxai/files/tmp');
       expect(env['PROOT_NO_SECCOMP'], '1');

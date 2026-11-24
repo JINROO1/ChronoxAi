@@ -98,7 +98,10 @@ void main() {
       ]);
       expect(command.last, contains('export PATH='));
       expect(command.last, contains('exec /bin/bash -il'));
-      expect(command.last, contains('/usr/bin:/bin'));
+      expect(
+        command.last,
+        contains('/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'),
+      );
     });
 
     test('acepta un comando interior explícito', () {

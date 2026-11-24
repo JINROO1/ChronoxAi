@@ -199,7 +199,8 @@ Fuentes: `docs/user/develop/basic/publish.md` del repo oficial
 - [ ] Adaptador de paquetes `dsh.bundle`: leer package.json + patches declarados,
       soportar filas de plugins de herramientas/skills mediante shim Node
 - [x] Diagnóstico de preflight `DshBundleDiagnostic` con clasificación MCP
-      candidata y lista explícita de capacidades Cordis incompatibles (no instala)
+      candidata, sugerencia segura `npm-package` si package.json es publicable,
+      y lista explícita de capacidades Cordis incompatibles (no instala)
 - [x] Inspección acotada de ZIP `.dsh.bundle` (sin extraer/ejecutar) y fixture
       sintético en pruebas
 - [ ] Fixtures reales seleccionados, formatos alternativos, compatibilidad

@@ -27,11 +27,18 @@ void main() {
       bundleName: 'candidate',
       files: <String>['package.json', 'src/server.js'],
       metadata: <String, Object?>{
+        'name': '@scope/server',
+        'version': '2.4.1',
+        'bin': <String, String>{'mcp-server': 'dist/main.js'},
         'dependencies': <String, String>{'@modelcontextprotocol/sdk': '^1.0.0'},
       },
     );
 
     expect(report.canImportAsMcp, isTrue);
     expect(report.toJson()['classification'], 'mcp_candidate');
+    expect(
+      report.suggestedMcpServerLine,
+      'stdio:@scope/server@2.4.1 mcp-server',
+    );
   });
 }

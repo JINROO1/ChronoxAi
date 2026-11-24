@@ -17,7 +17,9 @@ void main() {
   test('inspects a DSH bundle archive without extracting or executing it', () {
     final zip = makeZip(<String, String>{
       'package.json': jsonEncode(<String, Object?>{
-        'name': 'sample-bundle',
+        'name': '@sample/mcp-server',
+        'version': '1.2.3',
+        'bin': <String, String>{'mcp-sample': 'dist/index.js'},
         'dependencies': <String, String>{'@modelcontextprotocol/sdk': '^1'},
       }),
       'cordis.patch.yml': 'plugins:\n  - src/index.ts',
@@ -31,6 +33,7 @@ void main() {
 
     expect(result.canImportAsMcp, isFalse);
     expect(result.toJson()['classification'], 'manual_port_required');
+    expect(result.suggestedMcpServerLine, isNull);
     expect(result.unsupported, isNotEmpty);
   });
 

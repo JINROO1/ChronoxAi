@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'mcp_npm_spec.dart';
+
 /// Capability report for a DeepSeek Harness bundle. This is intentionally a
 /// preflight analyzer, not an executor: Cordis plugins are Node.js programs and
 /// must never be treated as directly portable to ChronoxAI.
@@ -11,6 +13,7 @@ class DshBundleDiagnostic {
     required this.usesMcpProtocol,
     required this.hasUiContribution,
     required this.hasServiceContribution,
+    this.suggestedMcpServerLine,
   });
 
   final String bundleName;
@@ -19,6 +22,7 @@ class DshBundleDiagnostic {
   final bool usesMcpProtocol;
   final bool hasUiContribution;
   final bool hasServiceContribution;
+  final String? suggestedMcpServerLine;
 
   bool get canImportAsMcp =>
       hasNodePlugins && usesMcpProtocol && !hasCordisPatch;
@@ -46,6 +50,7 @@ class DshBundleDiagnostic {
             canImportAsMcp ? 'mcp_candidate' : 'manual_port_required',
         'supported': supported,
         'unsupported': unsupported,
+        'suggestedMcpServerLine': suggestedMcpServerLine,
         'actions': <String>[
           if (canImportAsMcp)
             'Revise el código y configure manualmente el endpoint MCP como servidor permitido.',
@@ -79,15 +84,39 @@ class DshBundleDiagnostic {
     final hasService = metadataText.contains('service') ||
         metadataText.contains('inject') ||
         metadataText.contains('provider');
+    final usesMcpProtocol = metadataText.contains('modelcontextprotocol') ||
+        metadataText.contains('mcp-sdk') ||
+        metadataText.contains('mcpserver');
+    final packageName = metadata['name'];
+    final packageVersion = metadata['version'];
+    final bin = metadata['bin'];
+    final binary = bin is String
+        ? (packageName is String ? packageName.split('/').last : null)
+        : bin is Map && bin.isNotEmpty
+            ? bin.keys.first.toString()
+            : null;
+    String? suggestion;
+    if (usesMcpProtocol && !hasCordisPatch &&
+        packageName is String && packageVersion is String && binary != null) {
+      try {
+        final pinned = PinnedMcpPackage.parse(<String>[
+          'npm-package',
+          '$packageName@$packageVersion',
+          binary,
+        ]);
+        suggestion = 'stdio:${pinned.spec} ${pinned.binary}';
+      } on FormatException {
+        // Incomplete/invalid npm metadata is never made installable.
+      }
+    }
     return DshBundleDiagnostic(
       bundleName: bundleName,
       hasCordisPatch: hasCordisPatch,
       hasNodePlugins: hasNodePlugins,
-      usesMcpProtocol: metadataText.contains('modelcontextprotocol') ||
-          metadataText.contains('mcp-sdk') ||
-          metadataText.contains('mcpserver'),
+      usesMcpProtocol: usesMcpProtocol,
       hasUiContribution: hasUi,
       hasServiceContribution: hasService,
+      suggestedMcpServerLine: suggestion,
     );
   }
 }

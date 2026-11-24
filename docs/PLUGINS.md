@@ -205,5 +205,7 @@ servidor de forma explícita; faltan permisos finos por herramienta/capacidad.
 `DshBundleArchiveInspector` inspecciona un ZIP `.dsh.bundle` con límites de
 cantidad y tamaño, sin extraerlo ni ejecutar scripts; genera el informe mediante
 `DshBundleDiagnostic`. Un resultado
-`mcp_candidate` solo indica que podría configurarse manualmente un servidor MCP.
+`mcp_candidate` puede incluir una línea sugerida `stdio:npm-package ...` solo si
+`package.json` declara nombre, versión exacta, binario y SDK MCP; el usuario debe
+revisar y aprobar su lockfile al conectar. Esto no importa archivos Node del bundle.
 Cordis, parches de runtime y UI/servicios no se portan automáticamente.

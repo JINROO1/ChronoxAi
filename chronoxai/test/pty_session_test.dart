@@ -139,8 +139,10 @@ void main() {
       );
       final firstOutput = <String>[];
       final secondOutput = <String>[];
-      first.output.listen((bytes) => firstOutput.add(String.fromCharCodes(bytes)));
-      second.output.listen((bytes) => secondOutput.add(String.fromCharCodes(bytes)));
+      first.output
+          .listen((bytes) => firstOutput.add(String.fromCharCodes(bytes)));
+      second.output
+          .listen((bytes) => secondOutput.add(String.fromCharCodes(bytes)));
 
       await canal.emitir('output', <String, Object?>{
         'id': 1,

@@ -154,7 +154,8 @@ class LocalRuntime {
       return RuntimeStatus(
         isReady: false,
         problem: RuntimeProblem.missingBinaries,
-        detail: 'No se encontró el loader nativo de PRoot empaquetado: $loader.',
+        detail:
+            'No se encontró el loader nativo de PRoot empaquetado: $loader.',
       );
     }
     _loaderPath = loader;
@@ -594,7 +595,7 @@ class LocalRuntime {
         nativeLibraryDir: p.dirname(config.prootBinary),
         tempDir: paths.tempDir,
         prootLoader: config.prootLoader,
-        ),
+      ),
     );
   }
 }

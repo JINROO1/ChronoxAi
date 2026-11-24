@@ -227,7 +227,8 @@ abstract final class ProotCommandBuilder {
       problems.add('Falta la ruta al binario de proot.');
     }
     if (config.prootLoader.trim().isEmpty) {
-      problems.add('Falta la ruta al loader ejecutable de proot (PROOT_LOADER).');
+      problems
+          .add('Falta la ruta al loader ejecutable de proot (PROOT_LOADER).');
     }
     if (!config.rootfs.startsWith('/')) {
       problems.add('El rootfs debe ser una ruta absoluta: "${config.rootfs}".');

@@ -32,7 +32,8 @@ PlatformFacts facts({
 
 void main() {
   group('RuntimeCompatibility — permiso de ejecución', () {
-    test('Android 15 con targetSdk 35 puede ejecutar el runtime mediante PRoot', () {
+    test('Android 15 con targetSdk 35 puede ejecutar el runtime mediante PRoot',
+        () {
       final facts35 = facts(canExecuteFromData: false);
       final issues = RuntimeCompatibility.evaluate(
         facts35,

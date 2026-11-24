@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/theme.dart';
+import '../../domain/terminal/control_keys.dart';
 import '../../domain/terminal/terminal_buffer.dart';
 import 'terminal_controller.dart';
 

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:chronoxai/data/runtime/pty_session.dart';
+import 'package:chronoxai/domain/terminal/control_keys.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class FakePty implements PtyProcess {

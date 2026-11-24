@@ -133,7 +133,7 @@ void main() {
               required environment,
               required rows,
               required columns}) =>
-          throw const ProcessException('', 'missing'),
+          throw const ProcessException('', <String>[], 'missing'),
     );
     expect(
         await broken

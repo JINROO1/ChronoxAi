@@ -98,7 +98,8 @@ class _ExternalToolPlugin extends ChronoxPlugin {
           requiresApproval: true,
           execute: (final args) async {
             try {
-              final response = await rpc.request('tools/call', <String, Object?>{
+              final response =
+                  await rpc.request('tools/call', <String, Object?>{
                 'name': remoteName,
                 'arguments': args,
               });
@@ -128,11 +129,14 @@ class _ExternalToolPlugin extends ChronoxPlugin {
 
   static String _toolText(final Object? content) {
     if (content is! List) return content?.toString() ?? '';
-    return content.map((final item) {
-      if (item is Map<String, Object?>) {
-        return (item['text'] ?? item['uri'] ?? '').toString();
-      }
-      return item.toString();
-    }).where((final value) => value.isNotEmpty).join('\n');
+    return content
+        .map((final item) {
+          if (item is Map<String, Object?>) {
+            return (item['text'] ?? item['uri'] ?? '').toString();
+          }
+          return item.toString();
+        })
+        .where((final value) => value.isNotEmpty)
+        .join('\n');
   }
 }

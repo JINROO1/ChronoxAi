@@ -153,7 +153,7 @@ dsh tiene tareas programadas (experimental) y jobs en segundo plano.
 - [x] Pantalla de tareas programadas (crear, listar, borrar)
       (CI `45306569789` en verde; channel fake test incluido)
 - [x] Vista de trabajos en segundo plano: terminales activas (consulta cada
-      3 s y cierre desde UI)
+      3 s y cierre desde UI; CI `45307188877` en verde)
 - [x] Tests del store JSON (CI `45306207341` en verde)
 
 ## Fase 12 — Entrada de voz

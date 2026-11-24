@@ -414,7 +414,7 @@ class SettingsScreen extends ConsumerWidget {
       hint: 'Una URL/comando por línea: https://…/mcp o stdio:npx paquete',
       initial: settings.mcpServerUrl,
       helper:
-          'Un servidor por línea; antepón # para deshabilitar una entrada. Configura secretos por número de fila debajo; se inyectan solo al proceso stdio. Cada herramienta solicita aprobación.'
+          'Un servidor por línea; antepón # para deshabilitar una entrada. Configura secretos por número de fila debajo; se inyectan solo al proceso stdio. Cada herramienta solicita aprobación.',
       maxLines: 5,
     );
     if (value == null) return;

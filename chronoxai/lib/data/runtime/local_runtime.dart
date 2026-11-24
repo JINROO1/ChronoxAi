@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../../domain/plugins/seams.dart';

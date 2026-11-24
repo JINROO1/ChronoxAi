@@ -120,7 +120,7 @@ class _ExternalToolPlugin extends ChronoxPlugin {
   }
 
   @override
-  Future<void> unmount(final PluginContext context) async {
+  Future<void> unmount() async {
     final rpc = _rpc;
     _rpc = null;
     await rpc?.dispose();

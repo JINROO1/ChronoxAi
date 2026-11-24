@@ -106,7 +106,9 @@ class ExternalPluginRpc {
   void _receive(final String line) {
     if (line.trim().isEmpty) return;
     try {
-      final message = jsonDecode(line) as Map<String, Object?>;
+      final decoded = jsonDecode(line);
+      if (decoded is! Map) return;
+      final message = decoded.cast<String, Object?>();
       final id = (message['id'] as num?)?.toInt();
       if (id == null) return; // notification/log line: no response expected.
       final completer = _pending.remove(id);

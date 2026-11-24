@@ -2,7 +2,8 @@ import 'package:chronoxai/domain/plugins/dsh_bundle_diagnostic.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('reports Cordis patch and UI as unsupported without claiming import', () {
+  test('reports Cordis patch and UI as unsupported without claiming import',
+      () {
     final report = DshBundleDiagnostic.inspect(
       bundleName: 'sample.dsh.bundle',
       files: <String>[
@@ -19,7 +20,9 @@ void main() {
     expect(report.toPrettyJson(), contains('No se instaló ni ejecutó código'));
   });
 
-  test('identifies a Node package without Cordis patch as an MCP candidate only', () {
+  test(
+      'identifies a Node package without Cordis patch as an MCP candidate only',
+      () {
     final report = DshBundleDiagnostic.inspect(
       bundleName: 'candidate',
       files: <String>['package.json', 'src/server.js'],

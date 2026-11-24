@@ -614,14 +614,14 @@ class LocalRuntime {
   /// Comando completo para abrir una terminal interactiva (PTY).
   Future<void> _ensureTerminalBashrc() async {
     final bashrc = File(p.join(paths.homeDir, '.bashrc'));
-    const defaults = '''
+    const defaults = r"""
 # ChronoxAI terminal defaults
 if [ -r /etc/bash.bashrc ]; then . /etc/bash.bashrc; fi
 alias ls='ls --color=auto'
 alias grep='grep --color=auto'
 alias diff='diff --color=auto'
-PS1='\\W\\$ '
-''';
+PS1='\W\$ '
+""";
     await bashrc.parent.create(recursive: true);
     if (!await bashrc.exists()) {
       await bashrc.writeAsString(defaults.trimLeft());

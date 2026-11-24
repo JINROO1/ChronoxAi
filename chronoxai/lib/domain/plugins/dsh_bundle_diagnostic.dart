@@ -8,6 +8,7 @@ class DshBundleDiagnostic {
     required this.bundleName,
     required this.hasCordisPatch,
     required this.hasNodePlugins,
+    required this.usesMcpProtocol,
     required this.hasUiContribution,
     required this.hasServiceContribution,
   });
@@ -15,14 +16,16 @@ class DshBundleDiagnostic {
   final String bundleName;
   final bool hasCordisPatch;
   final bool hasNodePlugins;
+  final bool usesMcpProtocol;
   final bool hasUiContribution;
   final bool hasServiceContribution;
 
-  bool get canImportAsMcp => hasNodePlugins && !hasCordisPatch;
+  bool get canImportAsMcp =>
+      hasNodePlugins && usesMcpProtocol && !hasCordisPatch;
 
   List<String> get supported => <String>[
-        if (hasNodePlugins)
-          'Node plugin: posible integración solo si expone un servidor MCP stdio/HTTP.',
+        if (usesMcpProtocol)
+          'Se detectó una dependencia relacionada con MCP; valide el transporte y las herramientas antes de configurar.',
         if (!hasCordisPatch) 'No se detectó cordis.patch.yml.',
       ];
 
@@ -71,6 +74,9 @@ class DshBundleDiagnostic {
       bundleName: bundleName,
       hasCordisPatch: hasCordisPatch,
       hasNodePlugins: hasNodePlugins,
+      usesMcpProtocol: metadataText.contains('modelcontextprotocol') ||
+          metadataText.contains('mcp-sdk') ||
+          metadataText.contains('mcpserver'),
       hasUiContribution: hasUi,
       hasServiceContribution: hasService,
     );

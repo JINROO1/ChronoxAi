@@ -23,6 +23,9 @@ void main() {
     final report = DshBundleDiagnostic.inspect(
       bundleName: 'candidate',
       files: <String>['package.json', 'src/server.js'],
+      metadata: <String, Object?>{
+        'dependencies': <String, String>{'@modelcontextprotocol/sdk': '^1.0.0'},
+      },
     );
 
     expect(report.canImportAsMcp, isTrue);

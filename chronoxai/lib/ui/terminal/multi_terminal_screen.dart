@@ -55,7 +55,9 @@ class _MultiTerminalScreenState extends ConsumerState<MultiTerminalScreen> {
 
   Future<void> _copyOutput() async {
     if (_terminals.isEmpty) return;
-    final text = _terminals[_selected].state.lines
+    final text = _terminals[_selected]
+        .state
+        .lines
         .map((final line) => line.text)
         .join('\n');
     await Clipboard.setData(ClipboardData(text: text));

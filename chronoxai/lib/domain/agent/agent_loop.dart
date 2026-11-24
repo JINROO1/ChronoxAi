@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import '../llm/llm_types.dart';
 import '../plugins/plugin_api.dart';
@@ -895,21 +896,68 @@ class AgentLoop {
   ///
   /// El resultado es solo el texto final: el subagente no contamina el contexto
   /// principal, que es justo para lo que existe.
-  Future<String> runSubagent(final String prompt) async {
-    final messages = <LlmMessage>[
-      const LlmMessage.system(
-        'Eres un subagente. Resuelve la tarea de forma autónoma y devuelve solo '
-        'el resultado, sin explicar tu proceso.',
-      ),
-      LlmMessage.user(prompt),
-    ];
+  Future<String> runSubagent(final String prompt) =>
+      runSubagentWithTools(prompt);
 
-    final response = await _consumeStream(
-      messages: messages,
-      tools: const <Map<String, Object?>>[],
-      onFirstToken: () {},
+  /// Ejecuta hasta cuatro subagentes en paralelo, cada uno con log aislado.
+  Future<List<String>> runSubagents(
+    final List<Map<String, String>> tasks,
+  ) async {
+    if (tasks.isEmpty) return const <String>[];
+    if (tasks.length > 4) {
+      throw ArgumentError('El máximo por lote es 4 subagentes.');
+    }
+    return Future.wait(tasks.map((final task) => runSubagentWithTools(
+          task['prompt'] ?? '',
+          description: task['description'],
+        )));
+  }
+
+  /// Ejecuta un turno autónomo con un registro read-only aislado y un log
+  /// temporal separado. No comparte historial ni herramientas de escritura.
+  Future<String> runSubagentWithTools(
+    final String prompt, {
+    final String? description,
+  }) async {
+    final directory = await Directory.systemTemp.createTemp('chronox-subagent-');
+    final subLog = await SessionLog.open(
+      directory,
+      'subagent-${DateTime.now().microsecondsSinceEpoch}',
+      modeId: modeId,
+      model: provider.model,
     );
-    return response.content;
+    final subEvents = AgentEventBus();
+    final subRegistry = ToolRegistry();
+    const allowed = <String>{'read', 'glob', 'grep', 'web_fetch'};
+    for (final name in allowed) {
+      final tool = registry[name];
+      if (tool != null) subRegistry.add(tool);
+    }
+    final subLoop = AgentLoop(
+      provider: provider,
+      registry: subRegistry,
+      log: subLog,
+      events: subEvents,
+      policy: ApprovalPolicy(level: ApprovalLevel.readOnly),
+      config: config,
+      modeId: modeId,
+      llm: _llm,
+    );
+    try {
+      await subLoop.runTurn(
+        'Subtarea ${description == null ? '' : '($description)'}:\n$prompt',
+      );
+      for (final event in subLog.events.reversed) {
+        if (event is AssistantMessageEvent && event.text.trim().isNotEmpty) {
+          return event.text;
+        }
+      }
+      return 'El subagente no produjo una respuesta final.';
+    } finally {
+      await subLog.close();
+      await subEvents.dispose();
+      await directory.delete(recursive: true);
+    }
   }
 }
 

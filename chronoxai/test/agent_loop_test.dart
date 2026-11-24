@@ -633,6 +633,37 @@ void main() {
     });
   });
 
+  group('AgentLoop — subagentes aislados', () {
+    test('subagente usa herramienta read-only y no contamina el log padre',
+        () async {
+      registry.add(tool(
+        'read',
+        requiresApproval: false,
+        result: () => const ToolOutcome(content: 'contenido del archivo'),
+      ));
+      final provider = FakeProvider(<LlmResponse>[
+        const LlmResponse(
+          content: '',
+          toolCalls: <LlmToolCall>[
+            LlmToolCall(id: 'sub-call', name: 'read', arguments: <String, Object?>{}),
+          ],
+        ),
+        const LlmResponse(content: 'Encontré el contenido.'),
+      ]);
+      final parent = makeLoop(provider);
+      final initialLength = log.length;
+
+      final answer = await parent.runSubagentWithTools(
+        'lee el archivo',
+        description: 'investigación',
+      );
+
+      expect(answer, 'Encontré el contenido.');
+      expect(log.length, initialLength);
+      expect(provider.calls, 2);
+    });
+  });
+
   group('AgentLoop — hooks', () {
     test('on_tool_call bloqueante impide ejecutar la herramienta', () async {
       var executions = 0;

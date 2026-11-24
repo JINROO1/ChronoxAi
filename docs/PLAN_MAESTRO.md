@@ -92,12 +92,13 @@ dsh trae cliente MCP; aquí no hay nada.
 
 dsh acepta `hooks.json` con puntos de intercepción.
 
-- [ ] `HookConfig` + `HookRunner`: ejecuta comandos del contenedor en los
+- [x] `HookConfig` + `HookRunner`: ejecuta comandos del contenedor en los
       puntos `on_turn_start`, `on_turn_end`, `on_tool_call` (puede bloquear),
       `on_tool_result` y `on_approval_request`
-- [ ] Variables de entorno con el contexto (`CHRONOX_TOOL_NAME`, etc.) y timeout
-- [ ] Integración en `AgentLoop` (inyectable, desactivable)
-- [ ] Tests con seam de shell falso
+- [x] Variables de entorno con el contexto (`CHRONOX_TOOL_NAME`, etc.) y timeout
+- [x] Integración en `AgentLoop` (inyectable; sin hooks configurados queda
+      desactivado)
+- [x] Tests con seam de shell falso (252 tests en verde, CI `45298027578`)
 
 ## Fase 8 — Subagentes con herramientas y en paralelo
 

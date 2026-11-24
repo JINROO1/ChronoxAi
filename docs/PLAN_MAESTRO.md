@@ -140,7 +140,7 @@ documenta lo demás.
 - [x] Binds de proot revisados en `ProotCommandBuilder`; solo `/dev`, `/proc`,
       `/sys`, workspace, home y tmp
 - [x] Modelo de seguridad honesto documentado en `docs/PLUGINS.md`
-- [x] Tests de patrones bloqueados y comandos seguros
+- [x] Tests de patrones bloqueados y comandos seguros (CI `45305864897` en verde)
 
 ## Fase 11 — Tareas programadas y trabajos en segundo plano
 

@@ -195,8 +195,9 @@ una URL o comando por línea; anteponer `#` deshabilita una entrada sin borrarla
 La posición de cada fila se conserva para mantener estables los nombres de herramientas al alternar servidores.
 Las variables de entorno por servidor se configuran en «Variables secretas MCP»
 por número de fila y se cifran con Android Keystore; para `stdio`, se pasan al
-proceso MCP y nunca se escriben en la línea de comandos. La instalación de npm
-con lockfiles y aprobación granular por servidor sigue pendiente.
+proceso MCP y nunca se escriben en la línea de comandos. Falta mostrar y aprobar
+el lockfile antes de `npm ci`; también faltan políticas configurables por servidor.
+Por ahora las herramientas MCP siempre piden aprobación en cada invocación.
 `DshBundleArchiveInspector` inspecciona un ZIP `.dsh.bundle` con límites de
 cantidad y tamaño, sin extraerlo ni ejecutar scripts; genera el informe mediante
 `DshBundleDiagnostic`. Un resultado

@@ -146,14 +146,14 @@ documenta lo demás.
 
 dsh tiene tareas programadas (experimental) y jobs en segundo plano.
 
-- [ ] `ScheduledTask` (prompt + hora + repetición) persistido en JSON
-- [ ] Canal `app.chronoxai/scheduler` + `AlarmManager` (inexactas, sin permiso
-      especial) y `BroadcastReceiver` que abre la app con el prompt
-      precargado y publica notificación
+- [x] Modelo `ScheduledTask` (prompt + hora + repetición) y `ScheduledTaskStore`
+      con escritura atómica JSON; tests de round-trip y datos inválidos
+- [ ] Canal Android `app.chronoxai/scheduler` + `AlarmManager` inexacto y
+      `BroadcastReceiver` con notificación/deep link para precargar el prompt
 - [ ] Pantalla de tareas programadas (crear, listar, borrar)
 - [ ] Vista de trabajos en segundo plano: terminales activas (ya existe
       `terminal_list`; se expone en UI)
-- [ ] Tests del store
+- [x] Tests del store JSON
 
 ## Fase 12 — Entrada de voz
 

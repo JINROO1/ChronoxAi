@@ -612,9 +612,31 @@ class LocalRuntime {
   }
 
   /// Comando completo para abrir una terminal interactiva (PTY).
+  Future<void> _ensureTerminalBashrc() async {
+    final bashrc = File(p.join(paths.homeDir, '.bashrc'));
+    const defaults = '''
+# ChronoxAI terminal defaults
+if [ -r /etc/bash.bashrc ]; then . /etc/bash.bashrc; fi
+alias ls='ls --color=auto'
+alias grep='grep --color=auto'
+alias diff='diff --color=auto'
+PS1='\\W\\$ '
+''';
+    await bashrc.parent.create(recursive: true);
+    if (!await bashrc.exists()) {
+      await bashrc.writeAsString(defaults.trimLeft());
+      return;
+    }
+    final contents = await bashrc.readAsString();
+    if (!contents.contains('# ChronoxAI terminal defaults')) {
+      await bashrc.writeAsString('$contents\n$defaults', flush: true);
+    }
+  }
+
   Future<({String binary, List<String> args, Map<String, String> env})>
       interactiveCommand({final String? workingDirectory}) async {
     final config = await _config(workingDirectory: workingDirectory);
+    await _ensureTerminalBashrc();
     return (
       binary: config.prootBinary,
       args: ProotCommandBuilder.build(

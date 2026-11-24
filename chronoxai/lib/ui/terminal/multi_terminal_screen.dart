@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
@@ -52,6 +53,19 @@ class _MultiTerminalScreenState extends ConsumerState<MultiTerminalScreen> {
     }
   }
 
+  Future<void> _copyOutput() async {
+    if (_terminals.isEmpty) return;
+    final text = _terminals[_selected].state.lines
+        .map((final line) => line.text)
+        .join('\n');
+    await Clipboard.setData(ClipboardData(text: text));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Salida de terminal copiada.')),
+      );
+    }
+  }
+
   Future<void> _closeSelected() async {
     if (_terminals.isEmpty) return;
     final terminal = _terminals.removeAt(_selected);
@@ -81,6 +95,11 @@ class _MultiTerminalScreenState extends ConsumerState<MultiTerminalScreen> {
       appBar: AppBar(
         title: const Text('Terminal'),
         actions: <Widget>[
+          IconButton(
+            tooltip: 'Copiar salida de terminal',
+            onPressed: _terminals.isEmpty ? null : _copyOutput,
+            icon: const Icon(Icons.copy_rounded),
+          ),
           IconButton(
             tooltip: 'Nueva terminal',
             onPressed: _opening ? null : _addTerminal,

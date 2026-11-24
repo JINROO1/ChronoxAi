@@ -263,11 +263,14 @@ class _Linea extends StatelessWidget {
       agregar(' ', estilo, cursor: true);
     }
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 1),
-      child: RichText(
-        softWrap: true,
-        text: TextSpan(style: estilo, children: spans),
+    return SizedBox(
+      width: double.infinity,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 1),
+        child: SelectableText.rich(
+          TextSpan(style: estilo, children: spans),
+          textAlign: TextAlign.left,
+        ),
       ),
     );
   }
@@ -328,10 +331,22 @@ class _BarraTeclas extends StatelessWidget {
     final teclas = <({String etiqueta, List<int> codigo})>[
       (etiqueta: '↑', codigo: ControlKeys.arrowUp),
       (etiqueta: '↓', codigo: ControlKeys.arrowDown),
-      (etiqueta: 'Tab', codigo: const <int>[ControlKeys.tab]),
-      (etiqueta: 'Ctrl+C', codigo: const <int>[ControlKeys.ctrlC]),
-      (etiqueta: 'Ctrl+D', codigo: const <int>[ControlKeys.ctrlD]),
-      (etiqueta: 'Ctrl+L', codigo: const <int>[ControlKeys.ctrlL]),
+      (etiqueta: '←', codigo: ControlKeys.arrowLeft),
+      (etiqueta: '→', codigo: ControlKeys.arrowRight),
+      (etiqueta: 'Inicio', codigo: ControlKeys.home),
+      (etiqueta: 'Fin', codigo: ControlKeys.end),
+      (etiqueta: 'Re Pág', codigo: ControlKeys.pageUp),
+      (etiqueta: 'Av Pág', codigo: ControlKeys.pageDown),
+      (etiqueta: 'Tab', codigo: <int>[ControlKeys.tab]),
+      (etiqueta: 'Esc', codigo: <int>[ControlKeys.escape]),
+      (etiqueta: 'Ctrl+A', codigo: <int>[ControlKeys.ctrlA]),
+      (etiqueta: 'Ctrl+C', codigo: <int>[ControlKeys.ctrlC]),
+      (etiqueta: 'Ctrl+D', codigo: <int>[ControlKeys.ctrlD]),
+      (etiqueta: 'Ctrl+E', codigo: <int>[ControlKeys.ctrlE]),
+      (etiqueta: 'Ctrl+K', codigo: <int>[ControlKeys.ctrlK]),
+      (etiqueta: 'Ctrl+L', codigo: <int>[ControlKeys.ctrlL]),
+      (etiqueta: 'Ctrl+U', codigo: <int>[ControlKeys.ctrlU]),
+      (etiqueta: 'Ctrl+W', codigo: <int>[ControlKeys.ctrlW]),
     ];
 
     return Container(

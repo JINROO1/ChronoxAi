@@ -175,7 +175,9 @@ abstract final class ProotCommandBuilder {
       '--noprofile',
       '--norc',
       '-c',
-      "export PATH='$path'; exec /bin/bash -il",
+      "export HOME='/root'; export PATH='$path'; "
+          "[ -r /etc/profile ] && . /etc/profile; "
+          "exec /bin/bash --rcfile /root/.bashrc -i",
     ];
   }
 

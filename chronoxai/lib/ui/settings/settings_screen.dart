@@ -406,7 +406,7 @@ class SettingsScreen extends ConsumerWidget {
       hint: 'Una URL/comando por línea: https://…/mcp o stdio:npx paquete',
       initial: settings.mcpServerUrl,
       helper:
-          'Puedes configurar varios servidores, uno por línea. MCP stdio npm requiere nodejs/npm instalado en Debian. Revisar los paquetes es tu responsabilidad; cada herramienta pide aprobación.',
+          'Un servidor por línea; antepón # para deshabilitar temporalmente una entrada sin borrarla. MCP stdio npm requiere nodejs/npm instalado en Debian. Revisa los paquetes: cada herramienta solicita aprobación.',
       maxLines: 5,
     );
     if (value == null) return;

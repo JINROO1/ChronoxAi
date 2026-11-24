@@ -676,11 +676,13 @@ class _McpPlugin extends ChronoxPlugin {
     final servers = (serverUrl ?? '')
         .split('\n')
         .map((final row) => row.trim())
-        .where((final row) => row.isNotEmpty)
         .toList(growable: false);
     try {
       for (var index = 0; index < servers.length; index++) {
-        await _mountServer(context, servers[index], index, servers.length);
+        final server = servers[index];
+        // A leading # disables just this saved server without removing it.
+        if (server.isEmpty || server.startsWith('#')) continue;
+        await _mountServer(context, server, index, servers.length);
       }
     } catch (_) {
       await _disposeStdioClients();

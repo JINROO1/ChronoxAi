@@ -184,5 +184,6 @@ por el usuario en Debian. El cliente negocia MCP, descubre `tools/list` y llama
 `tools/call`; cada herramienta remota requiere aprobación. `npx` puede descargar
 código arbitrario y ejecutarlo: Chronox no lo instala silenciosamente; revisa el
 paquete y sus scripts antes de autorizarlo. Ajustes permite varias entradas,
-una URL o comando por línea. La gestión individual de habilitar/deshabilitar,
-variables de entorno seguras y lockfiles queda como trabajo de compatibilidad.
+una URL o comando por línea; anteponer `#` deshabilita una entrada sin borrarla.
+La gestión de variables de entorno seguras, lockfiles y aprobación por servidor
+queda como trabajo pendiente de compatibilidad.

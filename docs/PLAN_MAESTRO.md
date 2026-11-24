@@ -184,8 +184,9 @@ Fuentes: `docs/user/develop/basic/publish.md` del repo oficial
 - [x] Sesión admite varios servidores (URL HTTP o comando stdio por línea),
       asigna namespace de herramientas por servidor; configuración guardada en provider
       settings (CI `45313077839` en verde)
-- [ ] Gestor dedicado para habilitar/deshabilitar servidores y configurar
-      variables de entorno (secretos en almacenamiento seguro)
+- [x] Deshabilitar una entrada individual MCP anteponiendo `#` en Ajustes
+- [ ] Gestor dedicado y variables de entorno seguras (secretos en almacenamiento
+      seguro), lockfiles y aprobación granular por servidor
 - [ ] Instalador npm con pins/lockfile, preview de scripts, aprobación antes de
       instalar/ejecutar y límites de tamaño/tiempo
 - [ ] Adaptador de paquetes `dsh.bundle`: leer package.json + patches declarados,

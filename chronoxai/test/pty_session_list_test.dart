@@ -6,7 +6,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   const channel = MethodChannel('test/pty-list');
 
-  tearDown(() => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+  tearDown(() => TestDefaultBinaryMessengerBinding
+      .instance.defaultBinaryMessenger
       .setMockMethodCallHandler(channel, null));
 
   test('decodes active terminal rows from the native bridge', () async {

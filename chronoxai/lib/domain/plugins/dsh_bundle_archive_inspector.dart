@@ -16,6 +16,81 @@ class DshBundleArchiveInspector {
   static const int maxExpandedBytes = 16 * 1024 * 1024;
   static const int maxEntryBytes = 2 * 1024 * 1024;
 
+  static void _validateCentralDirectory(Uint8List bytes) {
+    if (bytes.length < 22) {
+      throw const FormatException('ZIP truncado.');
+    }
+    final data = ByteData.sublistView(bytes);
+    int u16(int offset) => data.getUint16(offset, Endian.little);
+    int u32(int offset) => data.getUint32(offset, Endian.little);
+
+    final minimum = bytes.length - 22;
+    final searchStart = (bytes.length - 65557).clamp(0, minimum);
+    var endRecord = -1;
+    for (var offset = minimum; offset >= searchStart; offset--) {
+      if (u32(offset) == 0x06054b50) {
+        endRecord = offset;
+        break;
+      }
+    }
+    if (endRecord < 0 || u16(endRecord + 4) != 0 || u16(endRecord + 6) != 0) {
+      throw const FormatException('ZIP multi-disco o directorio inválido.');
+    }
+    final entriesOnDisk = u16(endRecord + 8);
+    final entryCount = u16(endRecord + 10);
+    if (entriesOnDisk != entryCount) {
+      throw const FormatException('ZIP multi-disco no permitido.');
+    }
+    final directorySize = u32(endRecord + 12);
+    final directoryOffset = u32(endRecord + 16);
+    if (entryCount > maxEntries ||
+        directoryOffset + directorySize > endRecord ||
+        directoryOffset + directorySize > bytes.length) {
+      throw const FormatException('Directorio ZIP fuera de límites.');
+    }
+
+    var offset = directoryOffset;
+    var expanded = 0;
+    for (var entry = 0; entry < entryCount; entry++) {
+      if (offset + 46 > bytes.length || u32(offset) != 0x02014b50) {
+        throw const FormatException('Entrada ZIP inválida.');
+      }
+      final flags = u16(offset + 8);
+      final method = u16(offset + 10);
+      final compressedSize = u32(offset + 20);
+      final expandedSize = u32(offset + 24);
+      final nameLength = u16(offset + 28);
+      final extraLength = u16(offset + 30);
+      final commentLength = u16(offset + 32);
+      if ((flags & 1) != 0 || (method != 0 && method != 8) ||
+          compressedSize == 0xffffffff || expandedSize == 0xffffffff) {
+        throw const FormatException('ZIP cifrado, ZIP64 o compresión no permitida.');
+      }
+      final end = offset + 46 + nameLength + extraLength + commentLength;
+      if (end > directoryOffset + directorySize || end > bytes.length) {
+        throw const FormatException('Entrada ZIP truncada.');
+      }
+      final name = utf8.decode(
+        bytes.sublist(offset + 46, offset + 46 + nameLength),
+        allowMalformed: true,
+      ).replaceAll('\\', '/');
+      if (name.startsWith('/') || name.split('/').any((final part) => part == '..')) {
+        throw const FormatException('El bundle contiene rutas fuera del archivo.');
+      }
+      if (expandedSize > maxEntryBytes) {
+        throw FormatException('Entrada demasiado grande: $name');
+      }
+      expanded += expandedSize;
+      if (expanded > maxExpandedBytes) {
+        throw const FormatException('El contenido expandido supera 16 MiB.');
+      }
+      offset = end;
+    }
+    if (offset != directoryOffset + directorySize) {
+      throw const FormatException('Tamaño de directorio ZIP inconsistente.');
+    }
+  }
+
   static DshBundleDiagnostic inspectBytes(
     List<int> bytes, {
     required String bundleName,
@@ -24,9 +99,11 @@ class DshBundleArchiveInspector {
       throw const FormatException('El bundle está vacío o excede 8 MiB.');
     }
 
+    final input = Uint8List.fromList(bytes);
+    _validateCentralDirectory(input);
     final Archive archive;
     try {
-      archive = ZipDecoder().decodeBytes(Uint8List.fromList(bytes), verify: true);
+      archive = ZipDecoder().decodeBytes(input, verify: true);
     } on Object catch (error) {
       throw FormatException('No se pudo leer el ZIP del bundle: $error');
     }

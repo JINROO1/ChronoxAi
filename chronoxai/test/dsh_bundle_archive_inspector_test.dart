@@ -34,6 +34,14 @@ void main() {
     expect(result.unsupported, isNotEmpty);
   });
 
+  test('rejects traversal paths before decoding entry contents', () {
+    final zip = makeZip(<String, String>{'../escape/package.json': '{}'});
+    expect(
+      () => DshBundleArchiveInspector.inspectBytes(zip, bundleName: 'bad'),
+      throwsFormatException,
+    );
+  });
+
   test('rejects invalid and oversized archive input', () {
     expect(
       () => DshBundleArchiveInspector.inspectBytes(<int>[1, 2], bundleName: 'bad'),

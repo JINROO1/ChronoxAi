@@ -16,7 +16,7 @@ void main() {
 
     expect(report.canImportAsMcp, isFalse);
     expect(report.toJson()['classification'], 'manual_port_required');
-    expect(report.unsupported, hasLength(3));
+    expect(report.unsupported, hasLength(4));
     expect(report.toPrettyJson(), contains('No se instaló ni ejecutó código'));
   });
 

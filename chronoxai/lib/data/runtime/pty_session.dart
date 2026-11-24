@@ -14,6 +14,7 @@ abstract interface class PtyProcess {
   Future<int> get exitCode;
   void write(Uint8List data);
   void resize(int rows, int columns);
+  void ackRead();
   bool kill(ProcessSignal signal);
 }
 
@@ -42,6 +43,9 @@ class _FlutterPtyProcess implements PtyProcess {
 
   @override
   void resize(final int rows, final int columns) => _pty.resize(rows, columns);
+
+  @override
+  void ackRead() => _pty.ackRead();
 
   @override
   bool kill(final ProcessSignal signal) => _pty.kill(signal);
@@ -136,7 +140,14 @@ class PtySession {
       _state = PtyState.running;
       _outputSubscription = process.output.listen(
         (final data) {
-          if (!_output.isClosed) _output.add(data);
+          try {
+            if (!_output.isClosed) _output.add(data);
+          } finally {
+            // flutter_pty se configuró con ackRead: true para limitar la
+            // contrapresión. Sin este ACK, el PTY retiene el flujo tras el
+            // primer bloque y los comandos parecen no producir salida.
+            process.ackRead();
+          }
         },
         onError: (final Object error, final StackTrace stack) {
           if (!_output.isClosed) _output.addError(error, stack);

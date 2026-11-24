@@ -23,6 +23,11 @@ class FakePty implements PtyProcess {
   @override
   void resize(final int rows, final int columns) => sizes.add((rows, columns));
   @override
+  void ackRead() => acknowledgements++;
+
+  int acknowledgements = 0;
+
+  @override
   bool kill(final ProcessSignal signal) {
     if (!exitCompleter.isCompleted) exitCompleter.complete(0);
     return true;
@@ -99,6 +104,7 @@ void main() {
     await session.write('ñ');
     await Future<void>.delayed(Duration.zero);
     expect(String.fromCharCodes(received.single), 'salud');
+    expect(process.acknowledgements, 1);
     expect(process.writes.single, Uint8List.fromList(utf8.encode('ñ')));
   });
 

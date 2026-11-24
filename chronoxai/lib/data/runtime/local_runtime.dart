@@ -3,9 +3,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
+import 'package:crypto/crypto.dart';
 
 import '../../domain/plugins/seams.dart';
 import '../../domain/plugins/sandbox_policy.dart';
+import '../../domain/plugins/mcp_npm_spec.dart';
 import '../../domain/terminal/linux_paths.dart';
 import '../../domain/terminal/elf_inspector.dart';
 import '../../domain/terminal/proot_command.dart';
@@ -251,21 +253,75 @@ class LocalRuntime {
     final Map<String, String> serverEnvironment,
   ) async {
     if (command.isEmpty ||
-        !const <String>{'node', 'nodejs', 'npm', 'npx'}
-            .contains(command.first)) {
-      throw ArgumentError.value(
-          command, 'command', 'Usa node, npm o npx para un servidor MCP.');
-    }
-    if (command.any((final part) => part.contains('\u0000'))) {
-      throw ArgumentError.value(command, 'command', 'Argumento inválido.');
+        command.any((final part) => part.contains('\u0000'))) {
+      throw ArgumentError.value(command, 'command', 'Comando MCP inválido.');
     }
     final current = await status();
-    if (!current.isReady)
+    if (!current.isReady) {
       throw StateError('Runtime no listo: ${current.title}.');
-    final executableCheck = await run('command -v ${command.first}');
-    if (!executableCheck.isSuccess) {
-      throw StateError(
-          'Falta ${command.first} en Debian. Instala nodejs y npm antes de conectar servidores MCP npm.');
+    }
+
+    late final List<String> launchCommand;
+    if (command.first == 'npm-package') {
+      final pinned = PinnedMcpPackage.parse(command);
+      final npmCheck = await run('command -v npm');
+      if (!npmCheck.isSuccess) {
+        throw StateError('Instala nodejs y npm en Debian para usar paquetes MCP.');
+      }
+      final packageId = sha256
+          .convert(utf8.encode(pinned.spec))
+          .toString()
+          .substring(0, 20);
+      final hostDir = Directory(p.join(hostWorkspace, '.chronox', 'mcp-packages', packageId));
+      await hostDir.create(recursive: true);
+      final packageJson = File(p.join(hostDir.path, 'package.json'));
+      final lockFile = File(p.join(hostDir.path, 'package-lock.json'));
+      final expectedJson = const JsonEncoder.withIndent('  ').convert(<String, Object?>{
+        'name': 'chronox-mcp-$packageId',
+        'version': '1.0.0',
+        'private': true,
+        'dependencies': <String, String>{pinned.package: pinned.version},
+      });
+      if (await packageJson.exists() &&
+          (jsonDecode(await packageJson.readAsString()) as Map)['dependencies']
+                  [pinned.package] !=
+              pinned.version) {
+        throw StateError('package.json local no coincide con el pin MCP.');
+      }
+      await packageJson.writeAsString(expectedJson, flush: true);
+      final installPrefix = '/workspace/.chronox/mcp-packages/$packageId';
+      if (!await lockFile.exists()) {
+        final lockResult = await run(
+          'npm install --prefix ${_shellQuote(installPrefix)} '
+          '--package-lock-only --ignore-scripts --save-exact --no-audit --no-fund',
+          timeout: const Duration(minutes: 10),
+        );
+        if (!lockResult.isSuccess || !await lockFile.exists()) {
+          throw StateError('No se pudo generar package-lock.json: ${lockResult.stderr}');
+        }
+      }
+      final ciResult = await run(
+        'npm ci --prefix ${_shellQuote(installPrefix)} '
+        '--ignore-scripts --no-audit --no-fund',
+        timeout: const Duration(minutes: 10),
+      );
+      if (!ciResult.isSuccess) {
+        throw StateError('npm ci falló: ${ciResult.stderr}');
+      }
+      launchCommand = <String>[
+        p.join(installPrefix, 'node_modules', '.bin', pinned.binary),
+      ];
+    } else {
+      if (!const <String>{'node', 'nodejs', 'npm', 'npx'}.contains(command.first)) {
+        throw ArgumentError.value(
+            command, 'command', 'Usa node, npm, npx o npm-package fijado.');
+      }
+      final executableCheck = await run('command -v ${command.first}');
+      if (!executableCheck.isSuccess) {
+        throw StateError(
+            'Falta ${command.first} en Debian. Instala nodejs y npm antes de conectar servidores MCP npm.');
+      }
+      launchCommand = command;
     }
     final invalidEnvironment = serverEnvironment.entries.any((final entry) =>
         !RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$').hasMatch(entry.key) ||
@@ -275,7 +331,7 @@ class LocalRuntime {
           'Nombre de variable o valor inválido.');
     }
     final config = await _config(workingDirectory: '/workspace');
-    final guestCommand = 'exec ${command.map(_shellQuote).join(' ')}';
+    final guestCommand = 'exec ${launchCommand.map(_shellQuote).join(' ')}';
     final args = ProotCommandBuilder.build(config,
         inner: <String>['/bin/bash', '-lc', guestCommand]);
     final environment = ProotCommandBuilder.hostEnvironment(

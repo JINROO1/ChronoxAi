@@ -187,10 +187,10 @@ Fuentes: `docs/user/develop/basic/publish.md` del repo oficial
 - [x] Deshabilitar una entrada individual MCP anteponiendo `#` en Ajustes
 - [x] Variables secretas por servidor cifradas con Android Keystore e inyectadas
       a procesos stdio (CI `45315887115` Analyze/Tests/Format en verde)
-- [ ] Instalación segura de npm con lockfiles y aprobación antes de ejecutar.
-      MCP mantiene aprobación obligatoria por invocación; faltan políticas por servidor.
-- [ ] Instalador npm con pins/lockfile, preview de scripts, aprobación antes de
-      instalar/ejecutar y límites de tamaño/tiempo
+- [x] Modo `npm-package` aislado con pin semver exacto, package-lock + `npm ci`
+      y scripts de instalación desactivados
+- [ ] Revisión visual del lockfile/dependencias antes de instalar, límites
+      explícitos del proceso y políticas de permisos individualizadas por servidor
 - [ ] Adaptador de paquetes `dsh.bundle`: leer package.json + patches declarados,
       soportar filas de plugins de herramientas/skills mediante shim Node
 - [x] Diagnóstico de preflight `DshBundleDiagnostic` con clasificación MCP

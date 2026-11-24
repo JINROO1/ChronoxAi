@@ -411,10 +411,10 @@ class SettingsScreen extends ConsumerWidget {
     final value = await _prompt(
       context,
       title: 'Servidor MCP',
-      hint: 'Una URL/comando por línea: https://…/mcp o stdio:npx paquete',
+      hint: 'https://…/mcp o stdio:npm-package @scope/servidor@1.2.3 bin',
       initial: settings.mcpServerUrl,
       helper:
-          'Un servidor por línea; antepón # para deshabilitar una entrada. Configura secretos por número de fila debajo; se inyectan solo al proceso stdio. Cada herramienta solicita aprobación.',
+          'Un servidor por línea; # lo deshabilita. Solo configura paquetes de confianza: npm-package <paquete>@<versión exacta> <binario> crea/usa lockfile y omite scripts de instalación. El código del servidor sí se ejecuta; cada llamada a herramienta pide aprobación.',
       maxLines: 5,
     );
     if (value == null) return;

@@ -13,6 +13,7 @@ import '../../domain/terminal/linux_paths.dart';
 import '../../domain/terminal/elf_inspector.dart';
 import '../../domain/terminal/proot_command.dart';
 import '../../domain/terminal/runtime_compat.dart';
+import 'pty_session.dart';
 import '../../platform/android_runtime_channel.dart';
 
 /// Por qué el runtime no puede usarse todavía.
@@ -525,7 +526,7 @@ class LocalRuntime {
     final config = await _config(workingDirectory: workingDirectory);
     final args = ProotCommandBuilder.build(
       config,
-      inner: <String>['/bin/bash', '-lc', command],
+      inner: ProotCommandBuilder.commandShell(config, command),
     );
     final env = ProotCommandBuilder.hostEnvironment(
       nativeLibraryDir: p.dirname(config.prootBinary),

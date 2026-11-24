@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../../data/runtime/local_runtime.dart';
+import '../../data/runtime/proot_terminals_seam.dart';
 import '../../domain/agent/approval_policy.dart';
 import '../../domain/modes/work_modes.dart';
 import '../../domain/plugins/plugin_api.dart';
@@ -890,6 +891,7 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
           fileSystem: WorkspaceFileSystemSeam(
             hostWorkspace: runtime.hostWorkspace,
           ),
+          terminals: ProotTerminalsSeam(runtime),
           workspaceDir: Directory(runtime.hostWorkspace),
           mcpServerUrl: settings.mcpServerUrl,
           mcpServerEnvironments: mcpEnvironments,

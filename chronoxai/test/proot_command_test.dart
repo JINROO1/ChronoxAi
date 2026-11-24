@@ -106,6 +106,19 @@ void main() {
       );
     });
 
+    test('ejecuta comandos de agente con PATH Linux y argumento aislado', () {
+      final command = ProotCommandBuilder.commandShell(
+        baseConfig(),
+        "printf '%s' 'hola mundo'",
+      );
+      expect(command[0], '/bin/bash');
+      expect(command[1], '--noprofile');
+      expect(command[4], contains("export HOME='/root' PATH='"));
+      expect(command[4], contains('exec /bin/bash --noprofile --norc -c'));
+      expect(command[5], 'chronoxai-command');
+      expect(command[6], "printf '%s' 'hola mundo'");
+    });
+
     test('acepta un comando interior explícito', () {
       final argv = ProotCommandBuilder.build(
         baseConfig(),

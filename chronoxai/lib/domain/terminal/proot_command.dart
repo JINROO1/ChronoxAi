@@ -165,6 +165,25 @@ abstract final class ProotCommandBuilder {
     return args;
   }
 
+  /// Ejecuta un comando no interactivo con HOME y PATH del rootfs explícitos.
+  /// El comando viaja como argumento, no interpolado en una cadena de shell.
+  static List<String> commandShell(
+    final ProotConfig config,
+    final String command,
+  ) {
+    final path = guestEnvironment(config)['PATH']!;
+    return <String>[
+      '/bin/bash',
+      '--noprofile',
+      '--norc',
+      '-c',
+      "export HOME='/root' PATH='$path' TERM='xterm-256color'; "
+          'exec /bin/bash --noprofile --norc -c "\$1"',
+      'chronoxai-command',
+      command,
+    ];
+  }
+
   /// Arranca una shell de login interactiva con un PATH del rootfs conocido.
   /// Se fija desde bash en vez de usar `proot --env`, opción no soportada por
   /// algunas builds Android de PRoot que usa el proyecto.

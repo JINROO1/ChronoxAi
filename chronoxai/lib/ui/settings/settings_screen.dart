@@ -905,12 +905,14 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
                       lockText,
                     );
                     if (!approved) {
-                      throw StateError('Instalación MCP rechazada por el usuario.');
+                      throw StateError(
+                          'Instalación MCP rechazada por el usuario.');
                     }
                     final reviewedAgain =
                         await runtime.preparePinnedMcpPackage(command);
                     if (reviewedAgain != lockText) {
-                      throw StateError('El lockfile cambió después de la revisión.');
+                      throw StateError(
+                          'El lockfile cambió después de la revisión.');
                     }
                   }
                   return runtime.startMcpProcess(command, environment);

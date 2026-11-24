@@ -182,8 +182,8 @@ Fuentes: `docs/user/develop/basic/publish.md` del repo oficial
 - [x] MCP stdio: initialize/initialized, tools/list/call, timeout, logs stderr,
       cierre y tests con transporte falso (CI `45312414820`; 263 tests en verde)
 - [x] Sesión admite varios servidores (URL HTTP o comando stdio por línea),
-      namespacea herramientas por servidor; configuración guardada en provider
-      settings. Pending CI verification.
+      asigna namespace de herramientas por servidor; configuración guardada en provider
+      settings (CI `45313077839` en verde)
 - [ ] Gestor dedicado para habilitar/deshabilitar servidores y configurar
       variables de entorno (secretos en almacenamiento seguro)
 - [ ] Instalador npm con pins/lockfile, preview de scripts, aprobación antes de

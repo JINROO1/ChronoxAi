@@ -273,6 +273,7 @@ class SessionBootstrap {
     this.terminals,
     this.network,
     this.mcpServerUrl = '',
+    this.mcpServerEnvironments = const <int, Map<String, String>>{},
     this.startPluginProcess,
     this.startMcpProcess,
   });
@@ -284,8 +285,12 @@ class SessionBootstrap {
   final TerminalsSeam? terminals;
   final NetworkSeam? network;
   final String mcpServerUrl;
+  final Map<int, Map<String, String>> mcpServerEnvironments;
   final Future<Process> Function(String guestScript)? startPluginProcess;
-  final Future<Process> Function(List<String> command)? startMcpProcess;
+  final Future<Process> Function(
+    List<String> command,
+    Map<String, String> environment,
+  )? startMcpProcess;
 }
 
 /// Arranca una sesión completa: log, registro de herramientas, plugins y motor.
@@ -350,6 +355,7 @@ Future<SessionRuntime> startSession(
     },
     host: host,
     mcpServerUrl: bootstrap.mcpServerUrl,
+    mcpServerEnvironments: bootstrap.mcpServerEnvironments,
     startMcpProcess: bootstrap.startMcpProcess,
     pluginLister: () => host.plugins
         .map((final p) => <String, Object?>{

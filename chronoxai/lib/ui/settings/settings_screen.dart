@@ -9,6 +9,7 @@ import '../../domain/agent/approval_policy.dart';
 import '../../domain/modes/work_modes.dart';
 import '../../domain/plugins/plugin_api.dart';
 import '../../platform/android_permissions.dart';
+import '../../platform/secure_secret_store.dart';
 import '../chat/approval_sheet.dart';
 import '../chat/plan_sheet.dart';
 import '../state/app_state.dart';
@@ -91,6 +92,13 @@ class SettingsScreen extends ConsumerWidget {
                       ? 'No configurado'
                       : settings.mcpServerUrl,
                   onTap: () => _editMcpUrl(context, ref, settings),
+                ),
+                const Divider(height: 1, color: ChronoxColors.border),
+                SettingsRow(
+                  icon: Icons.key_outlined,
+                  title: 'Variables secretas MCP',
+                  subtitle: 'Cifradas en Android Keystore, por servidor',
+                  onTap: () => _editMcpEnvironment(context, settings),
                 ),
               ],
             ),
@@ -406,12 +414,80 @@ class SettingsScreen extends ConsumerWidget {
       hint: 'Una URL/comando por línea: https://…/mcp o stdio:npx paquete',
       initial: settings.mcpServerUrl,
       helper:
-          'Un servidor por línea; antepón # para deshabilitar temporalmente una entrada sin borrarla. MCP stdio npm requiere nodejs/npm instalado en Debian. Revisa los paquetes: cada herramienta solicita aprobación.',
+          'Un servidor por línea; antepón # para deshabilitar una entrada. Configura secretos por número de fila debajo; se inyectan solo al proceso stdio. Cada herramienta solicita aprobación.'
       maxLines: 5,
     );
     if (value == null) return;
     ref.read(providerSettingsProvider.notifier).state =
         settings.copyWith(mcpServerUrl: value.trim());
+  }
+
+  Future<void> _editMcpEnvironment(
+    final BuildContext context,
+    final ProviderSettings settings,
+  ) async {
+    final serverController = TextEditingController();
+    final nameController = TextEditingController();
+    final valueController = TextEditingController();
+    final store = const SecureSecretStore();
+    await showDialog<void>(
+      context: context,
+      builder: (final dialogContext) => AlertDialog(
+        title: const Text('Variable secreta MCP'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            TextField(
+              controller: serverController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Número de servidor (fila)'),
+            ),
+            TextField(
+              controller: nameController,
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(labelText: 'Nombre (p. ej. API_TOKEN)'),
+            ),
+            TextField(
+              controller: valueController,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Valor secreto'),
+            ),
+          ],
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () async {
+              final index = int.tryParse(serverController.text.trim());
+              final name = nameController.text.trim();
+              if (index == null || index < 1 || index > settings.mcpServerUrl.split('\n').length ||
+                  !RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$').hasMatch(name)) return;
+              await store.delete('mcp.${index - 1}.$name');
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
+            },
+            child: const Text('Eliminar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final index = int.tryParse(serverController.text.trim());
+              final name = nameController.text.trim();
+              if (index == null || index < 1 || index > settings.mcpServerUrl.split('\n').length ||
+                  !RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$').hasMatch(name) ||
+                  valueController.text.isEmpty) return;
+              await store.write('mcp.${index - 1}.$name', valueController.text);
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+    serverController.dispose();
+    nameController.dispose();
+    valueController.dispose();
   }
 
   Future<void> _editModel(
@@ -728,6 +804,17 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
       // escribir en el workspace y le explica al modelo, en cada intento de
       // comando, qué falta. Bloquear aquí dejaría la app inutilizable hasta
       // terminar el instalador.
+      final secretStore = const SecureSecretStore();
+      final mcpEnvironments = <int, Map<String, String>>{};
+      final mcpRows = settings.mcpServerUrl.split('\n');
+      for (var index = 0; index < mcpRows.length; index++) {
+        if (mcpRows[index].trim().isEmpty || mcpRows[index].trim().startsWith('#')) {
+          continue;
+        }
+        final values = await secretStore.readPrefix('mcp.$index.');
+        if (values.isNotEmpty) mcpEnvironments[index] = values;
+      }
+
       final session = await startSession(
         SessionBootstrap(
           provider: clientFromSettings(settings),
@@ -739,6 +826,7 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
           ),
           workspaceDir: Directory(runtime.hostWorkspace),
           mcpServerUrl: settings.mcpServerUrl,
+          mcpServerEnvironments: mcpEnvironments,
           startPluginProcess:
               status.isReady ? runtime.startPluginProcess : null,
           startMcpProcess: status.isReady ? runtime.startMcpProcess : null,

@@ -246,7 +246,10 @@ class LocalRuntime {
 
   /// Inicia un servidor MCP de stdio dentro de Debian. Solo se admite un
   /// lanzador conocido (node/npm/npx); los argumentos se citan individualmente.
-  Future<Process> startMcpProcess(final List<String> command) async {
+  Future<Process> startMcpProcess(
+    final List<String> command,
+    final Map<String, String> serverEnvironment,
+  ) async {
     if (command.isEmpty ||
         !const <String>{'node', 'nodejs', 'npm', 'npx'}
             .contains(command.first)) {
@@ -264,6 +267,13 @@ class LocalRuntime {
       throw StateError(
           'Falta ${command.first} en Debian. Instala nodejs y npm antes de conectar servidores MCP npm.');
     }
+    final invalidEnvironment = serverEnvironment.entries.any((final entry) =>
+        !RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$').hasMatch(entry.key) ||
+        entry.value.contains('\u0000'));
+    if (invalidEnvironment) {
+      throw ArgumentError.value(serverEnvironment, 'environment',
+          'Nombre de variable o valor inválido.');
+    }
     final config = await _config(workingDirectory: '/workspace');
     final guestCommand = 'exec ${command.map(_shellQuote).join(' ')}';
     final args = ProotCommandBuilder.build(config,
@@ -274,8 +284,12 @@ class LocalRuntime {
       prootLoader: config.prootLoader,
     );
     await Directory(paths.tempDir).create(recursive: true);
-    return Process.start(config.prootBinary, args,
-        environment: environment, workingDirectory: paths.filesDir);
+    return Process.start(
+      config.prootBinary,
+      args,
+      environment: <String, String>{...environment, ...serverEnvironment},
+      workingDirectory: paths.filesDir,
+    );
   }
 
   static String _shellQuote(final String value) =>

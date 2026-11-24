@@ -103,6 +103,7 @@ class MainActivity : FlutterActivity() {
                 try {
                     val prefs = getSharedPreferences("encrypted_secrets", MODE_PRIVATE)
                     when (call.method) {
+                        "keys" -> result.success(prefs.all.keys.filter { it.startsWith(key) }.sorted())
                         "read" -> result.success(prefs.getString(key, null)?.let(::decryptSecret))
                         "write" -> {
                             val value = call.argument<String>("value")

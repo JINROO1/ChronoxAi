@@ -666,10 +666,14 @@ class _WebPlugin extends ChronoxPlugin {
 // ---------------------------------------------------------------------------
 
 class _McpPlugin extends ChronoxPlugin {
-  _McpPlugin(this.serverUrl, this.startMcpProcess);
+  _McpPlugin(this.serverUrl, this.startMcpProcess, this.serverEnvironments);
 
   final String? serverUrl;
-  final Future<Process> Function(List<String> command)? startMcpProcess;
+  final Future<Process> Function(
+    List<String> command,
+    Map<String, String> environment,
+  )? startMcpProcess;
+  final Map<int, Map<String, String>> serverEnvironments;
   final List<McpStdioClient> _stdioClients = <McpStdioClient>[];
 
   @override
@@ -709,7 +713,10 @@ class _McpPlugin extends ChronoxPlugin {
         throw const FormatException(
             'Configura stdio:npx --yes paquete-mcp y un runtime Linux listo.');
       }
-      stdioClient = McpStdioClient(await startProcess(command));
+      stdioClient = McpStdioClient(await startProcess(
+        command,
+        serverEnvironments[serverIndex] ?? const <String, String>{},
+      ));
       _stdioClients.add(stdioClient);
       listTools = stdioClient.listTools;
       callTool = stdioClient.callTool;
@@ -1132,7 +1139,8 @@ List<BuiltinPlugin> builtinPlugins({
   PluginHost? host,
   List<Map<String, Object?>> Function()? pluginLister,
   String? mcpServerUrl,
-  Future<Process> Function(List<String>)? startMcpProcess,
+  Future<Process> Function(List<String>, Map<String, String>)? startMcpProcess,
+  Map<int, Map<String, String>> mcpServerEnvironments = const <int, Map<String, String>>{},
 }) {
   PluginManifest manifest({
     required final String id,
@@ -1265,7 +1273,11 @@ List<BuiltinPlugin> builtinPlugins({
         capabilities: const <PluginCapability>[PluginCapability.network],
         icon: 'hub',
       ),
-      create: () => _McpPlugin(mcpServerUrl, startMcpProcess),
+      create: () => _McpPlugin(
+        mcpServerUrl,
+        startMcpProcess,
+        mcpServerEnvironments,
+      ),
     ),
     BuiltinPlugin(
       manifest: manifest(

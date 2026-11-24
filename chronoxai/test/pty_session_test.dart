@@ -1,314 +1,127 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:chronoxai/data/runtime/pty_session.dart';
-import 'package:chronoxai/domain/terminal/pty_command.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Simula el lado nativo del canal `app.chronoxai/pty`.
-///
-/// Se sustituye el `MethodChannel`, no la lógica de Dart: así se comprueba el
-/// contrato entre ambos lados (nombres de método, forma de los argumentos y de
-/// los eventos) que es justo lo que no se puede probar en un dispositivo desde
-/// CI.
-class CanalFalso {
-  CanalFalso();
+class FakePty implements PtyProcess {
+  final StreamController<Uint8List> outputController =
+      StreamController<Uint8List>();
+  final Completer<int> exitCompleter = Completer<int>();
+  final List<Uint8List> writes = <Uint8List>[];
+  final List<(int, int)> sizes = <(int, int)>[];
 
-  final List<MethodCall> llamadas = <MethodCall>[];
-
-  int _siguienteId = 1;
-
-  Future<Object?> Function(MethodCall)? respuesta;
-
-  MethodChannel instalar(final String nombre) {
-    final canal = MethodChannel(nombre);
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(canal, (final call) async {
-      llamadas.add(call);
-      if (respuesta != null) return respuesta!(call);
-      return switch (call.method) {
-        'start' => _siguienteId++,
-        'write' => true,
-        'close' => null,
-        _ => null,
-      };
-    });
-    return canal;
-  }
-
-  /// Envía un evento del lado nativo hacia Dart.
-  Future<void> emitir(
-      final String metodo, final Map<String, Object?> args) async {
-    await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .handlePlatformMessage(
-      'app.chronoxai/pty',
-      const StandardMethodCodec().encodeMethodCall(
-        MethodCall(metodo, args),
-      ),
-      (_) {},
-    );
+  @override
+  Stream<Uint8List> get output => outputController.stream;
+  @override
+  Future<int> get exitCode => exitCompleter.future;
+  @override
+  void write(final Uint8List data) => writes.add(data);
+  @override
+  void resize(final int rows, final int columns) => sizes.add((rows, columns));
+  @override
+  bool kill(final ProcessSignal signal) {
+    if (!exitCompleter.isCompleted) exitCompleter.complete(0);
+    return true;
   }
 }
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
+  late FakePty process;
+  late PtySession session;
+  late Map<String, Object?> captured;
 
-  group('PtySession', () {
-    late CanalFalso canal;
-
-    setUp(() {
-      canal = CanalFalso();
-    });
-
-    tearDown(() {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        const MethodChannel('app.chronoxai/pty'),
-        null,
-      );
-    });
-
-    test('start envía binario, argumentos, entorno y directorio', () async {
-      final canalReal = canal.instalar('app.chronoxai/pty');
-      final sesion = PtySession(command: 'proot', channel: canalReal);
-
-      final ok = await sesion.start(
-        binary: '/data/app/lib/libproot.so',
-        arguments: <String>['--kill-on-exit', '--rootfs=/rootfs'],
-        environment: <String, String>{'LD_LIBRARY_PATH': '/data/app/lib'},
-        workingDirectory: '/data/data/app.chronoxai/files',
-      );
-
-      expect(ok, isTrue);
-      expect(sesion.isRunning, isTrue);
-      expect(sesion.id, isNotNull);
-
-      final llamada = canal.llamadas.single;
-      expect(llamada.method, 'start');
-      final args = llamada.arguments as Map<Object?, Object?>;
-      expect(args['binary'], '/data/app/lib/libproot.so');
-      expect(args['args'], contains('--rootfs=/rootfs'));
-      expect(
-        (args['env']! as Map<Object?, Object?>)['LD_LIBRARY_PATH'],
-        '/data/app/lib',
-      );
-      expect(args['cwd'], '/data/data/app.chronoxai/files');
-    });
-
-    test('la salida nativa llega a la pantalla en orden', () async {
-      final canalReal = canal.instalar('app.chronoxai/pty');
-      final sesion = PtySession(command: 'proot', channel: canalReal);
-      await sesion.start(
-        binary: '/bin/sh',
-        arguments: const <String>[],
-        environment: const <String, String>{},
-      );
-
-      final recibido = <String>[];
-      sesion.output
-          .listen((final bytes) => recibido.add(String.fromCharCodes(bytes)));
-
-      await canal.emitir('output', <String, Object?>{
-        'id': 1,
-        'data': Uint8List.fromList(<int>[104, 111, 108, 97]),
-      });
-      await canal.emitir('output', <String, Object?>{
-        'id': 1,
-        'data': Uint8List.fromList(<int>[10]),
-      });
-      // Los eventos llegan por el bucle de mensajes.
-      await Future<void>.delayed(Duration.zero);
-
-      expect(recibido.join(), 'hola\n');
-    });
-
-    test('varias sesiones del mismo canal reciben solo su salida', () async {
-      final canalReal = canal.instalar('app.chronoxai/pty');
-      final first = PtySession(command: 'shell-1', channel: canalReal);
-      final second = PtySession(command: 'shell-2', channel: canalReal);
-      await first.start(
-        binary: '/bin/sh',
-        arguments: const <String>[],
-        environment: const <String, String>{},
-      );
-      await second.start(
-        binary: '/bin/sh',
-        arguments: const <String>[],
-        environment: const <String, String>{},
-      );
-      final firstOutput = <String>[];
-      final secondOutput = <String>[];
-      first.output
-          .listen((bytes) => firstOutput.add(String.fromCharCodes(bytes)));
-      second.output
-          .listen((bytes) => secondOutput.add(String.fromCharCodes(bytes)));
-
-      await canal.emitir('output', <String, Object?>{
-        'id': 1,
-        'data': Uint8List.fromList('uno'.codeUnits),
-      });
-      await canal.emitir('output', <String, Object?>{
-        'id': 2,
-        'data': Uint8List.fromList('dos'.codeUnits),
-      });
-      await Future<void>.delayed(Duration.zero);
-
-      expect(firstOutput, <String>['uno']);
-      expect(secondOutput, <String>['dos']);
-      await first.close();
-      await second.close();
-    });
-
-    test('el código de salida se publica y cierra la sesión', () async {
-      final canalReal = canal.instalar('app.chronoxai/pty');
-      final sesion = PtySession(command: 'proot', channel: canalReal);
-      await sesion.start(
-        binary: '/bin/sh',
-        arguments: const <String>[],
-        environment: const <String, String>{},
-      );
-
-      final codigos = <int>[];
-      sesion.exit.listen(codigos.add);
-
-      await canal.emitir('exit', <String, Object?>{'id': 1, 'exitCode': 0});
-      await Future<void>.delayed(Duration.zero);
-
-      expect(codigos, <int>[0]);
-      expect(sesion.state, PtyState.exited);
-      expect(sesion.isRunning, isFalse);
-    });
-
-    test('write envía los bytes al proceso', () async {
-      final canalReal = canal.instalar('app.chronoxai/pty');
-      final sesion = PtySession(command: 'proot', channel: canalReal);
-      await sesion.start(
-        binary: '/bin/sh',
-        arguments: const <String>[],
-        environment: const <String, String>{},
-      );
-
-      final ok = await sesion.write('ls\r');
-
-      expect(ok, isTrue);
-      final escritura =
-          canal.llamadas.firstWhere((final c) => c.method == 'write');
-      final args = escritura.arguments as Map<Object?, Object?>;
-      expect((args['data']! as Uint8List).toList(), 'ls\r'.codeUnits);
-    });
-
-    test('Ctrl+C se envía como byte de control, no como texto', () async {
-      final canalReal = canal.instalar('app.chronoxai/pty');
-      final sesion = PtySession(command: 'proot', channel: canalReal);
-      await sesion.start(
-        binary: '/bin/sh',
-        arguments: const <String>[],
-        environment: const <String, String>{},
-      );
-
-      await sesion.writeBytes(const <int>[ControlKeys.ctrlC]);
-
-      final escritura =
-          canal.llamadas.firstWhere((final c) => c.method == 'write');
-      final args = escritura.arguments as Map<Object?, Object?>;
-      expect((args['data']! as Uint8List).toList(), <int>[3]);
-    });
-
-    test('tras close() ya no se acepta escritura', () async {
-      final canalReal = canal.instalar('app.chronoxai/pty');
-      final sesion = PtySession(command: 'proot', channel: canalReal);
-      await sesion.start(
-        binary: '/bin/sh',
-        arguments: const <String>[],
-        environment: const <String, String>{},
-      );
-
-      await sesion.close();
-
-      expect(await sesion.write('x'), isFalse);
-      expect(
-        canal.llamadas.where((final c) => c.method == 'close').length,
-        1,
-      );
-    });
-
-    test('sin lado nativo la sesión falla en vez de quedarse colgada',
-        () async {
-      // Canal sin manejador: es lo que ocurre en `flutter test`.
-      final sesion = PtySession(
-          command: 'proot', channel: const MethodChannel('app.chronoxai/pty'));
-
-      final ok = await sesion.start(
-        binary: '/bin/sh',
-        arguments: const <String>[],
-        environment: const <String, String>{},
-      );
-
-      expect(ok, isFalse);
-      expect(sesion.state, PtyState.failed);
-    });
-
-    test('si el nativo devuelve un error, start no lanza', () async {
-      final canalReal = canal.instalar('app.chronoxai/pty');
-      canal.respuesta = (final _) async =>
-          throw PlatformException(code: 'sin_binario', message: 'no');
-
-      final sesion = PtySession(command: 'proot', channel: canalReal);
-      final ok = await sesion.start(
-        binary: '',
-        arguments: const <String>[],
-        environment: const <String, String>{},
-      );
-
-      expect(ok, isFalse);
-      expect(sesion.state, PtyState.failed);
-    });
+  setUp(() {
+    process = FakePty();
+    captured = <String, Object?>{};
+    session = PtySession(
+      command: 'proot → bash',
+      processFactory: ({
+        required final String executable,
+        required final List<String> arguments,
+        required final String workingDirectory,
+        required final Map<String, String> environment,
+        required final int rows,
+        required final int columns,
+      }) {
+        captured.addAll(<String, Object?>{
+          'executable': executable,
+          'arguments': arguments,
+          'workingDirectory': workingDirectory,
+          'environment': environment,
+          'rows': rows,
+          'columns': columns,
+        });
+        return process;
+      },
+    );
   });
 
-  group('MenuScript', () {
-    test('script recibe -q, -f y -e', () {
-      final args = MenuScript.argumentos();
-      expect(args.first, 'script');
-      expect(args, containsAll(<String>['-q', '-f', '-e']));
-    });
+  tearDown(() async {
+    await session.close();
+    await process.outputController.close();
+  });
 
-    test('el comando interior fija TERM y hace exec del shell', () {
-      expect(MenuScript.comandoInterior(), contains('TERM=xterm-256color'));
-      expect(MenuScript.comandoInterior(), contains('exec /bin/bash -l'));
-    });
+  test('starts the process with exact args, cwd, environment and PTY size',
+      () async {
+    expect(await session.start(
+      binary: '/data/app/lib/libproot.so',
+      arguments: const <String>['--rootfs=/rootfs', '/bin/bash', '-l'],
+      environment: const <String, String>{'LD_LIBRARY_PATH': '/data/app/lib'},
+      workingDirectory: '/data/data/app/files',
+      rows: 31,
+      columns: 97,
+    ), isTrue);
 
-    test('la envoltura pasa por sh -c y no deja procesos intermedios', () {
-      final args = MenuScript.envolturaInterior();
-      expect(args.first, '/bin/sh');
-      expect(args[1], '-c');
-      expect(args[2], contains('exec script'));
-      expect(args[2], contains('exec /bin/bash -l'));
-    });
+    expect(captured['executable'], '/data/app/lib/libproot.so');
+    expect(captured['arguments'], <String>['--rootfs=/rootfs', '/bin/bash', '-l']);
+    expect(captured['workingDirectory'], '/data/data/app/files');
+    expect(captured['environment'], <String, String>{'LD_LIBRARY_PATH': '/data/app/lib'});
+    expect(captured['rows'], 31);
+    expect(captured['columns'], 97);
+  });
 
-    test('sin rootfs disponible() dice false, no lanza', () {
-      expect(MenuScript.disponible('/ruta/que/no/existe'), isFalse);
-    });
+  test('forwards PTY output and writes UTF-8 input bytes', () async {
+    await session.start(binary: '/bin/sh', arguments: const [], environment: const {});
+    final received = <Uint8List>[];
+    session.output.listen(received.add);
+    process.outputController.add(Uint8List.fromList('salud'.codeUnits));
+    await session.write('ñ');
+    await Future<void>.delayed(Duration.zero);
+    expect(String.fromCharCodes(received.single), 'salud');
+    expect(process.writes.single, Uint8List.fromList('ñ'.codeUnits));
+  });
 
-    test('disponible() encuentra /usr/bin/script en un rootfs real', () {
-      // Debian bookworm (bsdutils, Essential: yes) instala script en
-      // /usr/bin/script. Se reproduce ese layout en un directorio temporal:
-      // es la comprobación que hace la app antes de abrir la terminal, y si
-      // mira la ruta equivocada la terminal no se abre nunca.
-      final raiz = Directory.systemTemp.createTempSync('rootfs_script_');
-      addTearDown(() => raiz.deleteSync(recursive: true));
+  test('writes control bytes and propagates window resize', () async {
+    await session.start(binary: '/bin/sh', arguments: const [], environment: const {});
+    await session.writeBytes(const <int>[3]);
+    session.resize(40, 120);
+    expect(process.writes.single, Uint8List.fromList(<int>[3]));
+    expect(process.sizes, <(int, int)>[(40, 120)]);
+  });
 
-      expect(MenuScript.disponible(raiz.path), isFalse);
+  test('exit event is published and session is removed from active list',
+      () async {
+    await session.start(binary: '/bin/sh', arguments: const [], environment: const {});
+    final codes = <int>[];
+    session.exit.listen(codes.add);
+    process.exitCompleter.complete(7);
+    await Future<void>.delayed(Duration.zero);
+    expect(codes, <int>[7]);
+    expect(session.state, PtyState.exited);
+    expect(PtySession.listActive(), isEmpty);
+  });
 
-      Directory('${raiz.path}/usr/bin').createSync(recursive: true);
-      File('${raiz.path}/usr/bin/script').writeAsStringSync('');
-
-      expect(MenuScript.disponible(raiz.path), isTrue);
-      expect(
-        MenuScript.rutasCandidatas(raiz.path).first,
-        '${raiz.path}/usr/bin/script',
-        reason: 'la primera ruta probada debe ser la de bookworm',
-      );
-    });
+  test('factory failure is reported without throwing', () async {
+    final broken = PtySession(
+      command: 'broken',
+      processFactory: ({required executable, required arguments, required workingDirectory,
+        required environment, required rows, required columns}) =>
+          throw const ProcessException('missing'),
+    );
+    expect(await broken.start(binary: '', arguments: const [], environment: const {}), isFalse);
+    expect(broken.state, PtyState.failed);
+    await broken.close();
   });
 }

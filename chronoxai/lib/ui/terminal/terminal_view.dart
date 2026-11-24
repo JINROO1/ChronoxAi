@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/theme.dart';
-import '../../data/runtime/pty_session.dart';
 import '../../domain/terminal/terminal_buffer.dart';
 import 'terminal_controller.dart';
 
@@ -132,46 +131,59 @@ class _TerminalViewState extends State<TerminalView> {
       child: Column(
         children: <Widget>[
           Expanded(
-            child: GestureDetector(
-              // Tocar la pantalla devuelve el foco al campo oculto: sin teclado
-              // la terminal no sirve de nada, y perder el foco es fácil.
-              onTap: () => _foco.requestFocus(),
-              child: estado.status == TerminalStatus.failed
-                  ? _Aviso(
-                      mensaje: estado.message,
-                      onReintentar: widget.controller.open,
-                    )
-                  : Scrollbar(
-                      controller: _scroll,
-                      child: SingleChildScrollView(
-                        controller: _scroll,
-                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            for (var i = 0; i < estado.lines.length; i++)
-                              _Linea(
-                                linea: estado.lines[i],
-                                esCursor: i == estado.cursorRow,
-                                columnaCursor: estado.cursorCol,
-                                estilo: mono,
-                              ),
-                            if (estado.status == TerminalStatus.exited)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 10),
-                                child: Text(
-                                  estado.message,
-                                  style: const TextStyle(
-                                    color: ChronoxColors.warning,
-                                    fontFamily: 'monospace',
-                                    fontSize: 12,
+            child: LayoutBuilder(
+              builder: (final context, final constraints) {
+                final cellWidth = widget.fontSize * 0.62;
+                final lineHeight = widget.fontSize * 1.30;
+                final columns =
+                    (constraints.maxWidth / cellWidth).floor().clamp(1, 500);
+                final rows =
+                    (constraints.maxHeight / lineHeight).floor().clamp(1, 200);
+                WidgetsBinding.instance.addPostFrameCallback((final _) {
+                  if (mounted) widget.controller.resize(rows, columns);
+                });
+                return GestureDetector(
+                  // Tocar la pantalla devuelve el foco al campo oculto: sin teclado
+                  // la terminal no sirve de nada, y perder el foco es fácil.
+                  onTap: () => _foco.requestFocus(),
+                  child: estado.status == TerminalStatus.failed
+                      ? _Aviso(
+                          mensaje: estado.message,
+                          onReintentar: widget.controller.open,
+                        )
+                      : Scrollbar(
+                          controller: _scroll,
+                          child: SingleChildScrollView(
+                            controller: _scroll,
+                            padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                for (var i = 0; i < estado.lines.length; i++)
+                                  _Linea(
+                                    linea: estado.lines[i],
+                                    esCursor: i == estado.cursorRow,
+                                    columnaCursor: estado.cursorCol,
+                                    estilo: mono,
                                   ),
-                                ),
-                              ),
-                          ],
+                                if (estado.status == TerminalStatus.exited)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 10),
+                                    child: Text(
+                                      estado.message,
+                                      style: const TextStyle(
+                                        color: ChronoxColors.warning,
+                                        fontFamily: 'monospace',
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
+                );
+              },
             ),
           ),
           _BarraTeclas(

@@ -86,7 +86,7 @@ class TerminalLine {
 /// Emulador de pantalla.
 ///
 /// [columns] y [rows] son el tamaño con el que se envuelve. El invitado cree
-/// tener 80 columnas (ver `MenuScript`), así que por defecto se usa 80; el
+/// iniciar con 80 columnas, así que por defecto se usa 80; el
 /// número de filas solo limita cuánto se recuerda.
 class TerminalBuffer {
   TerminalBuffer({this.columns = 80, this.rows = 1000})

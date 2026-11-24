@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 
 import '../../data/runtime/local_runtime.dart';
 import '../../data/runtime/pty_session.dart';
-import '../../domain/terminal/pty_command.dart';
 import '../../domain/terminal/terminal_buffer.dart';
 
 /// Estado observable de la terminal.
@@ -70,9 +69,9 @@ class TerminalController extends ChangeNotifier {
   PtySession? _session;
   late final TerminalBuffer _buffer;
 
-  /// El invitado cree tener 80 columnas porque no se puede propagar el tamaño
-  /// real sin `TIOCSWINSZ`. La UI envuelve lo que se salga.
+  /// Tamaño inicial del pseudoterminal; `flutter_pty` permite redimensionarlo.
   static const int _columnas = 80;
+  static const int _filas = 24;
 
   final List<StreamSubscription<Uint8List>> _suscripcionesSalida =
       <StreamSubscription<Uint8List>>[];
@@ -117,36 +116,13 @@ class TerminalController extends ChangeNotifier {
       return;
     }
 
-    // Sin `script` no hay PTY y la terminal sería un shell sin edición de
-    // línea: es mejor decirlo que ofrecer algo peor que no tenerlo.
-    if (!MenuScript.disponible(runtime.paths.rootfsDir)) {
-      _publicar(
-        _state = TerminalViewState(
-          lines: const <TerminalLine>[],
-          cursorRow: 0,
-          cursorCol: 0,
-          title: 'Terminal',
-          status: TerminalStatus.failed,
-          message: 'El contenedor no tiene el comando "script" '
-              '(paquete bsdutils), que es lo que permite abrir un terminal '
-              'interactivo. Ejecuta "apt install -y bsdutils" desde el chat.',
-        ),
-      );
-      return;
-    }
-
     final comando = await runtime.interactiveCommand(
       workingDirectory: LocalRuntime.guestWorkspace,
     );
 
-    // proot arranca `sh -c "... script ..."` en lugar del shell directo: ver
-    // MenuScript.envolturaInterior para el porqué.
-    final argumentos = <String>[
-      ...comando.args.take(comando.args.length - 2),
-      ...MenuScript.envolturaInterior(),
-    ];
-
-    final session = PtySession(command: 'proot → script → bash');
+    // El PTY nativo hace que bash detecte stdin como terminal real; ya no se
+    // depende de `script(1)` ni de que bsdutils exista dentro del rootfs.
+    final session = PtySession(command: 'proot → bash');
     _session = session;
 
     _suscripcionesSalida.add(session.output.listen((final bytes) {
@@ -159,9 +135,11 @@ class TerminalController extends ChangeNotifier {
 
     final ok = await session.start(
       binary: comando.binary,
-      arguments: argumentos,
+      arguments: comando.args,
       environment: comando.env,
       workingDirectory: runtime.paths.filesDir,
+      rows: _filas,
+      columns: _columnas,
     );
 
     if (!ok) {
@@ -198,6 +176,10 @@ class TerminalController extends ChangeNotifier {
     // El `\r` simula Intro: es lo que espera la entrada en modo terminal.
     await _session?.write('$command\r');
   }
+
+  /// Propaga el tamaño visible al PTY y al shell del invitado.
+  void resize(final int rows, final int columns) =>
+      _session?.resize(rows, columns);
 
   /// Cierra el proceso. Se llama al salir de la pantalla.
   Future<void> disposeSession() async {

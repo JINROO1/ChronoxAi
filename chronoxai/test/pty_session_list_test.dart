@@ -1,28 +1,26 @@
 import 'package:chronoxai/data/runtime/pty_session.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-  const channel = MethodChannel('test/pty-list');
+  test('active sessions are listed and can be closed by id', () async {
+    final session = PtySession(command: 'proot → bash');
+    expect(PtySession.listActive(), isEmpty);
 
-  tearDown(() => TestDefaultBinaryMessengerBinding
-      .instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(channel, null));
+    final ok = await session.start(
+      binary: '/bin/sh',
+      arguments: const <String>['-c', 'sleep 30'],
+      environment: const <String, String>{},
+    );
 
-  test('decodes active terminal rows from the native bridge', () async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (final call) async {
-      expect(call.method, 'list');
-      return <Object?>[
-        <String, Object?>{'id': 12, 'running': true, 'command': 'Terminal'},
-      ];
-    });
-
-    final sessions = await PtySession.listActive(channel: channel);
-
-    expect(sessions, hasLength(1));
-    expect(sessions.single['id'], 12);
-    expect(sessions.single['running'], isTrue);
+    // flutter_pty only runs on supported platforms; on unsupported test hosts
+    // this verifies graceful failure without polluting the active session list.
+    if (!ok) {
+      expect(PtySession.listActive(), isEmpty);
+      return;
+    }
+    final id = session.id!;
+    expect(PtySession.listActive().single['id'], id);
+    await PtySession.closeActive(id);
+    expect(PtySession.listActive(), isEmpty);
   });
 }

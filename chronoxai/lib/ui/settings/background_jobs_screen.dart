@@ -1,8 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-
 import '../../data/runtime/pty_session.dart';
 
 class BackgroundJobsScreen extends StatefulWidget {
@@ -13,7 +11,6 @@ class BackgroundJobsScreen extends StatefulWidget {
 }
 
 class _BackgroundJobsScreenState extends State<BackgroundJobsScreen> {
-  static const _channel = MethodChannel('app.chronoxai/pty');
   List<Map<String, Object?>> _sessions = const [];
   Timer? _timer;
 
@@ -31,18 +28,12 @@ class _BackgroundJobsScreenState extends State<BackgroundJobsScreen> {
   }
 
   Future<void> _refresh() async {
-    try {
-      final sessions = await PtySession.listActive(channel: _channel);
-      if (mounted) setState(() => _sessions = sessions);
-    } on PlatformException {
-      if (mounted) setState(() => _sessions = const []);
-    } on MissingPluginException {
-      if (mounted) setState(() => _sessions = const []);
-    }
+    final sessions = PtySession.listActive();
+    if (mounted) setState(() => _sessions = sessions);
   }
 
   Future<void> _close(final int id) async {
-    await _channel.invokeMethod<void>('close', <String, Object?>{'id': id});
+    await PtySession.closeActive(id);
     await _refresh();
   }
 

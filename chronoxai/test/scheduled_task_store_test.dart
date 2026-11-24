@@ -26,12 +26,11 @@ void main() {
 
     await store.writeAll(<ScheduledTask>[task]);
 
-    expect(await store.readAll(), <ScheduledTask>[
-      isA<ScheduledTask>()
-          .having((final value) => value.id, 'id', 'task-1')
-          .having((final value) => value.prompt, 'prompt', 'Revisar el resumen')
-          .having((final value) => value.repeat, 'repeat', TaskRepeat.daily),
-    ]);
+    final restored = await store.readAll();
+    expect(restored, hasLength(1));
+    expect(restored.single.id, 'task-1');
+    expect(restored.single.prompt, 'Revisar el resumen');
+    expect(restored.single.repeat, TaskRepeat.daily);
   });
 
   test('rejects malformed top-level JSON shape', () async {

@@ -13,6 +13,7 @@ import '../../data/runtime/local_runtime.dart';
 import '../../domain/agent/agent_events.dart';
 import '../../domain/agent/agent_loop.dart';
 import '../../domain/agent/approval_policy.dart';
+import '../../domain/agent/hook_runner.dart';
 import '../../domain/agent/project_instructions.dart';
 import '../../domain/agent/session_log.dart';
 import '../../domain/agent/tool_registry.dart';
@@ -357,6 +358,11 @@ Future<SessionRuntime> startSession(
     host.register(plugin.manifest, plugin.create());
   }
 
+  final hooks = await HookRunner.load(
+    workspace: bootstrap.workspaceDir,
+    shell: bootstrap.shell,
+  );
+
   loop = AgentLoop(
     provider: bootstrap.provider,
     registry: registry,
@@ -368,6 +374,7 @@ Future<SessionRuntime> startSession(
     // AGENTS.md / CLAUDE.md del workspace, cargados en cada turno.
     loadProjectInstructions: () =>
         ProjectInstructions.load(bootstrap.workspaceDir),
+    hooks: hooks,
     llm: _ProviderAsSeam(bootstrap.provider),
   );
 

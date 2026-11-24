@@ -5,6 +5,7 @@ import '../llm/llm_types.dart';
 import '../plugins/plugin_api.dart';
 import '../plugins/seams.dart';
 import 'agent_events.dart';
+import 'hook_runner.dart';
 import 'approval_policy.dart';
 import 'prompt_builder.dart';
 import 'session_log.dart';
@@ -135,10 +136,12 @@ class AgentLoop {
     ApprovalHandler? approvalHandler,
     PlanHandler? planHandler,
     Future<String> Function()? loadProjectInstructions,
+    HookRunner? hooks,
     LlmSeam? llm,
   })  : _approvalHandler = approvalHandler,
         _planHandler = planHandler,
         _loadProjectInstructions = loadProjectInstructions,
+        _hooks = hooks,
         _llm = llm;
 
   final LlmProvider provider;
@@ -152,6 +155,7 @@ class AgentLoop {
   ApprovalHandler? _approvalHandler;
   PlanHandler? _planHandler;
   final Future<String> Function()? _loadProjectInstructions;
+  final HookRunner? _hooks;
   final LlmSeam? _llm;
 
   /// Instrucciones del proyecto cargadas para el turno en curso.
@@ -203,7 +207,16 @@ class AgentLoop {
 
     var reason = 'completed';
     try {
-      reason = await _runSteps(turnId);
+      final hookStart = await _runHook(HookPoint.onTurnStart, <String, String>{
+        'CHRONOX_TURN_ID': turnId,
+        'CHRONOX_USER_INPUT': userInput,
+      });
+      if (hookStart?.blocked ?? false) {
+        reason = 'rejected';
+        events.emit(AgentErrorEvent(message: hookStart!.message));
+      } else {
+        reason = await _runSteps(turnId);
+      }
     } on LlmException catch (e) {
       if (_cancelled) {
         reason = 'cancelled';
@@ -217,6 +230,10 @@ class AgentLoop {
       events.emit(AgentErrorEvent(message: 'Error inesperado: $e'));
       reason = 'error';
     } finally {
+      await _runHook(HookPoint.onTurnEnd, <String, String>{
+        'CHRONOX_TURN_ID': turnId,
+        'CHRONOX_TURN_REASON': reason,
+      });
       await log.append(TurnEndEvent(turnId: turnId, reason: reason));
       _status = const AgentStatus(isRunning: false);
       _activeStream = null;
@@ -462,7 +479,32 @@ class AgentLoop {
   }
 
   /// Ejecuta una herramienta pasando por la política de aprobación.
+  Future<HookRunResult> _runHook(
+    final HookPoint point,
+    final Map<String, String> context,
+  ) async {
+    try {
+      return await _hooks?.run(point, context: context) ?? const HookRunResult();
+    } catch (error) {
+      // Hooks de lectura/configuración nunca deben inutilizar el agente.
+      return HookRunResult(message: 'Hook ${point.jsonName} falló: $error');
+    }
+  }
+
   Future<_ToolExecutionOutcome> _executeTool(final LlmToolCall call) async {
+    final hookCall = await _runHook(HookPoint.onToolCall, <String, String>{
+      'CHRONOX_TOOL_NAME': call.name,
+      'CHRONOX_TOOL_CALL_ID': call.id,
+      'CHRONOX_TOOL_ARGUMENTS': jsonEncode(call.arguments),
+    });
+    if (hookCall.blocked) {
+      await log.append(
+        ToolCallEvent(callId: call.id, name: call.name, arguments: call.arguments),
+      );
+      await _recordResult(call, hookCall.message, isError: true);
+      return _ToolExecutionOutcome.rejected;
+    }
+
     await log.append(
       ToolCallEvent(
           callId: call.id, name: call.name, arguments: call.arguments),
@@ -579,6 +621,12 @@ class AgentLoop {
   ) async {
     final handler = _approvalHandler;
     final preview = _previewFor(call);
+    final hook = await _runHook(HookPoint.onApprovalRequest, <String, String>{
+      'CHRONOX_TOOL_NAME': call.name,
+      'CHRONOX_TOOL_CALL_ID': call.id,
+      'CHRONOX_TOOL_PREVIEW': preview,
+    });
+    if (hook.blocked) return const ApprovalAnswer.denied();
     events.emit(
       ApprovalRequestedEvent(
         callId: call.id,
@@ -650,6 +698,13 @@ class AgentLoop {
         truncated: truncated,
       ),
     );
+    await _runHook(HookPoint.onToolResult, <String, String>{
+      'CHRONOX_TOOL_NAME': call.name,
+      'CHRONOX_TOOL_CALL_ID': call.id,
+      'CHRONOX_TOOL_IS_ERROR': isError.toString(),
+      'CHRONOX_TOOL_RESULT': clipped,
+      'CHRONOX_TOOL_DURATION_MS': durationMs.toString(),
+    });
   }
 
   /// Construye la lista de mensajes que ve el modelo.

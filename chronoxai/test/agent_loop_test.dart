@@ -4,12 +4,14 @@ import 'dart:io';
 
 import 'package:chronoxai/domain/agent/agent_events.dart';
 import 'package:chronoxai/domain/agent/agent_loop.dart';
+import 'package:chronoxai/domain/agent/hook_runner.dart';
 import 'package:chronoxai/domain/agent/approval_policy.dart';
 import 'package:chronoxai/domain/agent/prompt_builder.dart';
 import 'package:chronoxai/domain/agent/session_log.dart';
 import 'package:chronoxai/domain/agent/tool_registry.dart';
 import 'package:chronoxai/domain/llm/llm_types.dart';
 import 'package:chronoxai/domain/plugins/plugin_api.dart';
+import 'package:chronoxai/domain/plugins/seams.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Proveedor falso: devuelve respuestas prefabricadas en orden.
@@ -133,6 +135,13 @@ PluginTool tool(
           result?.call() ?? const ToolOutcome(content: 'ok'),
     );
 
+class _HookShell implements ShellSeam {
+  @override
+  Future<ShellResult> run(String command,
+      {String? workingDirectory, Duration? timeout}) async =>
+      const ShellResult(exitCode: 7, stdout: '', stderr: 'hook blocked');
+}
+
 void main() {
   late Directory tempDir;
   late SessionLog log;
@@ -158,6 +167,7 @@ void main() {
     ApprovalHandler? approvalHandler,
     PlanHandler? planHandler,
     Future<String> Function()? loadProjectInstructions,
+    HookRunner? hooks,
     AgentConfig config = const AgentConfig(),
   }) {
     return AgentLoop(
@@ -171,6 +181,7 @@ void main() {
       approvalHandler: approvalHandler,
       planHandler: planHandler,
       loadProjectInstructions: loadProjectInstructions,
+      hooks: hooks,
     );
   }
 
@@ -619,6 +630,45 @@ void main() {
 
       expect(await future, 'cancelled');
       expect(log.events.whereType<TurnEndEvent>().single.reason, 'cancelled');
+    });
+  });
+
+  group('AgentLoop — hooks', () {
+    test('on_tool_call bloqueante impide ejecutar la herramienta', () async {
+      var executions = 0;
+      registry.add(PluginTool(
+        name: 'danger',
+        description: 'danger',
+        inputSchema: const <String, Object?>{'type': 'object'},
+        requiresApproval: false,
+        execute: (final _) async {
+          executions++;
+          return const ToolOutcome(content: 'executed');
+        },
+      ));
+      final hooks = HookRunner(
+        shell: _HookShell(),
+        hooks: <HookPoint, List<HookSpec>>{
+          HookPoint.onToolCall: const <HookSpec>[
+            HookSpec(command: 'deny', blocking: true),
+          ],
+        },
+      );
+      final provider = FakeProvider(<LlmResponse>[
+        const LlmResponse(
+          content: '',
+          toolCalls: <LlmToolCall>[
+            LlmToolCall(id: 'h1', name: 'danger', arguments: <String, Object?>{}),
+          ],
+        ),
+      ]);
+
+      final reason = await makeLoop(provider, hooks: hooks).runTurn('go');
+
+      expect(reason, 'rejected');
+      expect(executions, 0);
+      expect(log.events.whereType<ToolResultEvent>().single.content,
+          'hook blocked');
     });
   });
 

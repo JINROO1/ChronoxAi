@@ -97,7 +97,7 @@ void main() {
         '-c',
       ]);
       expect(command.last, contains('export PATH='));
-      expect(command.last, contains('exec /bin/bash -il'));
+      expect(command.last, contains('exec /bin/bash --rcfile /root/.bashrc -i'));
       expect(
         command.last,
         contains(

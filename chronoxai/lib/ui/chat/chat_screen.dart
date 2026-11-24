@@ -106,18 +106,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       final phrase = await const VoiceChannel().recognize();
       if (phrase != null && phrase.trim().isNotEmpty && mounted) {
         final current = _input.text.trim();
-        _input.text = current.isEmpty ? phrase.trim() : '$current ${phrase.trim()}';
+        _input.text =
+            current.isEmpty ? phrase.trim() : '$current ${phrase.trim()}';
       }
     } on PlatformException catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message ?? 'No se pudo reconocer la voz.')),
+          SnackBar(
+              content: Text(error.message ?? 'No se pudo reconocer la voz.')),
         );
       }
     } on MissingPluginException {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('La entrada de voz solo está disponible en Android.')),
+          const SnackBar(
+              content:
+                  Text('La entrada de voz solo está disponible en Android.')),
         );
       }
     }

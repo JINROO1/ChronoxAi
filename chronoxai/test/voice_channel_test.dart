@@ -6,7 +6,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   const channel = MethodChannel('test/voice');
 
-  tearDown(() => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+  tearDown(() => TestDefaultBinaryMessengerBinding
+      .instance.defaultBinaryMessenger
       .setMockMethodCallHandler(channel, null));
 
   test('requests native recognition and returns the transcription', () async {

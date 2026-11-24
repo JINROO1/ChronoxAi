@@ -138,7 +138,7 @@ PluginTool tool(
 class _HookShell implements ShellSeam {
   @override
   Future<ShellResult> run(String command,
-      {String? workingDirectory, Duration? timeout}) async =>
+          {String? workingDirectory, Duration? timeout}) async =>
       const ShellResult(exitCode: 7, stdout: '', stderr: 'hook blocked');
 }
 
@@ -658,7 +658,8 @@ void main() {
         const LlmResponse(
           content: '',
           toolCalls: <LlmToolCall>[
-            LlmToolCall(id: 'h1', name: 'danger', arguments: <String, Object?>{}),
+            LlmToolCall(
+                id: 'h1', name: 'danger', arguments: <String, Object?>{}),
           ],
         ),
       ]);

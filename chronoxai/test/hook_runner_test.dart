@@ -30,7 +30,8 @@ void main() {
     if (dir.existsSync()) await dir.delete(recursive: true);
   });
 
-  test('carga hooks desde .chronox/hooks.json y pasa contexto quotado', () async {
+  test('carga hooks desde .chronox/hooks.json y pasa contexto quotado',
+      () async {
     final file = File('${dir.path}/.chronox/hooks.json');
     await file.parent.create(recursive: true);
     await file.writeAsString('''
@@ -44,7 +45,8 @@ void main() {
     );
 
     expect(result.blocked, isFalse);
-    expect(shell.commands.single, contains("CHRONOX_TOOL_NAME='read '\\''a'\\'''"));
+    expect(shell.commands.single,
+        contains("CHRONOX_TOOL_NAME='read '\\''a'\\'''"));
     expect(shell.timeouts.single, const Duration(milliseconds: 2500));
   });
 

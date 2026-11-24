@@ -484,7 +484,8 @@ class AgentLoop {
     final Map<String, String> context,
   ) async {
     try {
-      return await _hooks?.run(point, context: context) ?? const HookRunResult();
+      return await _hooks?.run(point, context: context) ??
+          const HookRunResult();
     } catch (error) {
       // Hooks de lectura/configuración nunca deben inutilizar el agente.
       return HookRunResult(message: 'Hook ${point.jsonName} falló: $error');
@@ -499,7 +500,8 @@ class AgentLoop {
     });
     if (hookCall.blocked) {
       await log.append(
-        ToolCallEvent(callId: call.id, name: call.name, arguments: call.arguments),
+        ToolCallEvent(
+            callId: call.id, name: call.name, arguments: call.arguments),
       );
       await _recordResult(call, hookCall.message, isError: true);
       return _ToolExecutionOutcome.rejected;

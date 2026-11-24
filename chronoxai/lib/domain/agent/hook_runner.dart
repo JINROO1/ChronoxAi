@@ -63,7 +63,8 @@ class HookRunner {
         if (!await file.exists()) continue;
         final decoded = jsonDecode(await file.readAsString());
         if (decoded is! Map<String, Object?>) {
-          throw const FormatException('La raíz de hooks.json debe ser un objeto.');
+          throw const FormatException(
+              'La raíz de hooks.json debe ser un objeto.');
         }
         final source = decoded['hooks'];
         if (source is! Map<String, Object?>) {
@@ -78,12 +79,14 @@ class HookRunner {
           for (final raw in entry.value as List<Object?>) {
             if (raw is String) {
               specs.add(HookSpec(command: raw));
-            } else if (raw is Map<String, Object?> && raw['command'] is String) {
+            } else if (raw is Map<String, Object?> &&
+                raw['command'] is String) {
               final timeoutMs = (raw['timeoutMs'] as num?)?.toInt() ?? 10000;
               specs.add(HookSpec(
                 command: raw['command']! as String,
                 blocking: raw['blocking'] == true,
-                timeout: Duration(milliseconds: timeoutMs.clamp(100, 120000).toInt()),
+                timeout: Duration(
+                    milliseconds: timeoutMs.clamp(100, 120000).toInt()),
               ));
             }
           }
@@ -108,9 +111,8 @@ class HookRunner {
       final assignments = context.entries
           .map((final entry) => '${entry.key}=${_quote(entry.value)}')
           .join(' ');
-      final command = assignments.isEmpty
-          ? hook.command
-          : '$assignments ${hook.command}';
+      final command =
+          assignments.isEmpty ? hook.command : '$assignments ${hook.command}';
       try {
         final result = await shell.run(
           command,
@@ -137,5 +139,6 @@ class HookRunner {
     return const HookRunResult();
   }
 
-  static String _quote(final String value) => "'${value.replaceAll("'", "'\\''")}'";
+  static String _quote(final String value) =>
+      "'${value.replaceAll("'", "'\\''")}'";
 }

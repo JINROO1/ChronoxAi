@@ -142,8 +142,9 @@ class LocalRuntime {
           .split(RegExp(r'\s+'))
           .where((final name) => name.isNotEmpty)
           .toSet();
-      if (names.isEmpty || names.any((final name) =>
-          p.basename(name) != name || name.contains('..'))) {
+      if (names.isEmpty ||
+          names.any((final name) =>
+              p.basename(name) != name || name.contains('..'))) {
         return false;
       }
       final libraryDir = Directory(p.join(paths.runtimeDir, 'qemu-libs'));

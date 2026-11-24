@@ -154,7 +154,8 @@ abstract final class RuntimeCompatibility {
         const CompatIssue(
           severity: CompatSeverity.note,
           title: 'Ejecución Linux mediante QEMU',
-          detail: 'Los ELF del rootfs se ejecutan por QEMU user-mode empaquetado '
+          detail:
+              'Los ELF del rootfs se ejecutan por QEMU user-mode empaquetado '
               'en Chronox. Android sólo ejecuta el binario nativo del APK; no se '
               'requiere execve sobre los ficheros privados del rootfs.',
         ),

@@ -179,7 +179,8 @@ void main() {
         tempDir: '/data/data/app.chronoxai/files/tmp',
         prootLoader:
             '/data/data/app.chronoxai/files/linux/runtime/proot-loader',
-        qemuLibraryDir: '/data/data/app.chronoxai/files/linux/runtime/qemu-libs',
+        qemuLibraryDir:
+            '/data/data/app.chronoxai/files/linux/runtime/qemu-libs',
       );
 
       expect(

@@ -191,8 +191,10 @@ Fuentes: `docs/user/develop/basic/publish.md` del repo oficial
       (registry.npmjs.org + integridad), `npm ci` y scripts de instalación off
 - [x] Límites para procesos stdio (CPU, tamaño de archivos, descriptores) y
       timeout de 10 minutos para instalación npm
-- [ ] Revisión/aprobación visual del lockfile antes de npm ci e instalar, límites
-      de almacenamiento total y políticas de permisos individualizadas por servidor
+- [x] Mostrar y aprobar package-lock (nombre/versión de dependencias) antes
+      de `npm ci`; se vuelve a verificar que no cambie tras la aprobación
+- [ ] Límite de almacenamiento total y políticas configurables individualizadas
+      por servidor; hoy MCP mantiene aprobación obligatoria por herramienta
 - [ ] Adaptador de paquetes `dsh.bundle`: leer package.json + patches declarados,
       soportar filas de plugins de herramientas/skills mediante shim Node
 - [x] Diagnóstico de preflight `DshBundleDiagnostic` con clasificación MCP

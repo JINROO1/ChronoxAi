@@ -8,6 +8,19 @@ class NpmLockfilePolicy {
 
   static const int maxPackages = 1000;
 
+  static List<String> describeJson(String source) {
+    final decoded = jsonDecode(source) as Map<String, dynamic>;
+    final packages = decoded['packages'] as Map<String, dynamic>;
+    final rows = <String>[];
+    for (final entry in packages.entries) {
+      if (entry.key.isEmpty || entry.value is! Map) continue;
+      final version = (entry.value as Map)['version'];
+      if (version is String) rows.add('${entry.key} $version');
+    }
+    rows.sort();
+    return List<String>.unmodifiable(rows);
+  }
+
   static void validateJson(String source,
       {required String expectedPackage, required String expectedVersion}) {
     final decoded = jsonDecode(source);

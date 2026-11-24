@@ -8,6 +8,9 @@ import '../../data/runtime/local_runtime.dart';
 import '../../domain/agent/approval_policy.dart';
 import '../../domain/modes/work_modes.dart';
 import '../../domain/plugins/plugin_api.dart';
+import '../../domain/plugins/mcp_command_parser.dart';
+import '../../domain/plugins/mcp_npm_spec.dart';
+import '../../domain/plugins/npm_lockfile_policy.dart';
 import '../../platform/android_permissions.dart';
 import '../../platform/secure_secret_store.dart';
 import '../chat/approval_sheet.dart';
@@ -771,6 +774,60 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
   bool _starting = false;
   String? _error;
 
+  Future<bool> _confirmNpmPackage(
+    final BuildContext context,
+    final PinnedMcpPackage package,
+    final String lockText,
+  ) async {
+    final packages = NpmLockfilePolicy.describeJson(lockText);
+    if (!context.mounted) return false;
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (final dialogContext) => AlertDialog(
+            title: Text('Revisar ${package.spec}'),
+            content: SizedBox(
+              width: 420,
+              height: 360,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Text(
+                    'Se instalarán estos paquetes desde registry.npmjs.org. '
+                    'Los scripts de instalación están desactivados; el servidor '
+                    'Node sí se ejecutará dentro del runtime Linux.',
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: packages.length,
+                      itemBuilder: (final context, final index) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Text(
+                          packages[index],
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Rechazar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Instalar y ejecutar'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   Future<void> _start() async {
     final settings = ref.read(providerSettingsProvider);
     if (!settings.isConfigured) {
@@ -836,7 +893,29 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
           mcpServerEnvironments: mcpEnvironments,
           startPluginProcess:
               status.isReady ? runtime.startPluginProcess : null,
-          startMcpProcess: status.isReady ? runtime.startMcpProcess : null,
+          startMcpProcess: status.isReady
+              ? (final command, final environment) async {
+                  if (command.isNotEmpty && command.first == 'npm-package') {
+                    final pinned = PinnedMcpPackage.parse(command);
+                    final lockText =
+                        await runtime.preparePinnedMcpPackage(command);
+                    final approved = await _confirmNpmPackage(
+                      context,
+                      pinned,
+                      lockText,
+                    );
+                    if (!approved) {
+                      throw StateError('Instalación MCP rechazada por el usuario.');
+                    }
+                    final reviewedAgain =
+                        await runtime.preparePinnedMcpPackage(command);
+                    if (reviewedAgain != lockText) {
+                      throw StateError('El lockfile cambió después de la revisión.');
+                    }
+                  }
+                  return runtime.startMcpProcess(command, environment);
+                }
+              : null,
         ),
         mode: mode,
         approvalLevel: level,

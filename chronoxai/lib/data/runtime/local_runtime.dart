@@ -363,6 +363,60 @@ class LocalRuntime {
     );
   }
 
+  /// Resolves an exact-pinned package into a reviewed lockfile without running
+  /// package lifecycle scripts or installing node_modules.
+  Future<String> preparePinnedMcpPackage(List<String> command) async {
+    final pinned = PinnedMcpPackage.parse(command);
+    final current = await status();
+    if (!current.isReady) throw StateError('Runtime no listo: ${current.title}.');
+    if (!(await run('command -v npm')).isSuccess) {
+      throw StateError('Instala nodejs y npm en Debian para usar paquetes MCP.');
+    }
+    final packageId =
+        sha256.convert(utf8.encode(pinned.spec)).toString().substring(0, 20);
+    final hostDir = Directory(
+      p.join(hostWorkspace, '.chronox', 'mcp-packages', packageId),
+    );
+    await hostDir.create(recursive: true);
+    final packageJson = File(p.join(hostDir.path, 'package.json'));
+    final lockFile = File(p.join(hostDir.path, 'package-lock.json'));
+    final expectedJson = const JsonEncoder.withIndent('  ').convert(
+      <String, Object?>{
+        'name': 'chronox-mcp-$packageId',
+        'version': '1.0.0',
+        'private': true,
+        'dependencies': <String, String>{pinned.package: pinned.version},
+      },
+    );
+    if (await packageJson.exists()) {
+      final existing = jsonDecode(await packageJson.readAsString());
+      final dependencies = existing is Map ? existing['dependencies'] : null;
+      if (dependencies is! Map || dependencies[pinned.package] != pinned.version) {
+        throw StateError('package.json local no coincide con el pin MCP.');
+      }
+    }
+    await packageJson.writeAsString(expectedJson, flush: true);
+    if (!await lockFile.exists()) {
+      final prefix = '/workspace/.chronox/mcp-packages/$packageId';
+      final result = await run(
+        'ulimit -f 131072; ulimit -n 128; ulimit -t 600; '
+        'npm install --prefix ${_shellQuote(prefix)} '
+        '--package-lock-only --ignore-scripts --save-exact --no-audit --no-fund',
+        timeout: const Duration(minutes: 10),
+      );
+      if (!result.isSuccess || !await lockFile.exists()) {
+        throw StateError('No se pudo generar package-lock.json: ${result.stderr}');
+      }
+    }
+    final lockText = await lockFile.readAsString();
+    NpmLockfilePolicy.validateJson(
+      lockText,
+      expectedPackage: pinned.package,
+      expectedVersion: pinned.version,
+    );
+    return lockText;
+  }
+
   static String _shellQuote(final String value) =>
       "'${value.replaceAll("'", "'\\''")}'";
 

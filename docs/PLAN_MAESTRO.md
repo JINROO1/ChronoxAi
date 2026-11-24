@@ -195,8 +195,10 @@ Fuentes: `docs/user/develop/basic/publish.md` del repo oficial
       soportar filas de plugins de herramientas/skills mediante shim Node
 - [x] Diagnóstico de preflight `DshBundleDiagnostic` con clasificación MCP
       candidata y lista explícita de capacidades Cordis incompatibles (no instala)
-- [ ] Inspección de archivo real `.dsh.bundle`, compatibilidad declarada por
-      capability y fixtures seleccionados; no ejecutar silenciosamente
+- [x] Inspección acotada de ZIP `.dsh.bundle` (sin extraer/ejecutar) y fixture
+      sintético en pruebas
+- [ ] Fixtures reales seleccionados, formatos alternativos, compatibilidad
+      declarada por capability y shim MCP ejecutable; no ejecutar silenciosamente
 - [ ] Fixtures y pruebas de compatibilidad con MCP npm y bundles DSH seleccionados
 - [ ] UI de catálogo/instalación, permisos, actualización y desinstalación
 

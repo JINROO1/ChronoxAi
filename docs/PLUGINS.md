@@ -190,7 +190,8 @@ Las variables de entorno por servidor se configuran en «Variables secretas MCP�
 por número de fila y se cifran con Android Keystore; para `stdio`, se pasan al
 proceso MCP y nunca se escriben en la línea de comandos. La instalación de npm
 con lockfiles y aprobación granular por servidor sigue pendiente.
-`DshBundleDiagnostic` genera un informe JSON de preflight para una lista de
-archivos de bundle ya inspeccionados; no extrae ni ejecuta paquetes. Un resultado
+`DshBundleArchiveInspector` inspecciona un ZIP `.dsh.bundle` con límites de
+cantidad y tamaño, sin extraerlo ni ejecutar scripts; genera el informe mediante
+`DshBundleDiagnostic`. Un resultado
 `mcp_candidate` solo indica que podría configurarse manualmente un servidor MCP.
 Cordis, parches de runtime y UI/servicios no se portan automáticamente.

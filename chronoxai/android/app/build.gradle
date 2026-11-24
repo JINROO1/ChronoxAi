@@ -28,10 +28,8 @@ if (hasReleaseSigning) {
 
 android {
     namespace = "app.chronoxai"
-    // Android 15 exige targetSdk 35 para publicar, pero aquí el targetSdk se
-    // queda en 28 a propósito (ver docs/INVESTIGACION.md §1): es lo que asigna
-    // el dominio SELinux untrusted_app_27, el único que permite execve sobre el
-    // almacenamiento privado. compileSdk solo afecta a qué APIs se compilan.
+    // Runtime Linux ejecuta los ELF invitados mediante QEMU user-mode empaquetado
+    // en el APK; no depende de execve sobre filesDir, bloqueado desde targetSdk 29.
     compileSdk = 35
 
     compileOptions {
@@ -46,11 +44,9 @@ android {
     defaultConfig {
         applicationId = "app.chronoxai"
         minSdk = 24
-        // IMPORTANTE: proot necesita execve sobre binarios en el directorio de
-        // datos de la app. Android 10+ bloquea esto cuando targetSdk >= 29
-        // (W^X / SELinux). Termux usa exactamente esta misma estrategia.
-        // Ver docs/INVESTIGACION.md §1 y la hipótesis §10.1.
-        targetSdk = 28
+        // La terminal usa QEMU user-mode empaquetado en jniLibs para ejecutar
+        // el rootfs privado sin depender de execve(app_data_file).
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
 

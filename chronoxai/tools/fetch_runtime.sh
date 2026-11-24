@@ -121,7 +121,7 @@ PY
 
 check_jni_dir() {
   local ok=0
-  local required=(libproot.so libtalloc.so libandroid-shmem.so)
+  local required=(libproot.so libtalloc.so libandroid-shmem.so libqemu_guest.so)
   [[ -f "$JNI_DIR/libproot_loader.so" ]] && required+=(libproot_loader.so)
   for lib in "${required[@]}"; do
     if [[ ! -f "$JNI_DIR/$lib" ]]; then
@@ -133,6 +133,7 @@ check_jni_dir() {
 
   log "validando ELF en $JNI_DIR"
   validate_elf "$JNI_DIR/libproot.so" "$ABI"
+  validate_elf "$JNI_DIR/libqemu_guest.so" "$ABI"
   validate_elf "$JNI_DIR/libtalloc.so" "$ABI"
   validate_elf "$JNI_DIR/libandroid-shmem.so" "$ABI"
   if [[ -f "$JNI_DIR/libproot_loader.so" ]]; then
@@ -149,6 +150,7 @@ fi
 command -v curl >/dev/null || die "se necesita curl"
 command -v tar  >/dev/null || die "se necesita tar"
 command -v python3 >/dev/null || die "se necesita python3 (validación ELF)"
+command -v dpkg-deb >/dev/null || die "se necesita dpkg-deb para resolver dependencias QEMU"
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
@@ -258,6 +260,40 @@ extract_deb() {
 }
 
 # ---------------------------------------------------------------------------
+# Resolver y extraer recursivamente el cierre de dependencias de un paquete.
+# QEMU se ejecuta desde nativeLibraryDir (apk_data_file); sus bibliotecas Bionic
+# pueden cargarse desde filesDir mediante LD_LIBRARY_PATH en targetSdk 29+.
+# ---------------------------------------------------------------------------
+declare -A FETCHED_TERMUX_PACKAGES=()
+fetch_package_tree() {
+  local package="$1"
+  [[ -n "${FETCHED_TERMUX_PACKAGES[$package]:-}" ]] && return 0
+  FETCHED_TERMUX_PACKAGES[$package]=1
+
+  local deb
+  deb="$(fetch_package "$package" | tail -n1)"
+  extract_deb "$deb" "$COLLECT"
+
+  local depends
+  depends="$(dpkg-deb -f "$deb" Depends 2>/dev/null || true)"
+  [[ -n "$depends" ]] || return 0
+  while IFS= read -r dependency; do
+    [[ -n "$dependency" ]] && fetch_package_tree "$dependency"
+  done < <(python3 - "$depends" <<'PYDEPS'
+import re, sys
+# Pick one concrete package from each dependency alternative; Termux's first
+# alternative is the canonical package in its own repository.
+for group in sys.argv[1].split(','):
+    alternatives = group.split('|')
+    names = [re.sub(r':(?:any|native)$', '', re.match(r'\s*([a-z0-9+.-]+(?::(?:any|native))?)', item).group(1))
+             for item in alternatives if re.match(r'\s*([a-z0-9+.-]+(?::(?:any|native))?)', item)]
+    if names:
+        print(names[0])
+PYDEPS
+)
+}
+
+# ---------------------------------------------------------------------------
 # Flujo principal
 # ---------------------------------------------------------------------------
 COLLECT="$WORK/collect"
@@ -268,6 +304,41 @@ for pkg in proot libtalloc libandroid-shmem; do
   deb="$(fetch_package "$pkg" | tail -n1)"
   extract_deb "$deb" "$COLLECT"
 done
+
+# PRoot -q hace que cada ELF invitado sea interpretado por QEMU. Así el único
+# execve del kernel es QEMU, instalado desde jniLibs; Debian/Ubuntu ELF nunca se
+# ejecuta directamente desde el directorio privado (W^X targetSdk 29+).
+if [[ "$ABI" == "aarch64" ]]; then
+  QEMU_PACKAGE="qemu-user-aarch64"
+  QEMU_BINARY="qemu-aarch64"
+else
+  QEMU_PACKAGE="qemu-user-x86-64"
+  QEMU_BINARY="qemu-x86_64"
+fi
+log "obteniendo $QEMU_PACKAGE y dependencias transitivas"
+fetch_package_tree "$QEMU_PACKAGE"
+[[ -f "$COLLECT/bin/$QEMU_BINARY" ]] || die "no se encontró bin/$QEMU_BINARY en $QEMU_PACKAGE"
+cp "$COLLECT/bin/$QEMU_BINARY" "$JNI_DIR/libqemu_guest.so"
+chmod 0755 "$JNI_DIR/libqemu_guest.so"
+
+# Los nombres .so.N no son nativos instalables por Android desde jniLibs; viajan
+# como Flutter assets y se copian a filesDir en primer arranque. dlopen() de
+# bibliotecas en app_data_file sigue permitido con targetSdk >= 29.
+QEMU_ASSET_DIR="$PROJECT_DIR/assets/runtime-libs/$([[ "$ABI" == aarch64 ]] && echo arm64-v8a || echo x86_64)"
+rm -rf "$QEMU_ASSET_DIR"
+mkdir -p "$QEMU_ASSET_DIR"
+: > "$QEMU_ASSET_DIR/manifest.txt"
+if [[ -d "$COLLECT/lib" ]]; then
+  while IFS= read -r -d '' library; do
+    name="$(basename "$library")"
+    [[ "$name" == *.so* ]] || continue
+    cp -L "$library" "$QEMU_ASSET_DIR/$name"
+    printf '%s\n' "$name" >> "$QEMU_ASSET_DIR/manifest.txt"
+  done < <(find -L "$COLLECT/lib" -type f -name '*.so*' -print0 | sort -z -u)
+fi
+sort -u -o "$QEMU_ASSET_DIR/manifest.txt" "$QEMU_ASSET_DIR/manifest.txt"
+[[ -s "$QEMU_ASSET_DIR/manifest.txt" ]] || die "no se recopilaron bibliotecas de QEMU"
+
 
 # proot -> libproot.so
 [[ -f "$COLLECT/bin/proot" ]] || die "el .deb de proot no trajo bin/proot"

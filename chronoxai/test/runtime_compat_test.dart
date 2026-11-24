@@ -56,6 +56,19 @@ void main() {
       expect(RuntimeCompatibility.canRun(blocked), isFalse);
     });
 
+    test('QEMU invitado evita depender del execve de app_data_file', () {
+      final target35 = facts(targetSdk: 35, canExecuteFromData: false);
+      expect(
+        RuntimeCompatibility.canRun(target35, guestExecViaQemu: true),
+        isTrue,
+      );
+      expect(
+        RuntimeCompatibility.evaluate(target35, guestExecViaQemu: true)
+            .where((final issue) => issue.isBlocking),
+        isEmpty,
+      );
+    });
+
     test('sin dato medido se aplica la regla de API 29', () {
       final unknown = facts(targetSdk: 34, canExecuteFromData: null);
       expect(RuntimeCompatibility.canRun(unknown), isFalse);

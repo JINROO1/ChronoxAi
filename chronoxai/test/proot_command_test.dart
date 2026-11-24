@@ -41,6 +41,22 @@ void main() {
       expect(argv, contains('--cwd=/workspace'));
     });
 
+    test('usa QEMU user-mode para que Android no ejecute el ELF invitado', () {
+      const config = ProotConfig(
+        prootBinary: '/native/libproot.so',
+        prootLoader: '/files/loader',
+        rootfs: '/files/rootfs',
+        workingDirectory: '/workspace',
+        qemuCommand: '/native/libqemu_guest.so',
+      );
+
+      final argv = ProotCommandBuilder.build(config);
+      expect(
+        argv,
+        contains('--qemu=/native/libqemu_guest.so -L /files/rootfs'),
+      );
+    });
+
     test('siempre monta /dev, /proc y /sys', () {
       final argv = ProotCommandBuilder.build(baseConfig());
 
@@ -163,11 +179,12 @@ void main() {
         tempDir: '/data/data/app.chronoxai/files/tmp',
         prootLoader:
             '/data/data/app.chronoxai/files/linux/runtime/proot-loader',
+        qemuLibraryDir: '/data/data/app.chronoxai/files/linux/runtime/qemu-libs',
       );
 
       expect(
         env['LD_LIBRARY_PATH'],
-        '/data/app/app.chronoxai/lib/arm64:/data/data/app.chronoxai/files/tmp',
+        '/data/app/app.chronoxai/lib/arm64:/data/data/app.chronoxai/files/tmp:/data/data/app.chronoxai/files/linux/runtime/qemu-libs',
       );
       expect(env['PROOT_TMP_DIR'], '/data/data/app.chronoxai/files/tmp');
       expect(env['PROOT_NO_SECCOMP'], '1');

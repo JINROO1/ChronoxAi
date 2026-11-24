@@ -9,6 +9,7 @@ class ProotConfig {
     required this.prootBinary,
     required this.prootLoader,
     required this.rootfs,
+    this.qemuCommand,
     required this.workingDirectory,
     this.homeDirectory = '/root',
     this.bindMounts = const <BindMount>[],
@@ -35,6 +36,10 @@ class ProotConfig {
 
   /// Rootfs de la distro (p. ej. `filesDir/linux/debian`).
   final String rootfs;
+
+  /// Comando QEMU user-mode del APK. PRoot antepone este emulador a cada ELF
+  /// invitado; el kernel ejecuta QEMU desde nativeLibraryDir, no el ELF privado.
+  final String? qemuCommand;
 
   /// Directorio de trabajo dentro del invitado (p. ej. `/workspace`).
   final String workingDirectory;
@@ -119,7 +124,13 @@ abstract final class ProotCommandBuilder {
     // 3. `-L`: corrige `lstat` para que dpkg no avise de symlinks falsos.
     args.add('-L');
 
-    // 4. Identidad falsa. Dentro de proot siempre somos "root" sin privilegios
+    // 4. En targetSdk 29+ Android deniega execve sobre filesDir. Con -q, PRoot
+    // ejecuta el QEMU nativo (JNI, permitido) que interpreta los ELF invitados.
+    if (config.qemuCommand != null) {
+      args.add('--qemu=${config.qemuCommand} -L ${config.rootfs}');
+    }
+
+    // 5. Identidad falsa. Dentro de proot siempre somos "root" sin privilegios
     //    reales; sirve para que apt no se queje.
     args.add('--change-id=${config.uid}:${config.gid}');
 
@@ -175,11 +186,16 @@ abstract final class ProotCommandBuilder {
     required final String nativeLibraryDir,
     required final String tempDir,
     required final String prootLoader,
+    final String? qemuLibraryDir,
     final Map<String, String> extra = const <String, String>{},
   }) {
     return <String, String>{
       // Dependencias dinámicas de proot.
-      'LD_LIBRARY_PATH': '$nativeLibraryDir:$tempDir',
+      'LD_LIBRARY_PATH': <String>[
+        nativeLibraryDir,
+        tempDir,
+        if (qemuLibraryDir != null) qemuLibraryDir,
+      ].join(':'),
       // proot escribe su loader y ficheros temporales aquí; debe ser escribible.
       'PROOT_TMP_DIR': tempDir,
       // Evita que proot intente desempaquetar el loader en una ruta no escribible.

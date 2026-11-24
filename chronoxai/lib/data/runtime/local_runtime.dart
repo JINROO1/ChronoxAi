@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:crypto/crypto.dart';
+import 'package:flutter/services.dart';
 
 import '../../domain/plugins/seams.dart';
 import '../../domain/plugins/sandbox_policy.dart';
@@ -104,6 +105,9 @@ class LocalRuntime {
   PlatformFacts? _facts;
   String? _prootPath;
   String? _loaderPath;
+  String? _qemuPath;
+  String? _qemuLibraryDir;
+  bool _qemuPrepared = false;
 
   /// Ruta del workspace tal y como se ve **dentro** del contenedor.
   static const String guestWorkspace = '/workspace';
@@ -112,6 +116,58 @@ class LocalRuntime {
   String get hostWorkspace => paths.workspaceDir;
 
   Future<PlatformFacts> facts() async => _facts ??= await _channel.read();
+
+  /// Prepara QEMU y sus bibliotecas Bionic empaquetadas dentro del APK. QEMU se
+  /// ejecuta desde nativeLibraryDir; sus dependencias sólo se cargan (dlopen)
+  /// desde filesDir, operación permitida para targetSdk 29+.
+  Future<bool> _prepareGuestEmulator(PlatformFacts facts) async {
+    if (!facts.isAndroid) return true;
+    if (_qemuPrepared) return true;
+    final nativeDir = facts.nativeLibraryDir;
+    final abi = switch (facts.abi) {
+      'arm64-v8a' || 'aarch64' => 'arm64-v8a',
+      'x86_64' => 'x86_64',
+      _ => null,
+    };
+    if (nativeDir == null || abi == null) return false;
+
+    final qemu = File(p.join(nativeDir, 'libqemu_guest.so'));
+    if (!await qemu.exists() || (await qemu.stat()).size == 0) return false;
+
+    try {
+      final manifestAsset = 'assets/runtime-libs/$abi/manifest.txt';
+      final manifest = await rootBundle.loadString(manifestAsset);
+      final names = manifest
+          .split(RegExp(r'\s+'))
+          .where((final name) => name.isNotEmpty)
+          .toSet();
+      if (names.isEmpty || names.any((final name) =>
+          p.basename(name) != name || name.contains('..'))) {
+        return false;
+      }
+      final libraryDir = Directory(p.join(paths.runtimeDir, 'qemu-libs'));
+      await libraryDir.create(recursive: true);
+      for (final name in names) {
+        final bytes = await rootBundle.load('assets/runtime-libs/$abi/$name');
+        final data = bytes.buffer.asUint8List(
+          bytes.offsetInBytes,
+          bytes.lengthInBytes,
+        );
+        final target = File(p.join(libraryDir.path, name));
+        if (!await target.exists() || await target.length() != data.length) {
+          await target.writeAsBytes(data, flush: true);
+        }
+      }
+      _qemuPath = qemu.path;
+      _qemuLibraryDir = libraryDir.path;
+      _qemuPrepared = true;
+      return true;
+    } on FlutterError {
+      return false;
+    } on FileSystemException {
+      return false;
+    }
+  }
 
   /// Últimos hallazgos de compatibilidad, para la pantalla de diagnóstico.
   List<CompatIssue> compatIssues = const <CompatIssue>[];
@@ -149,6 +205,15 @@ class LocalRuntime {
     _prootPath = proot;
     _loaderPath = loader;
 
+    if (!await _prepareGuestEmulator(facts)) {
+      return RuntimeStatus(
+        isReady: false,
+        problem: RuntimeProblem.missingBinaries,
+        detail: 'Falta QEMU user-mode o alguna de sus bibliotecas. El APK debe '
+            'incluir libqemu_guest.so y assets/runtime-libs/${facts.abi}.',
+      );
+    }
+
     // Android empaqueta/extráe los JNI con nombre `*.so`, así que el alias
     // libtalloc.so.2 no viaja en el APK. Proot lo pide por SONAME; crea ese
     // alias en el tmp privado de la app y añádelo al linker path del proceso.
@@ -181,6 +246,7 @@ class LocalRuntime {
     compatIssues = RuntimeCompatibility.evaluate(
       facts,
       binariesAligned16K: aligned,
+      guestExecViaQemu: _qemuPath != null,
     );
     final blocking = compatIssues.where((final i) => i.isBlocking).toList();
 
@@ -283,6 +349,7 @@ class LocalRuntime {
       nativeLibraryDir: p.dirname(config.prootBinary),
       tempDir: paths.tempDir,
       prootLoader: config.prootLoader,
+      qemuLibraryDir: _qemuLibraryDir,
     );
     await Directory(paths.tempDir).create(recursive: true);
     return Process.start(
@@ -399,6 +466,7 @@ class LocalRuntime {
       nativeLibraryDir: p.dirname(config.prootBinary),
       tempDir: paths.tempDir,
       prootLoader: config.prootLoader,
+      qemuLibraryDir: _qemuLibraryDir,
     );
     await Directory(paths.tempDir).create(recursive: true);
     return Process.start(
@@ -489,6 +557,7 @@ class LocalRuntime {
       nativeLibraryDir: p.dirname(config.prootBinary),
       tempDir: paths.tempDir,
       prootLoader: config.prootLoader,
+      qemuLibraryDir: _qemuLibraryDir,
     );
 
     await Directory(paths.tempDir).create(recursive: true);
@@ -534,6 +603,11 @@ class LocalRuntime {
   /// Configuración de proot con los montajes del dispositivo.
   Future<ProotConfig> _config({final String? workingDirectory}) async {
     final facts = await this.facts();
+    if (!await _prepareGuestEmulator(facts)) {
+      throw const RuntimeException(
+        'Falta QEMU user-mode o sus bibliotecas de runtime en el APK.',
+      );
+    }
     final nativeLibraryDir = facts.nativeLibraryDir;
     if (nativeLibraryDir == null) {
       throw const RuntimeException(
@@ -555,6 +629,7 @@ class LocalRuntime {
       prootLoader:
           _loaderPath ?? p.join(nativeLibraryDir, 'libproot_loader.so'),
       rootfs: paths.rootfsDir,
+      qemuCommand: _qemuPath,
       workingDirectory: workingDirectory ?? guestWorkspace,
       homeDirectory: '/root',
       bindMounts: binds,
@@ -573,6 +648,7 @@ class LocalRuntime {
         nativeLibraryDir: p.dirname(config.prootBinary),
         tempDir: paths.tempDir,
         prootLoader: config.prootLoader,
+        qemuLibraryDir: _qemuLibraryDir,
       ),
     );
   }

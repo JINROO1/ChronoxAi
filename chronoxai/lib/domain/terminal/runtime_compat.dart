@@ -46,6 +46,7 @@ abstract final class RuntimeCompatibility {
   static List<CompatIssue> evaluate(
     final PlatformFacts facts, {
     final bool? binariesAligned16K,
+    final bool guestExecViaQemu = false,
   }) {
     final issues = <CompatIssue>[];
 
@@ -89,7 +90,7 @@ abstract final class RuntimeCompatibility {
     }
 
     // --- Permiso de ejecución (el punto crítico) ---------------------------
-    if (facts.appDataExecBlocked) {
+    if (!guestExecViaQemu && facts.appDataExecBlocked) {
       final domain = facts.expectedDomain;
       issues.add(
         CompatIssue(
@@ -148,17 +149,14 @@ abstract final class RuntimeCompatibility {
       }
     }
 
-    // --- targetSdk bajo -----------------------------------------------------
-    if (facts.sdkInt >= 35 && facts.targetSdk <= 28) {
+    if (guestExecViaQemu) {
       issues.add(
         const CompatIssue(
           severity: CompatSeverity.note,
-          title: 'Aviso de "app creada para una versión anterior"',
-          detail: 'Android 15 muestra este aviso para apps con targetSdk 28 o '
-              'menor. Es intencionado: ese targetSdk es justo lo que mantiene '
-              'el permiso para ejecutar proot.',
-          advice:
-              'Es normal. La app no tiene acceso a menos funciones por ello.',
+          title: 'Ejecución Linux mediante QEMU',
+          detail: 'Los ELF del rootfs se ejecutan por QEMU user-mode empaquetado '
+              'en Chronox. Android sólo ejecuta el binario nativo del APK; no se '
+              'requiere execve sobre los ficheros privados del rootfs.',
         ),
       );
     }
@@ -217,9 +215,13 @@ abstract final class RuntimeCompatibility {
   static bool canRun(
     final PlatformFacts facts, {
     final bool? binariesAligned16K,
+    final bool guestExecViaQemu = false,
   }) =>
-      !evaluate(facts, binariesAligned16K: binariesAligned16K)
-          .any((final issue) => issue.isBlocking);
+      !evaluate(
+        facts,
+        binariesAligned16K: binariesAligned16K,
+        guestExecViaQemu: guestExecViaQemu,
+      ).any((final issue) => issue.isBlocking);
 
   /// Nombre comercial de una versión de Android, para mensajes legibles.
   static String _versionName(final int sdk) => switch (sdk) {

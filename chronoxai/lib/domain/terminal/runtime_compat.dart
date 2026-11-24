@@ -95,16 +95,26 @@ abstract final class RuntimeCompatibility {
         CompatIssue(
           severity: CompatSeverity.blocking,
           title: 'Android bloquea ejecutar programas de la app',
-          detail: 'Desde Android 10, SELinux impide ejecutar ficheros del '
-              'almacenamiento privado a las apps con targetSdk 29 o superior. '
-              'Este dispositivo tiene API ${facts.sdkInt} '
-              '(Android ${_versionName(facts.sdkInt)}), el proceso corre en el '
-              'dominio "$domain" y la app declara targetSdk ${facts.targetSdk}.',
-          advice:
-              'Si el dominio no es untrusted_app_27, puede que otra app con el '
-              'mismo uid haya forzado el dominio, o que una instalación anterior '
-              'lo haya dejado pegado. Desinstala la app por completo (no basta '
-              'con reinstalar) y vuelve a instalarla.',
+          detail: facts.canExecuteFromData == false
+              ? 'La prueba real de execve en el almacenamiento privado de la app '
+                  'falló. Dispositivo API ${facts.sdkInt} '
+                  '(Android ${_versionName(facts.sdkInt)}), dominio SELinux '
+                  '"$domain", targetSdk ${facts.targetSdk}. Esto no se corrige '
+                  'con chmod: es una restricción del sistema o del fabricante.'
+              : 'Desde Android 10, SELinux impide ejecutar ficheros del '
+                  'almacenamiento privado a las apps con targetSdk 29 o superior. '
+                  'Este dispositivo tiene API ${facts.sdkInt} '
+                  '(Android ${_versionName(facts.sdkInt)}), el proceso corre en el '
+                  'dominio "$domain" y la app declara targetSdk ${facts.targetSdk}.',
+          advice: facts.canExecuteFromData == false
+              ? 'Reinicia el dispositivo para que Android aplique el dominio '
+                  'SELinux actualizado. Si persiste, el firmware de este '
+                  'dispositivo bloquea execve en datos privados; Chronox necesita '
+                  'un build compatible con ese fabricante/ROM.'
+              : 'Si el dominio no es untrusted_app_27, puede que otra app con el '
+                  'mismo uid haya forzado el dominio, o que una instalación anterior '
+                  'lo haya dejado pegado. Reinicia el dispositivo; si no basta, '
+                  'desinstala por completo y reinstala (esto borra los datos locales).',
         ),
       );
     }

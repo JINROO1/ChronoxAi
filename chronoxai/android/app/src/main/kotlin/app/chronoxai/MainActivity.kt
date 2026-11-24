@@ -512,7 +512,6 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun platformFacts(): Map<String, Any?> {
-        val context = applicationContext
         val nativeLibDir = applicationInfo.nativeLibraryDir
         return mapOf(
             "sdkInt" to Build.VERSION.SDK_INT,
@@ -528,7 +527,7 @@ class MainActivity : FlutterActivity() {
             // Lo que de verdad decide si se puede ejecutar proot.
             "selinuxEnforcing" to isSelinuxEnforcing(),
             "selinuxDomain" to selinuxDomain(),
-            "canExecuteFromData" to canExecuteFromData(context, nativeLibDir),
+            "canExecuteFromData" to canExecuteFromData(),
         )
     }
 
@@ -616,23 +615,26 @@ class MainActivity : FlutterActivity() {
         return String(cipher.doFinal(payload.copyOfRange(12, payload.size)), Charsets.UTF_8)
     }
 
-    private fun canExecuteFromData(context: android.content.Context, nativeLibDir: String?): Boolean {
-        if (nativeLibDir == null) return false
-        val candidate = File(nativeLibDir, "libproot.so")
-        if (!candidate.exists()) return false
-
-        // 1. Que el fichero tenga el bit de ejecución en disco.
-        if (!candidate.canExecute()) return false
-
-        // 2. Que el kernel lo intente ejecutar sin denegar por SELinux.
+    private fun canExecuteFromData(): Boolean {
+        // Ejecutar un JNI solo valida apk_data_file y da falsos positivos. Debian
+        // vive bajo filesDir (app_data_file), así que probamos exactamente allí.
+        val probe = File(filesDir, ".chronox-exec-probe.sh")
         return try {
-            val process = ProcessBuilder(candidate.absolutePath).redirectErrorStream(true).start()
-            process.waitFor()
-            // ENOEXEC/ELIBBAD no son un problema de permisos; EACCES sí lo sería.
-            true
-        } catch (t: Throwable) {
-            val message = (t.message ?: "").lowercase()
-            !(message.contains("permission denied") || message.contains("eacces"))
+            probe.writeText("#!/system/bin/sh\nexit 0\n", Charsets.UTF_8)
+            if (!probe.setExecutable(true, true) || !probe.canExecute()) return false
+            val process = ProcessBuilder(probe.absolutePath)
+                .redirectErrorStream(true)
+                .start()
+            if (!process.waitFor(2, java.util.concurrent.TimeUnit.SECONDS)) {
+                process.destroyForcibly()
+                false
+            } else {
+                process.exitValue() == 0
+            }
+        } catch (_: Exception) {
+            false
+        } finally {
+            probe.delete()
         }
     }
 }

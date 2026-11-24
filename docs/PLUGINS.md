@@ -192,13 +192,16 @@ abiertos. El cliente negocia MCP, descubre `tools/list` y llama
 código arbitrario y ejecutarlo: Chronox no lo instala silenciosamente; revisa el
 paquete y sus scripts antes de autorizarlo. Ajustes permite varias entradas,
 una URL o comando por línea; anteponer `#` deshabilita una entrada sin borrarla.
-La posición de cada fila se conserva para mantener estables los nombres de herramientas al alternar servidores.
+Por defecto, todas las herramientas MCP requieren aprobación en cada llamada.
+Anteponer `!` a una fila omite esa aprobación para ese servidor: úselo solo con
+servidores plenamente confiables. La posición de cada fila se conserva para
+mantener estables los nombres de herramientas al alternar servidores.
 Las variables de entorno por servidor se configuran en «Variables secretas MCP»
 por número de fila y se cifran con Android Keystore; para `stdio`, se pasan al
 proceso MCP y nunca se escriben en la línea de comandos. Antes de `npm ci` se
 muestra el nombre/versión de cada paquete del lockfile y se requiere aprobar; el
-lock se vuelve a leer antes de instalar. Faltan políticas configurables por
-servidor; actualmente MCP exige aprobación en cada invocación de herramienta.
+lock se vuelve a leer antes de instalar. `!` permite omitir la aprobación por
+servidor de forma explícita; faltan permisos finos por herramienta/capacidad.
 `DshBundleArchiveInspector` inspecciona un ZIP `.dsh.bundle` con límites de
 cantidad y tamaño, sin extraerlo ni ejecutar scripts; genera el informe mediante
 `DshBundleDiagnostic`. Un resultado

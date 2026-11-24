@@ -193,8 +193,9 @@ Fuentes: `docs/user/develop/basic/publish.md` del repo oficial
       timeout de 10 minutos para instalación npm
 - [x] Mostrar y aprobar package-lock (nombre/versión de dependencias) antes
       de `npm ci`; se vuelve a verificar que no cambie tras la aprobación
-- [ ] Límite de almacenamiento total y políticas configurables individualizadas
-      por servidor; hoy MCP mantiene aprobación obligatoria por herramienta
+- [x] Política de aprobación por servidor: predeterminada por llamada, con `!`
+      explícito para confiar en un servidor y omitir prompts
+- [ ] Límite de almacenamiento total y permisos finos por herramienta/capacidad
 - [ ] Adaptador de paquetes `dsh.bundle`: leer package.json + patches declarados,
       soportar filas de plugins de herramientas/skills mediante shim Node
 - [x] Diagnóstico de preflight `DshBundleDiagnostic` con clasificación MCP

@@ -688,6 +688,7 @@ class _McpPlugin extends ChronoxPlugin {
           server.command,
           server.index,
           serverCount,
+          server.requiresApproval,
         );
       }
     } catch (_) {
@@ -701,6 +702,7 @@ class _McpPlugin extends ChronoxPlugin {
     final String configured,
     final int serverIndex,
     final int serverCount,
+    final bool requiresApproval,
   ) async {
     late final Future<List<Map<String, Object?>>> Function() listTools;
     late final Future<String> Function(String, Map<String, Object?>) callTool;
@@ -764,7 +766,7 @@ class _McpPlugin extends ChronoxPlugin {
         name: safeName,
         description: description,
         inputSchema: inputSchema,
-        requiresApproval: true,
+        requiresApproval: requiresApproval,
         execute: (final args) async {
           try {
             return ToolOutcome(content: await callTool(remoteName, args));

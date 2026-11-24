@@ -417,7 +417,7 @@ class SettingsScreen extends ConsumerWidget {
       hint: 'https://…/mcp o stdio:npm-package @scope/servidor@1.2.3 bin',
       initial: settings.mcpServerUrl,
       helper:
-          'Un servidor por línea; # lo deshabilita. Solo configura paquetes de confianza: npm-package <paquete>@<versión exacta> <binario> crea/usa lockfile y omite scripts de instalación. El código del servidor sí se ejecuta; cada llamada a herramienta pide aprobación.',
+          'Un servidor por línea; # lo deshabilita. Por defecto cada llamada pide aprobación; antepón ! solo a servidores de confianza para omitirla. npm-package <paquete>@<versión exacta> <binario> usa lockfile, omite scripts de instalación; el servidor ejecuta código.'
       maxLines: 5,
     );
     if (value == null) return;

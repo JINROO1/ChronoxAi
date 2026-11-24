@@ -208,8 +208,8 @@ class LocalRuntime {
       // Reparar en cada comprobación: distintas entradas de shell pueden ser
       // copias/enlaces distintos (/bin/sh y /usr/bin/sh), y una versión previa
       // del rootfs pudo dejar ejecutable uno pero no el otro.
-      final repaired = await _channel
-          .repairRootfsExecutableBits(paths.rootfsDir);
+      final repaired =
+          await _channel.repairRootfsExecutableBits(paths.rootfsDir);
       if (!repaired) {
         return RuntimeStatus(
           isReady: false,
@@ -218,12 +218,14 @@ class LocalRuntime {
               'de ejecución de sus comandos. Reinstala Debian desde Ajustes.',
         );
       }
+      }
       final repairedStat = await guestShell.stat();
       if ((repairedStat.mode & 0x49) == 0) {
         return RuntimeStatus(
           isReady: false,
           problem: RuntimeProblem.unavailable,
-          detail: 'No se pudo marcar /bin/sh como ejecutable. Reinstala Debian.',
+          detail:
+              'No se pudo marcar /bin/sh como ejecutable. Reinstala Debian.',
         );
       }
     }

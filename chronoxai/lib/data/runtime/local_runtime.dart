@@ -8,6 +8,7 @@ import 'package:crypto/crypto.dart';
 import '../../domain/plugins/seams.dart';
 import '../../domain/plugins/sandbox_policy.dart';
 import '../../domain/plugins/mcp_npm_spec.dart';
+import '../../domain/plugins/npm_lockfile_policy.dart';
 import '../../domain/terminal/linux_paths.dart';
 import '../../domain/terminal/elf_inspector.dart';
 import '../../domain/terminal/proot_command.dart';
@@ -300,6 +301,11 @@ class LocalRuntime {
           throw StateError('No se pudo generar package-lock.json: ${lockResult.stderr}');
         }
       }
+      NpmLockfilePolicy.validateJson(
+        await lockFile.readAsString(),
+        expectedPackage: pinned.package,
+        expectedVersion: pinned.version,
+      );
       final ciResult = await run(
         'npm ci --prefix ${_shellQuote(installPrefix)} '
         '--ignore-scripts --no-audit --no-fund',

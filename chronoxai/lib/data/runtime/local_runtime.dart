@@ -294,6 +294,7 @@ class LocalRuntime {
       final installPrefix = '/workspace/.chronox/mcp-packages/$packageId';
       if (!await lockFile.exists()) {
         final lockResult = await run(
+          'ulimit -f 131072; ulimit -n 128; ulimit -t 600; '
           'npm install --prefix ${_shellQuote(installPrefix)} '
           '--package-lock-only --ignore-scripts --save-exact --no-audit --no-fund',
           timeout: const Duration(minutes: 10),
@@ -309,6 +310,7 @@ class LocalRuntime {
         expectedVersion: pinned.version,
       );
       final ciResult = await run(
+        'ulimit -f 131072; ulimit -n 128; ulimit -t 600; '
         'npm ci --prefix ${_shellQuote(installPrefix)} '
         '--ignore-scripts --no-audit --no-fund',
         timeout: const Duration(minutes: 10),
@@ -340,7 +342,12 @@ class LocalRuntime {
           'Nombre de variable o valor inválido.');
     }
     final config = await _config(workingDirectory: '/workspace');
-    final guestCommand = 'exec ${launchCommand.map(_shellQuote).join(' ')}';
+    // Bound CPU time, individual file growth and open descriptors for the MCP
+    // process tree. npm dependency installation has a separate 10-minute wall
+    // clock timeout above.
+    final guestCommand =
+        'ulimit -t 1800; ulimit -f 131072; ulimit -n 128; '
+        'exec ${launchCommand.map(_shellQuote).join(' ')}';
     final args = ProotCommandBuilder.build(config,
         inner: <String>['/bin/bash', '-lc', guestCommand]);
     final environment = ProotCommandBuilder.hostEnvironment(

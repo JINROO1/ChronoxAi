@@ -189,8 +189,10 @@ Fuentes: `docs/user/develop/basic/publish.md` del repo oficial
       a procesos stdio (CI `45315887115` Analyze/Tests/Format en verde)
 - [x] Modo `npm-package` aislado con pin semver exacto, package-lock validado
       (registry.npmjs.org + integridad), `npm ci` y scripts de instalación off
-- [ ] Revisión visual del lockfile/dependencias antes de instalar, límites
-      explícitos del proceso y políticas de permisos individualizadas por servidor
+- [x] Límites para procesos stdio (CPU, tamaño de archivos, descriptores) y
+      timeout de 10 minutos para instalación npm
+- [ ] Revisión/aprobación visual del lockfile antes de npm ci e instalar, límites
+      de almacenamiento total y políticas de permisos individualizadas por servidor
 - [ ] Adaptador de paquetes `dsh.bundle`: leer package.json + patches declarados,
       soportar filas de plugins de herramientas/skills mediante shim Node
 - [x] Diagnóstico de preflight `DshBundleDiagnostic` con clasificación MCP

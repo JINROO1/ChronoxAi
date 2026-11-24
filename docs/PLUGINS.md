@@ -177,11 +177,12 @@ una frontera de seguridad fuerte.
 
 ### MCP npm por stdio
 
-El campo «Servidor MCP» también admite `stdio:npx --yes <paquete>` o
+El campo «Servidor MCP» admite una URL HTTP(S) o comando stdio por línea.
+También admite `stdio:npx --yes <paquete>` o
 `stdio:node /workspace/ruta/server.js`, si `node`/`npm`/`npx` están instalados
 por el usuario en Debian. El cliente negocia MCP, descubre `tools/list` y llama
 `tools/call`; cada herramienta remota requiere aprobación. `npx` puede descargar
 código arbitrario y ejecutarlo: Chronox no lo instala silenciosamente; revisa el
-paquete y sus scripts antes de autorizarlo. La configuración actual permite un
-servidor MCP en la sesión; el gestor de múltiples servidores, variables de
-entorno y lockfiles queda como trabajo de compatibilidad.
+paquete y sus scripts antes de autorizarlo. Ajustes permite varias entradas,
+una URL o comando por línea. La gestión individual de habilitar/deshabilitar,
+variables de entorno seguras y lockfiles queda como trabajo de compatibilidad.

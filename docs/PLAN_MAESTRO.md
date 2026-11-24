@@ -181,8 +181,11 @@ Fuentes: `docs/user/develop/basic/publish.md` del repo oficial
 
 - [x] MCP stdio: initialize/initialized, tools/list/call, timeout, logs stderr,
       cierre y tests con transporte falso (CI `45312414820`; 263 tests en verde)
-- [ ] Configuración de servidores MCP múltiples: HTTP y comando stdio npm, env,
-      habilitar/deshabilitar, restaurar tras reinicio
+- [x] Sesión admite varios servidores (URL HTTP o comando stdio por línea),
+      namespacea herramientas por servidor; configuración guardada en provider
+      settings. Pending CI verification.
+- [ ] Gestor dedicado para habilitar/deshabilitar servidores y configurar
+      variables de entorno (secretos en almacenamiento seguro)
 - [ ] Instalador npm con pins/lockfile, preview de scripts, aprobación antes de
       instalar/ejecutar y límites de tamaño/tiempo
 - [ ] Adaptador de paquetes `dsh.bundle`: leer package.json + patches declarados,

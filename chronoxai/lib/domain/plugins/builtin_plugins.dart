@@ -4,6 +4,7 @@ import 'dart:io';
 import 'plugin_api.dart';
 import 'mcp_http_client.dart';
 import 'mcp_stdio_client.dart';
+import 'mcp_command_parser.dart';
 import 'plugin_runtime.dart';
 import 'web_search_parser.dart';
 
@@ -668,63 +669,78 @@ class _McpPlugin extends ChronoxPlugin {
 
   final String? serverUrl;
   final Future<Process> Function(List<String> command)? startMcpProcess;
-  McpStdioClient? _stdioClient;
+  final List<McpStdioClient> _stdioClients = <McpStdioClient>[];
 
   @override
   Future<void> mount(final PluginContext context) async {
-    final configured = serverUrl?.trim() ?? '';
-    if (configured.isEmpty) return;
+    final servers = (serverUrl ?? '')
+        .split('\n')
+        .map((final row) => row.trim())
+        .where((final row) => row.isNotEmpty)
+        .toList(growable: false);
+    try {
+      for (var index = 0; index < servers.length; index++) {
+        await _mountServer(context, servers[index], index, servers.length);
+      }
+    } catch (_) {
+      await _disposeStdioClients();
+      rethrow;
+    }
+  }
+
+  Future<void> _mountServer(
+    final PluginContext context,
+    final String configured,
+    final int serverIndex,
+    final int serverCount,
+  ) async {
     late final Future<List<Map<String, Object?>>> Function() listTools;
     late final Future<String> Function(String, Map<String, Object?>) callTool;
-    final Future<Process> Function(List<String>)? startProcess =
-        startMcpProcess;
+    McpStdioClient? stdioClient;
     if (configured.startsWith('stdio:')) {
-      final command =
-          configured.substring('stdio:'.length).trim().split(RegExp(r'\s+'));
+      final command = parseMcpStdioCommand(configured.substring('stdio:'.length));
+      final startProcess = startMcpProcess;
       if (command.isEmpty || command.first.isEmpty || startProcess == null) {
-        throw const FormatException(
-            'Configura stdio:npx --yes paquete-mcp y un runtime Linux listo.');
+        throw const FormatException('Configura stdio:npx --yes paquete-mcp y un runtime Linux listo.');
       }
-      _stdioClient = McpStdioClient(await startProcess(command));
-      listTools = _stdioClient!.listTools;
-      callTool = _stdioClient!.callTool;
+      stdioClient = McpStdioClient(await startProcess(command));
+      _stdioClients.add(stdioClient);
+      listTools = stdioClient.listTools;
+      callTool = stdioClient.callTool;
     } else {
       final endpoint = Uri.tryParse(configured);
       if (endpoint == null ||
           (endpoint.scheme != 'https' && endpoint.scheme != 'http') ||
           endpoint.host.isEmpty) {
-        throw const FormatException(
-            'Configura una URL MCP HTTP(S) o stdio:<comando>.');
+        throw const FormatException('Configura una URL MCP HTTP(S) o stdio:<comando>.');
       }
-      final client = McpHttpClient(
-        network: context.services.network,
-        endpoint: endpoint,
-      );
+      final client = McpHttpClient(network: context.services.network, endpoint: endpoint);
       listTools = client.listTools;
       callTool = client.callTool;
     }
+
     late final List<Map<String, Object?>> tools;
     try {
       tools = await listTools();
     } catch (_) {
-      await _stdioClient?.dispose();
-      _stdioClient = null;
+      if (stdioClient != null) {
+        _stdioClients.remove(stdioClient);
+        await stdioClient.dispose();
+      }
       rethrow;
     }
     for (final remote in tools) {
       final remoteName = (remote['name'] as String?)?.trim() ?? '';
       if (remoteName.isEmpty) continue;
-      final safeName =
-          'mcp_${remoteName.replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '_')}';
+      final normalized = remoteName.replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '_');
+      final safeName = serverCount == 1
+          ? 'mcp_$normalized'
+          : 'mcp_${serverIndex + 1}_$normalized';
       final schema = remote['inputSchema'];
       final inputSchema = schema is Map<String, Object?>
           ? schema
-          : <String, Object?>{
-              'type': 'object',
-              'properties': <String, Object?>{}
-            };
-      final description =
-          (remote['description'] as String?) ?? 'MCP: $remoteName';
+          : <String, Object?>{'type': 'object', 'properties': <String, Object?>{}};
+      final description = (remote['description'] as String?) ?? 'MCP: $remoteName';
       context.provideTool(PluginTool(
         name: safeName,
         description: description,
@@ -734,8 +750,7 @@ class _McpPlugin extends ChronoxPlugin {
           try {
             return ToolOutcome(content: await callTool(remoteName, args));
           } catch (error) {
-            return ToolOutcome.error(
-                'Error en la herramienta MCP $remoteName: $error');
+            return ToolOutcome.error('Error en la herramienta MCP $remoteName: $error');
           }
         },
       ));
@@ -743,10 +758,14 @@ class _McpPlugin extends ChronoxPlugin {
   }
 
   @override
-  Future<void> unmount() async {
-    final client = _stdioClient;
-    _stdioClient = null;
-    await client?.dispose();
+  Future<void> unmount() => _disposeStdioClients();
+
+  Future<void> _disposeStdioClients() async {
+    final clients = _stdioClients.toList();
+    _stdioClients.clear();
+    for (final client in clients) {
+      await client.dispose();
+    }
   }
 }
 

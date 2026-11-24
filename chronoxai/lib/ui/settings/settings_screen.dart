@@ -403,10 +403,11 @@ class SettingsScreen extends ConsumerWidget {
     final value = await _prompt(
       context,
       title: 'Servidor MCP',
-      hint: 'https://example.com/mcp o stdio:npx --yes paquete-mcp',
+      hint: 'Una URL/comando por línea: https://…/mcp o stdio:npx paquete',
       initial: settings.mcpServerUrl,
       helper:
-          'HTTP(S) Streamable o comando stdio local. Para npm/npx instala nodejs/npm en Debian; cada herramienta remota pide aprobación.',
+          'Puedes configurar varios servidores, uno por línea. MCP stdio npm requiere nodejs/npm instalado en Debian. Revisar los paquetes es tu responsabilidad; cada herramienta pide aprobación.',
+      maxLines: 5,
     );
     if (value == null) return;
     ref.read(providerSettingsProvider.notifier).state =
@@ -437,6 +438,7 @@ class SettingsScreen extends ConsumerWidget {
     required final String initial,
     final String? helper,
     final bool obscure = false,
+    final int maxLines = 1,
   }) {
     final controller = TextEditingController(text: initial);
 
@@ -464,6 +466,11 @@ class SettingsScreen extends ConsumerWidget {
               controller: controller,
               autofocus: true,
               obscureText: obscure,
+              minLines: maxLines > 1 ? 3 : 1,
+              maxLines: maxLines,
+              keyboardType: maxLines > 1
+                  ? TextInputType.multiline
+                  : TextInputType.text,
               style: const TextStyle(
                 color: ChronoxColors.textPrimary,
                 fontSize: 14,

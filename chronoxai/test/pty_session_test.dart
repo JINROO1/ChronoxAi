@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -98,7 +99,7 @@ void main() {
     await session.write('ñ');
     await Future<void>.delayed(Duration.zero);
     expect(String.fromCharCodes(received.single), 'salud');
-    expect(process.writes.single, Uint8List.fromList('ñ'.codeUnits));
+    expect(process.writes.single, Uint8List.fromList(utf8.encode('ñ')));
   });
 
   test('writes control bytes and propagates window resize', () async {
@@ -140,6 +141,5 @@ void main() {
             .start(binary: '', arguments: const [], environment: const {}),
         isFalse);
     expect(broken.state, PtyState.failed);
-    await broken.close();
   });
 }

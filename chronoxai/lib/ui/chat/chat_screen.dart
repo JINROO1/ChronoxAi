@@ -11,7 +11,9 @@ import '../../platform/voice_channel.dart';
 import '../settings/settings_screen.dart';
 import '../state/app_state.dart';
 import '../widgets/chronox_widgets.dart';
+import 'approval_sheet.dart';
 import 'message_bubble.dart';
+import 'plan_sheet.dart';
 import 'sessions_browser.dart';
 
 /// Pantalla de sesión: la conversación con el agente.
@@ -91,6 +93,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     _input.clear();
     final view = ref.read(agentViewProvider.notifier);
     view.markRunning('Pensando…');
+
+    // Los diálogos de nueva sesión se cierran antes de enviar el primer turno;
+    // sus BuildContext quedan desmontados. Enlaza las confirmaciones al contexto
+    // vivo de ChatScreen justo antes de iniciar el loop.
+    session.loop.approvalHandler = (final request) => showApprovalSheet(
+          context,
+          request: request,
+          isHighRisk: ApprovalPolicy.isHighRisk(request.toolName),
+        );
+    session.loop.planHandler = (final request) => showPlanSheet(
+          context,
+          plan: request.plan,
+        );
 
     final reason = await session.loop.runTurn(text);
     view.markFinished(reason);

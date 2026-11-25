@@ -14,8 +14,6 @@ import '../../domain/plugins/mcp_npm_spec.dart';
 import '../../domain/plugins/npm_lockfile_policy.dart';
 import '../../platform/android_permissions.dart';
 import '../../platform/secure_secret_store.dart';
-import '../chat/approval_sheet.dart';
-import '../chat/plan_sheet.dart';
 import '../state/app_state.dart';
 import '../widgets/chronox_widgets.dart';
 import 'diagnostics_screen.dart';
@@ -929,20 +927,6 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
         sessionId: widget.sessionId,
         disabledPluginIds: ref.read(disabledPluginIdsProvider),
       );
-
-      // La UI responde a las peticiones de permiso con la hoja de aprobación.
-      session.loop.approvalHandler = (final request) => showApprovalSheet(
-            context,
-            request: request,
-            isHighRisk: ApprovalPolicy.isHighRisk(request.toolName),
-          );
-
-      // Y a los planes con su propia hoja: el plan mode detiene el loop hasta
-      // que el usuario aprueba o rechaza.
-      session.loop.planHandler = (final request) => showPlanSheet(
-            context,
-            plan: request.plan,
-          );
 
       // El servicio en primer plano es lo que impide que Android congele el
       // proceso (y mate proot) en cuanto la app pasa a segundo plano. Se arranca

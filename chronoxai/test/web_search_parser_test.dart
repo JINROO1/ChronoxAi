@@ -23,6 +23,16 @@ void main() {
     expect(results.last.url, 'https://second.example/page');
   });
 
+  test('HTML vacío o malformado devuelve cero resultados sin lanzar', () {
+    expect(WebSearchParser.parse(''), isEmpty);
+    expect(
+      WebSearchParser.parse(
+        '<div class="result"><a class="result__a" href="https://x.example">sin cerrar',
+      ),
+      isEmpty,
+    );
+  });
+
   test('respeta límite y omite enlaces internos no resolubles', () {
     const html = '''
 <div class="result"><a class="result__a" href="/internal">Interno</a></div>

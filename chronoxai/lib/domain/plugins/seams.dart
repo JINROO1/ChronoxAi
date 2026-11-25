@@ -92,6 +92,15 @@ abstract class SessionSeam {
 /// Capacidad de red saliente.
 abstract class NetworkSeam {
   Future<NetworkResponse> get(Uri uri, {Map<String, String>? headers});
+
+  /// Web research fetch: implementations should disable redirects and enforce
+  /// [maxResponseBytes]. The default keeps test/custom seams source-compatible.
+  Future<NetworkResponse> getWeb(
+    Uri uri, {
+    Map<String, String>? headers,
+    int maxResponseBytes = 1000000,
+  }) =>
+      get(uri, headers: headers);
   Future<NetworkResponse> post(
     Uri uri, {
     Map<String, String>? headers,

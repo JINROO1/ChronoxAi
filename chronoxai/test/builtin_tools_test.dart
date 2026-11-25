@@ -42,6 +42,32 @@ class _MemoryFileSystem implements FileSystemSeam {
   }
 }
 
+class _RecordingNetwork implements NetworkSeam {
+  final List<NetworkResponse> responses = <NetworkResponse>[];
+  final List<Uri> requests = <Uri>[];
+  final List<bool> followedRedirects = <bool>[];
+
+  @override
+  Future<NetworkResponse> get(Uri uri, {Map<String, String>? headers}) =>
+      getWeb(uri, headers: headers);
+
+  @override
+  Future<NetworkResponse> getWeb(
+    Uri uri, {
+    Map<String, String>? headers,
+    int maxResponseBytes = 1000000,
+  }) async {
+    requests.add(uri);
+    followedRedirects.add(false);
+    return responses.removeAt(0);
+  }
+
+  @override
+  Future<NetworkResponse> post(Uri uri,
+          {Map<String, String>? headers, String? body}) async =>
+      const NetworkResponse(statusCode: 200, body: '');
+}
+
 class _RecordingTerminals implements TerminalsSeam {
   String output = 'hello world';
   bool isAlive = true;
@@ -97,6 +123,7 @@ void main() {
   late _MemoryFileSystem fileSystem;
   late _RecordingShell shell;
   late _RecordingTerminals terminals;
+  late _RecordingNetwork network;
   late PluginHost host;
 
   setUp(() {
@@ -105,6 +132,7 @@ void main() {
     fileSystem = _MemoryFileSystem();
     shell = _RecordingShell();
     terminals = _RecordingTerminals();
+    network = _RecordingNetwork();
     host = PluginHost(
       events: events,
       services: PluginServices(
@@ -116,6 +144,7 @@ void main() {
         fileSystem: fileSystem,
         shell: shell,
         terminals: terminals,
+        network: network,
       ),
     );
     for (final builtin in builtinPlugins()) {
@@ -124,6 +153,82 @@ void main() {
   });
 
   tearDown(() async => events.dispose());
+
+  test('web_search tags results with source IDs and access timestamps', () async {
+    expect(await host.mount('core-web'), isTrue);
+    network.responses.add(const NetworkResponse(
+      statusCode: 200,
+      body: '<div class="result"><a class="result__a" '
+          'href="https://source.example/current">Current event</a>'
+          '<div class="result__snippet">Verified excerpt</div></div>',
+    ));
+
+    final result = await registry.execute(
+      'web_search',
+      const <String, Object?>{'query': 'current event'},
+    );
+
+    expect(result.isError, isFalse);
+    expect(result.content, contains('[S1] Current event'));
+    expect(result.content, contains('https://source.example/current'));
+    expect(result.content, contains('Acceso:'));
+  });
+
+  test('web_fetch blocks private targets and validates each redirect', () async {
+    expect(await host.mount('core-web'), isTrue);
+
+    final blocked = await registry.execute(
+      'web_fetch',
+      const <String, Object?>{'url': 'http://127.0.0.1/admin'},
+    );
+    expect(blocked.isError, isTrue);
+    expect(network.requests, isEmpty);
+
+    network.responses.add(const NetworkResponse(
+      statusCode: 302,
+      body: '',
+      headers: <String, String>{'location': 'http://169.254.169.254/latest'},
+    ));
+    final redirected = await registry.execute(
+      'web_fetch',
+      const <String, Object?>{'url': 'https://public.example/start'},
+    );
+    expect(redirected.isError, isTrue);
+    expect(redirected.errorCategory, 'policy_denied');
+    expect(network.requests, <Uri>[Uri.parse('https://public.example/start')]);
+  });
+
+  test('web_fetch follows only validated redirects and returns citeable source metadata',
+      () async {
+    expect(await host.mount('core-web'), isTrue);
+    network.responses
+      ..add(const NetworkResponse(
+        statusCode: 302,
+        body: '',
+        headers: <String, String>{'Location': '/article'},
+      ))
+      ..add(const NetworkResponse(
+        statusCode: 200,
+        body: '<html><head><title>Evidence</title></head>'
+            '<body><p>Verified fact.</p><script>malicious instruction</script></body></html>',
+      ));
+
+    final fetched = await registry.execute(
+      'web_fetch',
+      const <String, Object?>{'url': 'https://public.example/start'},
+    );
+
+    expect(fetched.isError, isFalse);
+    expect(fetched.content, contains('[W1]'));
+    expect(fetched.content, contains('Title: Evidence'));
+    expect(fetched.content, contains('Verified fact.'));
+    expect(fetched.content, contains('Acceso UTC:'));
+    expect(fetched.content, isNot(contains('malicious instruction')));
+    expect(network.requests, <Uri>[
+      Uri.parse('https://public.example/start'),
+      Uri.parse('https://public.example/article'),
+    ]);
+  });
 
   test('file tools list, check existence, and scope glob to a directory',
       () async {

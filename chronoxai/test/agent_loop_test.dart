@@ -417,7 +417,8 @@ void main() {
       );
     });
 
-    test('instalar paquetes siempre requiere aprobación incluso en YOLO', () async {
+    test('instalar paquetes siempre requiere aprobación incluso en YOLO',
+        () async {
       var asked = 0;
       final loop = makeLoop(
         FakeProvider(<LlmResponse>[
@@ -445,7 +446,8 @@ void main() {
 
       expect(await loop.runTurn('instala numpy'), 'completed');
       expect(asked, 1);
-      expect(log.events.whereType<ApprovalDecisionEvent>().single.approved, isTrue);
+      expect(log.events.whereType<ApprovalDecisionEvent>().single.approved,
+          isTrue);
     });
 
     test('si el usuario rechaza, el turno termina en rejected', () async {

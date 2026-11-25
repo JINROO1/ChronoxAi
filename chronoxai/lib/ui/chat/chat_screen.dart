@@ -284,8 +284,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                           MessageBubble(entry: entries[i]),
                     ),
             ),
-            if (reasoning.isNotEmpty)
-              _LiveReasoning(text: reasoning),
+            if (reasoning.isNotEmpty) _LiveReasoning(text: reasoning),
             if (view.error != null)
               _ErrorBanner(
                 message: view.error!,

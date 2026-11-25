@@ -253,6 +253,25 @@ void main() {
     expect(fileSystem.files['/workspace/note.txt'], 'before');
   });
 
+  test('write tracks newly created files for explicit rollback', () async {
+    expect(await host.mount('core-fs'), isTrue);
+    expect(await host.mount('core-editing'), isTrue);
+
+    final written = await registry.execute('write', <String, Object?>{
+      'path': 'new-file.txt',
+      'content': 'session content',
+    });
+    expect(written.isError, isFalse);
+    expect(fileSystem.files['/workspace/new-file.txt'], 'session content');
+
+    final rolledBack = await registry.execute(
+      'rollback_changes',
+      const <String, Object?>{},
+    );
+    expect(rolledBack.isError, isFalse);
+    expect(shell.commands.single, contains("rm -f -- '/workspace/new-file.txt'"));
+  });
+
   test('write rejects paths that escape the workspace', () async {
     expect(await host.mount('core-fs'), isTrue);
     final result = await registry.execute('write', <String, Object?>{

@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Añadir a ChronoxAI un proveedor de modelos que ejecute inferencia **dentro de la app y del dispositivo**, sin Ollama, daemon local, API remota ni conexión de red durante la generación. Los dos destinos solicitados son los artefactos llamados `qwen3.5:0.8b` y `qwen3.5:2b`.
+Añadir a ChronoxAI un proveedor de modelos que ejecute inferencia **dentro de la app y del dispositivo**, sin Ollama, daemon local, API remota ni conexión de red durante la generación. Los destinos base solicitados son los artefactos llamados `qwen3.5:0.8b` y `qwen3.5:2b`. La evaluación incluirá también Gemma 4 E2B como comparador opcional de la clase ~2B; no sustituye a Qwen sin superar los mismos tests.
 
 La app ya abstrae el modelo detrás de `LlmProvider`; se debe integrar el motor como un proveedor nuevo y reutilizar `AgentLoop`, herramientas, aprobaciones e historial. El plan es estrictamente secuencial: **no se inicia una fase hasta que su gate de validación esté verde**.
 
@@ -25,18 +25,20 @@ La app ya abstrae el modelo detrás de `LlmProvider`; se debe integrar el motor 
 | Runtime | Qwen declara que `llama.cpp` soporta Qwen3.5 texto+visión y recomienda GGUF; el árbol de `llama.cpp` contiene implementación `src/models/qwen35.cpp` y conversión/tokenizer Qwen35. | `llama.cpp` es candidato viable para el spike; aún falta probar los archivos exactos y su API embebida en un teléfono Android. |
 | Android | `llama.cpp` publica guía de Android, ejemplo Kotlin/AAR y workflow de compilación. Su ejemplo AAR actual declara `minSdk = 33`; este app declara `minSdk = 24`. La guía CMake usa API 28 como baseline ilustrativo para builds portables por NDK y ABI. | Baseline provisional de trabajo: API 28 con binding JNI/FFI propio; validar dispositivo/emulador API 28 antes de fijarlo definitivamente. No usar el AAR de ejemplo (requiere API 33) ni cambiar minSdk sin medir el impacto. |
 | ABI de ChronoxAI | La configuración Android actual mantiene filtros para `arm64-v8a` y `x86_64`; `llama.cpp` documenta builds Android para ambas familias. | Compilar el backend offline solo para las ABI que el APK ya declara; probar ARM64 físico primero y x86_64 solo si se mantiene como objetivo del producto. |
+| Alternativa ~2B | Google posiciona Gemma 4 E2B (~2.3B efectivos) para móvil/edge; recomienda LiteRT-LM. El archivo `.litertlm` publicado tiene 2,588,147,712 bytes y SHA-256 `181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c`. Google informa <1.5 GB de memoria en algunos dispositivos compatibles, no como mínimo universal. | Es un candidato real a comparar, pero necesita formato `.litertlm`/runtime diferente al GGUF/llama.cpp. La app de referencia Android de Google declara minSdk 31; falta determinar si el AAR LiteRT-LM fijado permite el API 28 previsto. No prometer compatibilidad en API 28 hasta verificar el AAR y hacer build/device test. |
 | Licencia | El repositorio público de Qwen3.8 declara Apache-2.0; resultados de las fichas GGUF indican `apache-2.0` para los derivados de Unsloth y enlazan la licencia base de Qwen. | Candidato compatible con Apache-2.0, pendiente copiar/verificar los LICENSE de cada revisión fijada y conservar atribuciones de Qwen y Unsloth antes de distribuir. |
 
-Fuentes consultadas: [Qwen official repository and model list](https://github.com/QwenLM/Qwen3.8), [Qwen model license file](https://github.com/QwenLM/Qwen3.8/blob/main/LICENSE), [llama.cpp Qwen3.5 implementation](https://github.com/ggml-org/llama.cpp/blob/master/src/models/qwen35.cpp), [llama.cpp Android guide](https://github.com/ggml-org/llama.cpp/blob/master/docs/android.md), [llama.cpp Android example Gradle config](https://github.com/ggml-org/llama.cpp/blob/master/examples/llama.android/lib/build.gradle.kts), [llama.cpp Android example](https://github.com/ggml-org/llama.cpp/tree/master/examples/llama.android), [tarjeta GGUF 0.8B](https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF), [archivo 0.8B Q4_K_M fijado](https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/blob/6ab461498e2023f6e3c1baea90a8f0fe38ab64d0/Qwen3.5-0.8B-Q4_K_M.gguf), [tarjeta GGUF 2B](https://huggingface.co/unsloth/Qwen3.5-2B-GGUF), [archivo 2B Q4_K_M fijado](https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/blob/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_K_M.gguf). Las páginas de archivos reportan tamaños y SHA-256 recogidos en la tabla; falta comprobar esos bytes desde una descarga real controlada.
+Fuentes consultadas: [Qwen official repository and model list](https://github.com/QwenLM/Qwen3.8), [Qwen model license file](https://github.com/QwenLM/Qwen3.8/blob/main/LICENSE), [llama.cpp Qwen3.5 implementation](https://github.com/ggml-org/llama.cpp/blob/master/src/models/qwen35.cpp), [llama.cpp Android guide](https://github.com/ggml-org/llama.cpp/blob/master/docs/android.md), [llama.cpp Android example Gradle config](https://github.com/ggml-org/llama.cpp/blob/master/examples/llama.android/lib/build.gradle.kts), [llama.cpp Android example](https://github.com/ggml-org/llama.cpp/tree/master/examples/llama.android), [Google Gemma 4 on-device announcement](https://developers.googleblog.com/bring-state-of-the-art-agentic-skills-to-the-edge-with-gemma-4/), [Google LiteRT-LM performance and E2B artifact](https://developers.googleblog.com/blazing-fast-on-device-genai-with-litert-lm/), [LiteRT-LM Android/Kotlin API](https://github.com/google-ai-edge/LiteRT-LM/blob/main/docs/api/kotlin/getting_started.md), [Google AI Edge Gallery Android minSdk](https://github.com/google-ai-edge/gallery/blob/main/Android/src/app/build.gradle.kts), [Gemma E2B LiteRT-LM artifact](https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/blob/main/gemma-4-E2B-it.litertlm), [tarjeta GGUF 0.8B](https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF), [archivo 0.8B Q4_K_M fijado](https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/blob/6ab461498e2023f6e3c1baea90a8f0fe38ab64d0/Qwen3.5-0.8B-Q4_K_M.gguf), [tarjeta GGUF 2B](https://huggingface.co/unsloth/Qwen3.5-2B-GGUF), [archivo 2B Q4_K_M fijado](https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/blob/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_K_M.gguf). Las páginas de archivos reportan tamaños y SHA-256 recogidos en la tabla; falta comprobar esos bytes desde una descarga real controlada.
 
 ### Estado del gate
 
-**EN PROGRESO: la verificación documental avanzó, pero la Fase 1 aún no está desbloqueada.** Ya hay mapeo candidato con IDs de base, revisiones GGUF, quant `Q4_K_M`, tamaños y hashes reportados; se confirmó el tipo `qwen35` y soporte upstream en llama.cpp. Pendiente: comprobar los bytes/hash descargando ambos archivos desde las revisiones fijadas, leer los LICENSE y metadatos/tokenizer/chat template de esas revisiones, y validar carga/generación en hardware Android ARM64. API 28 queda como baseline provisional para el spike, con JNI/FFI propio; el nivel mínimo final depende de prueba real.
+**EN PROGRESO: la verificación documental avanzó, pero la Fase 1 aún no está desbloqueada.** Ya hay mapeo candidato con IDs de base, revisiones GGUF, quant `Q4_K_M`, tamaños y hashes reportados; se confirmó el tipo `qwen35` y soporte upstream en llama.cpp. También se identificó Gemma 4 E2B como comparación posible, con archivo/hash reportados y el requisito de LiteRT-LM. Pendiente: comprobar los bytes/hash descargando artefactos desde revisiones fijadas, leer los LICENSE y metadatos/tokenizer/chat template, comprobar el `minSdk` efectivo de LiteRT-LM 0.8.x y validar carga/generación en hardware Android ARM64. API 28 queda como baseline provisional para Qwen; si LiteRT-LM exige API 31, Gemma será un benchmark separado o requerirá revisar el mínimo Android mediante decisión explícita.
 
 1. Descargar cada candidato a almacenamiento temporal controlado, verificar longitud y SHA-256, y no guardar los pesos grandes en Git.
 2. Inspeccionar GGUF metadata/tokenizer/chat template/contexto y LICENSE de las revisiones fijadas; guardar los metadatos esenciales y atribuciones, no los pesos.
 3. Compilar `llama.cpp` en CI para las ABI nativas del producto y probar carga/generación en Android ARM64 API 28; medir RAM además del tamaño del archivo.
-4. Acordar dispositivos objetivo y umbrales de latencia/RAM/almacenamiento antes de aprobar el gate.
+4. Comprobar si LiteRT-LM se puede integrar de forma soportada con API 28; la app oficial AI Edge Gallery usa API 31. Si no, decidir si se excluye Gemma de la app/API 28 o si se eleva minSdk a 31 para incluirlo.
+5. Acordar dispositivos objetivo y umbrales de latencia/RAM/almacenamiento antes de aprobar el gate.
 
 Las etiquetas de Ollama son solo alias de UX; el plan fija IDs de repositorio/archivo/revisión de GGUF y no depende de Ollama ni de un servidor.
 
@@ -48,6 +50,12 @@ Se propone empezar con las cuantizaciones `Q4_K_M` del repositorio GGUF de Unslo
 |---|---|---|---:|---|---|
 | `qwen3.5:0.8b` | `Qwen/Qwen3.5-0.8B` | `Qwen3.5-0.8B-Q4_K_M.gguf` | 532,517,120 bytes (≈533 MB) | `bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517` | `6ab461498e2023f6e3c1baea90a8f0fe38ab64d0` |
 | `qwen3.5:2b` | `Qwen/Qwen3.5-2B` | `Qwen3.5-2B-Q4_K_M.gguf` | 1,280,835,840 bytes (≈1.28 GB) | `aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223` | `f6d5376be1edb4d416d56da11e5397a961aca8ae` |
+
+Comparador adicional (no es un reemplazo decidido):
+
+| Modelo | Artefacto | Tamaño y hash reportados | Backend | Estado |
+|---|---|---|---|---|
+| Gemma 4 E2B IT (~2.3B efectivos) | `gemma-4-E2B-it.litertlm` | 2,588,147,712 bytes; SHA-256 `181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c` | LiteRT-LM, Kotlin Android | Candidato para benchmark separado; pin de revisión/model license y minSdk exacto del AAR aún por verificar. No es intercambiable con GGUF. |
 
 Candidatos upstream: [Unsloth 0.8B GGUF pinned file](https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/6ab461498e2023f6e3c1baea90a8f0fe38ab64d0/Qwen3.5-0.8B-Q4_K_M.gguf) y [Unsloth 2B GGUF pinned file](https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_K_M.gguf). Las páginas de los artefactos reportan los SHA anteriores. Los modelos base oficiales se enlazan desde la [colección oficial de Qwen](https://huggingface.co/collections/Qwen/qwen35); los resultados publicados reportan Apache-2.0 para los modelos base, pero antes de distribuir se debe conservar/verificar el archivo LICENSE de cada tarjeta y las atribuciones de la conversión Unsloth.
 
@@ -66,7 +74,7 @@ Se adopta provisionalmente `Q4_K_M` para mantener el archivo en un rango viable 
 
 ## Fase 2 — Gestor local de modelos y almacenamiento
 
-1. Definir el directorio privado de modelos y manifiesto versionado con ID, alias visible, archivo, formato, tamaño, checksum, cuantización, licencia y metadatos de contexto.
+1. Definir el directorio privado de modelos y manifiesto versionado con ID, alias visible, archivo, formato (`GGUF`/`.litertlm`), runtime requerido, tamaño, checksum, cuantización, licencia y metadatos de contexto.
 2. Permitir descargar el archivo desde una fuente explícita o importarlo con el selector de almacenamiento de Android; soportar reintento, cancelación, progreso y falta de espacio.
 3. Descargar a temporal, validar longitud/checksum y publicar con rename atómico; no cargar pesos parciales ni sobrescribir un modelo válido antes de validar el nuevo.
 4. Añadir eliminar modelo, espacio requerido/libre y protección contra rutas externas al directorio autorizado.
@@ -76,7 +84,7 @@ Se adopta provisionalmente `Q4_K_M` para mantener el archivo en un rango viable 
 
 ## Fase 3 — `LocalLlmProvider` y ciclo de vida de inferencia
 
-1. Implementar `LlmProvider` local manteniendo la firma de streaming usada por `AgentLoop`.
+1. Implementar `LlmProvider` local manteniendo la firma de streaming usada por `AgentLoop`; resolver el backend desde el manifiesto del modelo (llama.cpp para GGUF; LiteRT-LM solo si Gemma supera su gate).
 2. Mapear mensajes Chronox (system/user/assistant/tool) a plantilla de conversación exacta del artefacto Qwen; incorporar tokenizer/chat template del modelo, no construir el prompt a mano con separadores arbitrarios.
 3. Emitir tokens como `TextChunk`; soportar stop, límite de tokens/contexto, timeout, cancelación nativa y cierre idempotente.
 4. Gestionar una sola sesión de inferencia por modelo; cerrar contexto y liberar memoria al cambiar modelo, cerrar sesión o recibir presión de memoria.
@@ -102,14 +110,15 @@ Se adopta provisionalmente `Q4_K_M` para mantener el archivo en un rango viable 
 
 **Gate:** corpus de escenarios reproducible cubre lectura/escritura, shell con aprobación, rechazo, argumentos inválidos, llamada inventada, salida truncada y cancelación. Sin bypass de aprobación; tasa mínima de éxito acordada antes de dar por lista la función.
 
-## Fase 6 — Integrar y verificar Qwen 2B
+## Fase 6 — Comparación de candidatos ~2B y elección
 
-1. Habilitar el artefacto 2B solo tras superar individualmente el gate del 0.8B.
-2. Probar su archivo/tokenizer/plantilla exactos, cuantización y límites de contexto en los mismos dispositivos.
-3. Medir carga, tokens por segundo, pico de RAM, temperatura y batería con contexto corto y largo.
-4. Hacer fallback solo por decisión del usuario al modelo 0.8B si el 2B no cabe o es demasiado lento; nunca cambiar en silencio a la nube.
+1. Solo si el spike Qwen 0.8B está verde, probar Qwen 3.5 2B y Gemma 4 E2B en el conjunto de tareas idéntico.
+2. Usar Q4_K_M para Qwen y el artefacto LiteRT-LM oficial fijado para Gemma; registrar que no tienen la misma cuantización, formato ni runtime.
+3. Medir calidad en español, selección/argumentos de herramientas, tasa de corrección, latencia, tokens/s, pico de RAM, temperatura, batería, almacenamiento y requisito de API.
+4. No comparar benchmarks de proveedores como sustituto de pruebas ChronoxAI; declarar los casos en que cada modelo falla.
+5. Elegir un modelo principal y opcionalmente conservar otro como descarga opt-in. Nunca cambiar de modelo ni enviar prompts a la nube sin decisión del usuario.
 
-**Gate:** carga estable en dispositivos objetivo, criterios de rendimiento/RAM documentados, pruebas de agente y herramientas equivalentes al 0.8B, y ciclo unload/reload limpio.
+**Gate:** resultados reproducibles en el mismo Android, en modo avión; Gemma solo se considera si LiteRT-LM es compatible con el minSdk objetivo. Si requiere elevarlo, la decisión se confirma antes de tocar `minSdk`. El seleccionado debe superar el corpus de agente y límites de recursos acordados.
 
 ## Fase 7 — Release, seguridad y aceptación final
 

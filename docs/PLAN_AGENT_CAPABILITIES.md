@@ -1,6 +1,6 @@
 # Plan de capacidades avanzadas del agente
 
-Estado: secuencia incremental; completar y validar una fase antes de empezar la siguiente. Fase 1 implementada y validada (279 tests pasan; analyze y format completados). Fase 2 en implementación. No se considera una fase terminada hasta que sus pruebas y criterios de aceptación pasan.
+Estado: secuencia incremental; completar y validar una fase antes de empezar la siguiente. Fase 1 implementada y validada (279 tests). Fase 2 implementada y validada en CI (284 tests, analyze, format y Runtime Linux pasan). Fase 3 aún no iniciada.
 
 ## Principios comunes
 
@@ -10,7 +10,7 @@ Estado: secuencia incremental; completar y validar una fase antes de empezar la 
 - Probar lógica con seams falsos, UI con widget tests y llamadas de plataforma/runtime con pruebas de integración cuando corresponda.
 - Respetar cancelación, timeout y límites de contexto; no instalar dependencias automáticamente fuera de la política activa.
 
-## Fase 1 — Verificación automática del proyecto (en curso)
+## Fase 1 — Verificación automática del proyecto (completada)
 
 1. Detectar el ecosistema con archivos de configuración del workspace, sin ejecutar comandos exploratorios arbitrarios.
 2. Elegir comandos conocidos para tests, análisis y formato; detectar scripts disponibles y no inventar tareas ausentes.
@@ -20,13 +20,15 @@ Estado: secuencia incremental; completar y validar una fase antes de empezar la 
 
 Criterios: detección reproducible; entradas limitadas; comandos deterministas; código de salida verificable; errores por chequeo aislados; tests unitarios con fake FS/shell; CI analyze y suite completos.
 
-## Fase 2 — Diagnóstico estructurado y recuperación
+## Fase 2 — Diagnóstico estructurado y recuperación (completada)
 
 1. Normalizar errores de herramientas a categorías estables (argumentos/ruta/dependencia/permisos/timeout/red/ejecución).
-2. Adjuntar a la respuesta para el modelo el comando, exit code, stdout/stderr separados y contexto limitado.
-3. Sugerir recuperación concreta como metadatos, sin convertir una sugerencia en ejecución automática.
-4. Permitir reintentos acotados y evitar repetir exactamente la misma llamada fallida.
-5. Probar cada categoría y garantizar que el rechazo del usuario detiene acciones privilegiadas.
+2. Adjuntar a la respuesta para el modelo el exit code y stdout/stderr separados para los ejecutores integrados; la información de diagnóstico va acotada al presupuesto de salida.
+3. Sugerir recuperación concreta como metadatos y texto visible para el modelo, sin convertir una sugerencia en ejecución automática.
+4. Evitar repetir exactamente una llamada idéntica tras dos fallos dentro del turno.
+5. Cubrir clasificación, compatibilidad de JSONL antiguo, ejecución repetida y diagnóstico; se conserva el rechazo y el flujo de aprobación existente.
+
+Validación: CI `45539601060` exitoso; Format, Analyze, Tests (284 pasaron) y Runtime Linux completados. Las anotaciones solo reportan warnings conocidos de Node 20, no fallos de análisis.
 
 ## Fase 3 — Edición segura, diff y reversión
 

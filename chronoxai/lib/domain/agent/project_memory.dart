@@ -293,6 +293,7 @@ class ProjectMemoryStore {
   String contextFor(final String userInput) {
     if (!enabled || _entries.isEmpty) return '';
     final queryWords = _words(userInput);
+    if (queryWords.isEmpty) return '';
     final candidates = _entries.where((final entry) {
       final corpus = '${entry.text} ${entry.source}'.toLowerCase();
       return !excludedTopics.any((final topic) =>
@@ -301,12 +302,17 @@ class ProjectMemoryStore {
               source.isNotEmpty &&
               entry.source.toLowerCase().contains(source.toLowerCase()));
     }).toList();
-    int score(final ProjectMemoryEntry entry) {
+    int overlapCount(final ProjectMemoryEntry entry) {
       final corpus = '${entry.text} ${entry.source}'.toLowerCase();
-      final overlap = queryWords.where(corpus.contains).length;
+      return queryWords
+          .where((final word) => corpus.contains(word))
+          .length;
+    }
+
+    int score(final ProjectMemoryEntry entry) {
       final confidence = (entry.confidence * 10).round();
       final kindWeight = entry.kind == ProjectMemoryKind.preference ? 1 : 0;
-      return overlap * 100 + confidence + kindWeight;
+      return overlapCount(entry) * 100 + confidence + kindWeight;
     }
 
     candidates.sort((final left, final right) {
@@ -314,7 +320,7 @@ class ProjectMemoryStore {
       return byScore != 0 ? byScore : right.createdAt.compareTo(left.createdAt);
     });
     final selected = candidates
-        .where((final entry) => queryWords.isEmpty || score(entry) >= 11)
+        .where((final entry) => overlapCount(entry) > 0)
         .take(8)
         .toList();
     if (selected.isEmpty) return '';

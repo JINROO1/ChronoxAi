@@ -3,8 +3,8 @@ import 'dart:io';
 /// Guardrails and text extraction shared by the web research tools.
 abstract final class WebResearch {
   static const int maxUrlCharacters = 2048;
-  static const int maxResponseCharacters = 1_000_000;
-  static const int maxExtractedCharacters = 20_000;
+  static const int maxResponseCharacters = 1000000;
+  static const int maxExtractedCharacters = 20000;
 
   /// Rejects schemes, credentials, unusual ports and obvious local/private hosts.
   /// Redirects are intentionally disabled by the HTTP web-fetch path.

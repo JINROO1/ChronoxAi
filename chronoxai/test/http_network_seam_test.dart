@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:chronoxai/data/network/http_network_seam.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -41,8 +43,13 @@ void main() {
 
     test('decodes UTF-8 response text correctly', () async {
       final seam = HttpNetworkSeam(
-        clientFactory: () => MockClient((final _) async =>
-            http.Response('Información pública', 200)),
+        clientFactory: () => MockClient((final _) async => http.Response.bytes(
+              utf8.encode('Información pública'),
+              200,
+              headers: const <String, String>{
+                'content-type': 'text/plain; charset=utf-8',
+              },
+            )),
       );
 
       final response = await seam.getWeb(Uri.parse('https://example.com'));

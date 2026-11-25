@@ -21,6 +21,14 @@ class _FakeNetwork implements NetworkSeam {
   @override
   Future<NetworkResponse> get(Uri uri, {Map<String, String>? headers}) async =>
       throw UnimplementedError();
+
+  @override
+  Future<NetworkResponse> getWeb(
+    Uri uri, {
+    Map<String, String>? headers,
+    int maxResponseBytes = 1000000,
+  }) async =>
+      get(uri, headers: headers);
 }
 
 void main() {

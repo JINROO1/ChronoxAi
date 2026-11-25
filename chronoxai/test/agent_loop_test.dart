@@ -90,6 +90,33 @@ class FakeProvider implements LlmProvider {
   }
 }
 
+class HangingProvider implements LlmProvider {
+  int cancellations = 0;
+
+  @override
+  String get name => 'hanging';
+
+  @override
+  String get model => 'hanging-model';
+
+  @override
+  int? get contextWindow => 16000;
+
+  @override
+  Stream<LlmChunk> stream({
+    required final List<LlmMessage> messages,
+    required final List<Map<String, Object?>> tools,
+    final double? temperature,
+    final int? maxTokens,
+  }) {
+    late StreamController<LlmChunk> controller;
+    controller = StreamController<LlmChunk>(
+      onCancel: () async => cancellations++,
+    );
+    return controller.stream;
+  }
+}
+
 /// Proveedor que falla las N primeras veces con el error indicado.
 class FlakyProvider implements LlmProvider {
   FlakyProvider({required this.failures, required this.result});
@@ -191,6 +218,7 @@ void main() {
     PlanHandler? planHandler,
     Future<String> Function()? loadProjectInstructions,
     Future<String> Function(String userInput)? loadProjectMemory,
+    Duration subagentTimeout = const Duration(seconds: 60),
     HookRunner? hooks,
     AgentConfig config = const AgentConfig(),
     FileSystemSeam? fileSystem,
@@ -207,6 +235,7 @@ void main() {
       planHandler: planHandler,
       loadProjectInstructions: loadProjectInstructions,
       loadProjectMemory: loadProjectMemory,
+      subagentTimeout: subagentTimeout,
       hooks: hooks,
       fileSystem: fileSystem,
     );
@@ -885,6 +914,33 @@ void main() {
       await expectLater(
         parent.runSubagentWithTools('x' * 6001),
         throwsArgumentError,
+      );
+    });
+
+    test('timeout cancela la petición del subagente y limpia su sesión',
+        () async {
+      final provider = HangingProvider();
+      final existingTempPaths = Directory.systemTemp
+          .listSync()
+          .map((final entity) => entity.path)
+          .toSet();
+      final parent = makeLoop(
+        provider,
+        subagentTimeout: const Duration(milliseconds: 20),
+      );
+
+      await expectLater(
+        parent.runSubagentWithTools('Revisa el módulo.'),
+        throwsA(isA<TimeoutException>()),
+      );
+      expect(provider.cancellations, 1);
+      expect(
+        Directory.systemTemp
+            .listSync()
+            .where((final entity) =>
+                entity.path.contains('chronox-subagent-') &&
+                !existingTempPaths.contains(entity.path)),
+        isEmpty,
       );
     });
 

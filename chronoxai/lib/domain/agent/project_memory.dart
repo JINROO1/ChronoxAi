@@ -303,8 +303,8 @@ class ProjectMemoryStore {
               entry.source.toLowerCase().contains(source.toLowerCase()));
     }).toList();
     int overlapCount(final ProjectMemoryEntry entry) {
-      final corpus = '${entry.text} ${entry.source}'.toLowerCase();
-      return queryWords.where((final word) => corpus.contains(word)).length;
+      final corpusWords = _words('${entry.text} ${entry.source}');
+      return queryWords.intersection(corpusWords).length;
     }
 
     int score(final ProjectMemoryEntry entry) {
@@ -405,9 +405,32 @@ class ProjectMemoryStore {
       ..sort();
   }
 
+  static const Set<String> _stopWords = <String>{
+    'the',
+    'and',
+    'for',
+    'with',
+    'from',
+    'this',
+    'that',
+    'are',
+    'was',
+    'uses',
+    'use',
+    'una',
+    'uno',
+    'los',
+    'las',
+    'del',
+    'por',
+    'para',
+    'con',
+    'que',
+  };
+
   static Set<String> _words(final String text) => text
       .toLowerCase()
       .split(RegExp(r'[^a-z0-9_áéíóúüñ]+'))
-      .where((final word) => word.length >= 3)
+      .where((final word) => word.length >= 3 && !_stopWords.contains(word))
       .toSet();
 }

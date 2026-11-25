@@ -14,7 +14,10 @@ import android.system.OsConstants
 import androidx.annotation.NonNull
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import java.io.File
 import java.security.KeyStore
 import javax.crypto.Cipher
@@ -37,6 +40,12 @@ class MainActivity : FlutterActivity() {
     private val voiceChannelName = "app.chronoxai/voice"
     private val secureStoreChannelName = "app.chronoxai/secure_store"
     private val projectExportChannelName = "app.chronoxai/project_export"
+    private val localLlmChannelName = "app.chronoxai/local_llm"
+    private val localLlmEventsChannelName = "app.chronoxai/local_llm_events"
+    private val localLlmExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+    @Volatile private var localLlmHandle: Long = 0L
+    @Volatile private var localLlmGenerating = false
+    @Volatile private var localLlmEventSink: EventChannel.EventSink? = null
     private val projectExportRequestCode = 4004
     private var pendingProjectExportResult: MethodChannel.Result? = null
     private var pendingProjectExportPath: String? = null
@@ -83,6 +92,104 @@ class MainActivity : FlutterActivity() {
                                 }
                             }
                         }, "chronox-rootfs-mode-repair").start()
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        EventChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            localLlmEventsChannelName,
+        ).setStreamHandler(object : EventChannel.StreamHandler {
+            override fun onListen(arguments: Any?, events: EventChannel.EventSink) {
+                localLlmEventSink = events
+            }
+
+            override fun onCancel(arguments: Any?) {
+                localLlmEventSink = null
+            }
+        })
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            localLlmChannelName,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "loadModel" -> {
+                    val path = call.argument<String>("path")
+                    if (path.isNullOrBlank()) {
+                        result.error("invalid_model_path", "Falta la ruta del modelo.", null)
+                    } else {
+                        val contextSize = call.argument<Int>("contextSize") ?: 2048
+                        val threads = call.argument<Int>("threads") ?: 4
+                        localLlmExecutor.execute {
+                            try {
+                                val loaded = nativeLoadModel(path, contextSize, threads)
+                                localLlmHandle = loaded
+                                runOnUiThread { result.success(true) }
+                            } catch (error: Exception) {
+                                runOnUiThread {
+                                    result.error("model_load_failed", error.message, null)
+                                }
+                            }
+                        }
+                    }
+                }
+                "generate" -> {
+                    val roles = call.argument<List<String>>("roles")
+                    val contents = call.argument<List<String>>("contents")
+                    val handle = localLlmHandle
+                    if (handle == 0L || roles == null || contents == null || roles.size != contents.size) {
+                        result.error("model_not_ready", "Modelo o mensajes no válidos.", null)
+                    } else if (localLlmGenerating) {
+                        result.error("generation_busy", "Ya hay una generación en curso.", null)
+                    } else {
+                        localLlmGenerating = true
+                        result.success(null)
+                        val maxTokens = call.argument<Int>("maxTokens") ?: 256
+                        val temperature = call.argument<Double>("temperature")?.toFloat() ?: 0.7f
+                        localLlmExecutor.execute {
+                            try {
+                                nativeGenerate(
+                                    handle,
+                                    roles.toTypedArray(),
+                                    contents.toTypedArray(),
+                                    maxTokens,
+                                    temperature,
+                                    LocalTokenSink { text ->
+                                        runOnUiThread {
+                                            localLlmEventSink?.success(mapOf("type" to "text", "text" to text))
+                                        }
+                                    },
+                                )
+                                runOnUiThread {
+                                    localLlmEventSink?.success(mapOf("type" to "done"))
+                                }
+                            } catch (error: Exception) {
+                                runOnUiThread {
+                                    localLlmEventSink?.success(mapOf(
+                                        "type" to "error",
+                                        "message" to (error.message ?: "Error de inferencia local."),
+                                    ))
+                                }
+                            } finally {
+                                localLlmGenerating = false
+                            }
+                        }
+                    }
+                }
+                "cancel" -> {
+                    val handle = localLlmHandle
+                    if (handle != 0L) nativeCancel(handle)
+                    result.success(null)
+                }
+                "unloadModel" -> {
+                    val handle = localLlmHandle
+                    localLlmHandle = 0L
+                    localLlmExecutor.execute {
+                        if (handle != 0L) nativeUnloadModel(handle)
+                        runOnUiThread { result.success(null) }
                     }
                 }
                 else -> result.notImplemented()
@@ -556,6 +663,24 @@ class MainActivity : FlutterActivity() {
         return String(cipher.doFinal(payload.copyOfRange(12, payload.size)), Charsets.UTF_8)
     }
 
+    private external fun nativeLoadModel(path: String, contextSize: Int, threads: Int): Long
+    private external fun nativeGenerate(
+        handle: Long,
+        roles: Array<String>,
+        contents: Array<String>,
+        maxTokens: Int,
+        temperature: Float,
+        sink: LocalTokenSink,
+    )
+    private external fun nativeCancel(handle: Long)
+    private external fun nativeUnloadModel(handle: Long)
+
+    companion object {
+        init {
+            System.loadLibrary("chronox_local_llm")
+        }
+    }
+
     private fun canExecuteFromData(): Boolean {
         // Ejecutar un JNI solo valida apk_data_file y da falsos positivos. Debian
         // vive bajo filesDir (app_data_file), así que probamos exactamente allí.
@@ -578,4 +703,8 @@ class MainActivity : FlutterActivity() {
             probe.delete()
         }
     }
+}
+
+internal class LocalTokenSink(private val send: (String) -> Unit) {
+    fun onToken(text: String) = send(text)
 }

@@ -417,6 +417,37 @@ void main() {
       );
     });
 
+    test('instalar paquetes siempre requiere aprobación incluso en YOLO', () async {
+      var asked = 0;
+      final loop = makeLoop(
+        FakeProvider(<LlmResponse>[
+          const LlmResponse(
+            content: '',
+            toolCalls: <LlmToolCall>[
+              LlmToolCall(
+                id: 'install-1',
+                name: 'bash',
+                arguments: <String, Object?>{
+                  'command': 'apt-get install -y python3-numpy',
+                },
+              ),
+            ],
+          ),
+          const LlmResponse(content: 'Hecho.'),
+        ]),
+        policy: ApprovalPolicy(level: ApprovalLevel.yolo),
+        approvalHandler: (final request) async {
+          asked++;
+          expect(request.preview, contains('apt-get install'));
+          return const ApprovalAnswer(approved: true);
+        },
+      );
+
+      expect(await loop.runTurn('instala numpy'), 'completed');
+      expect(asked, 1);
+      expect(log.events.whereType<ApprovalDecisionEvent>().single.approved, isTrue);
+    });
+
     test('si el usuario rechaza, el turno termina en rejected', () async {
       final loop = makeLoop(
         FakeProvider(<LlmResponse>[

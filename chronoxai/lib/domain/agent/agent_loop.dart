@@ -546,7 +546,9 @@ class AgentLoop {
       return _ToolExecutionOutcome.rejected;
     }
 
-    if (verdict.needsUser) {
+    final requiresInstallApproval = call.name == 'bash' &&
+        _looksLikePackageInstall((call.arguments['command'] ?? '').toString());
+    if (verdict.needsUser || requiresInstallApproval) {
       final answer = await _askApproval(call, tool);
       await log.append(
         ApprovalDecisionEvent(
@@ -654,6 +656,16 @@ class AgentLoop {
       ),
     );
   }
+
+  /// Evita instalaciones implícitas: siempre requieren aprobación explícita,
+  /// incluso si la sesión está en modo YOLO o bash fue confiable previamente.
+  static final RegExp _packageInstallPattern = RegExp(
+    r'\b(?:apt(?:-get)?|pip3?|python(?:3(?:\.\d+)?)?\s+-m\s+pip|npm|pnpm|yarn|cargo|gem|dnf|yum|apk|pacman|brew)\s+(?:install|add|-S)\b',
+    caseSensitive: false,
+  );
+
+  static bool _looksLikePackageInstall(final String command) =>
+      _packageInstallPattern.hasMatch(command);
 
   /// Texto corto y preciso de lo que se va a ejecutar.
   static String _previewFor(final LlmToolCall call) {

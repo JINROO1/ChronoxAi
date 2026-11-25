@@ -135,7 +135,7 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
     if (mounted) {
       setState(() => _error =
           'Espacio insuficiente: quedan ${_formatBytes(available)}; se requieren '
-          'aproximadamente ${_formatBytes(needed)} para completar la operación de forma segura.');
+              'aproximadamente ${_formatBytes(needed)} para completar la operación de forma segura.');
     }
     return false;
   }

@@ -9,6 +9,7 @@ class _FakeEngine implements LocalInferenceEngine {
   bool cancelled = false;
   List<LlmMessage>? receivedMessages;
   List<Map<String, Object?>>? receivedTools;
+  String response = 'Hola mundo';
 
   @override
   String get model => 'Qwen3.5-0.8B-Q4_K_M';
@@ -37,8 +38,8 @@ class _FakeEngine implements LocalInferenceEngine {
   }) async* {
     receivedMessages = messages;
     receivedTools = tools;
-    yield 'Hola';
-    yield ' mundo';
+    yield response.substring(0, response.length ~/ 2);
+    yield response.substring(response.length ~/ 2);
   }
 }
 
@@ -52,33 +53,72 @@ void main() {
         messages: messages, tools: const <Map<String, Object?>>[]).toList();
 
     expect(chunks.whereType<TextChunk>().map((final c) => c.text),
-        <String>['Hola', ' mundo']);
+        <String>['Hola ', 'mundo']);
     expect(chunks.last, isA<DoneChunk>());
     expect(engine.receivedMessages, messages);
     expect(engine.receivedTools, isEmpty);
   });
 
-  test('rejects tool requests instead of silently ignoring them', () async {
-    final engine = _FakeEngine();
+  test('converts a strict local tool envelope into a ToolCallChunk', () async {
+    final engine = _FakeEngine()
+      ..response = '<chronox-tool-call>{"name":"read_file","arguments":{"path":"README.md"}}</chronox-tool-call>';
     final provider = LocalLlmProvider(engine);
+    const tools = <Map<String, Object?>>[
+      <String, Object?>{
+        'type': 'function',
+        'function': <String, Object?>{
+          'name': 'read_file',
+          'description': 'Lee un archivo.',
+          'parameters': <String, Object?>{
+            'type': 'object',
+            'properties': <String, Object?>{
+              'path': <String, Object?>{'type': 'string'},
+            },
+            'required': <String>['path'],
+          },
+        },
+      },
+    ];
 
-    await expectLater(
-      provider.stream(
-        messages: const <LlmMessage>[],
-        tools: const <Map<String, Object?>>[
-          <String, Object?>{'name': 'run_shell'},
-        ],
-      ).toList(),
-      throwsA(
-        isA<LlmException>().having(
-          (final error) => error.message,
-          'message',
-          contains('no se ejecutó ninguna'),
-        ),
-      ),
-    );
-    expect(engine.receivedMessages, isNull);
-    expect(engine.receivedTools, isNull);
+    final chunks = await provider.stream(
+      messages: const <LlmMessage>[LlmMessage.user('Lee README')],
+      tools: tools,
+    ).toList();
+
+    final call = chunks.whereType<ToolCallChunk>().single;
+    expect(call.name, 'read_file');
+    expect(call.index, 0);
+    expect(call.id, startsWith('local_'));
+    expect(call.argumentsFragment, '{"path":"README.md"}');
+    expect(chunks.last, isA<DoneChunk>());
+    expect((chunks.last as DoneChunk).stopReason, 'tool_calls');
+    expect(engine.receivedTools, isEmpty);
+    final system = engine.receivedMessages!.first;
+    expect(system.role, MessageRole.system);
+    expect(system.content, contains('chronox-tool-call'));
+    expect(system.content, contains('read_file'));
+    expect(chunks.whereType<TextChunk>(), isEmpty);
+  });
+
+  test('does not convert malformed or unadvertised local tool requests', () async {
+    final engine = _FakeEngine()
+      ..response = '<chronox-tool-call>{"name":"delete_everything","arguments":{}}</chronox-tool-call>';
+    final provider = LocalLlmProvider(engine);
+    const tools = <Map<String, Object?>>[
+      <String, Object?>{
+        'function': <String, Object?>{'name': 'read_file'},
+      },
+    ];
+
+    final chunks = await provider.stream(
+      messages: const <LlmMessage>[LlmMessage.user('Haz algo')],
+      tools: tools,
+    ).toList();
+
+    expect(chunks.whereType<ToolCallChunk>(), isEmpty);
+    expect(chunks.whereType<TextChunk>().map((final chunk) => chunk.text).join(),
+        engine.response);
+    expect(chunks.last, isA<DoneChunk>());
   });
 
   test('does not start inference when no local model is loaded', () async {

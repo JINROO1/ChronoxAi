@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import '../../domain/llm/llm_types.dart';
@@ -60,12 +61,6 @@ class LocalLlmProvider implements LlmProvider {
     double? temperature,
     int? maxTokens,
   }) {
-    if (tools.isNotEmpty) {
-      return Stream<LlmChunk>.error(const LlmException(
-        LlmErrorKind.unknown,
-        'El proveedor local aún no admite llamadas a herramientas; no se ejecutó ninguna.',
-      ));
-    }
     if (_generating) {
       return Stream<LlmChunk>.error(const LlmException(
         LlmErrorKind.unknown,
@@ -88,18 +83,60 @@ class LocalLlmProvider implements LlmProvider {
             }
             await engine.load(file);
           }
+          final request = tools.isEmpty
+              ? _PreparedLocalRequest(messages: messages, toolNames: const {})
+              : _prepareLocalToolRequest(messages, tools);
+          final toolAware = tools.isNotEmpty;
+          final pendingProtocol = StringBuffer();
+          var plainText = !toolAware;
           await for (final token in engine.generate(
-            messages: messages,
-            tools: tools,
+            messages: request.messages,
+            tools: const <Map<String, Object?>>[],
             temperature: temperature,
             maxTokens: maxTokens,
           )) {
-            if (token.isNotEmpty) {
+            if (token.isEmpty || controller.isClosed) continue;
+            if (plainText) {
               controller.add(TextChunk(token));
+              continue;
+            }
+
+            pendingProtocol.write(token);
+            final candidate = pendingProtocol.toString();
+            final marker = _localToolCallStart;
+            if (candidate.length < marker.length &&
+                marker.startsWith(candidate)) {
+              continue;
+            }
+            if (!candidate.startsWith(marker)) {
+              plainText = true;
+              controller.add(TextChunk(candidate));
+              pendingProtocol.clear();
             }
           }
+
           if (!controller.isClosed) {
-            controller.add(const DoneChunk());
+            if (!plainText && pendingProtocol.isNotEmpty) {
+              final response = pendingProtocol.toString();
+              final call = _decodeLocalToolCall(
+                response,
+                request.toolNames,
+              );
+              if (call == null) {
+                controller.add(TextChunk(response));
+                controller.add(const DoneChunk());
+              } else {
+                controller.add(ToolCallChunk(
+                  index: 0,
+                  id: 'local_${DateTime.now().microsecondsSinceEpoch}',
+                  name: call.name,
+                  argumentsFragment: jsonEncode(call.arguments),
+                ));
+                controller.add(const DoneChunk(stopReason: 'tool_calls'));
+              }
+            } else {
+              controller.add(const DoneChunk());
+            }
           }
         } catch (error, stackTrace) {
           if (!controller.isClosed) controller.addError(error, stackTrace);
@@ -116,5 +153,103 @@ class LocalLlmProvider implements LlmProvider {
       },
     );
     return controller.stream;
+  }
+}
+
+const _localToolCallStart = '<chronox-tool-call>';
+const _localToolCallEnd = '</chronox-tool-call>';
+
+class _PreparedLocalRequest {
+  const _PreparedLocalRequest({required this.messages, required this.toolNames});
+
+  final List<LlmMessage> messages;
+  final Set<String> toolNames;
+}
+
+class _DecodedLocalToolCall {
+  const _DecodedLocalToolCall(this.name, this.arguments);
+
+  final String name;
+  final Map<String, Object?> arguments;
+}
+
+_PreparedLocalRequest _prepareLocalToolRequest(
+  List<LlmMessage> messages,
+  List<Map<String, Object?>> tools,
+) {
+  final declarations = <Map<String, Object?>>[];
+  final names = <String>{};
+  for (final tool in tools) {
+    final rawFunction = tool['function'];
+    final function = rawFunction is Map
+        ? Map<String, Object?>.from(rawFunction)
+        : tool;
+    final name = function['name'];
+    if (name is! String || name.isEmpty || !names.add(name)) {
+      throw const LlmException(
+        LlmErrorKind.unknown,
+        'El catálogo local de herramientas contiene un nombre inválido o repetido.',
+      );
+    }
+    declarations.add(<String, Object?>{
+      'name': name,
+      'description': function['description']?.toString() ?? '',
+      'parameters': function['parameters'] is Map
+          ? Map<String, Object?>.from(function['parameters'] as Map)
+          : <String, Object?>{'type': 'object', 'properties': <String, Object?>{}},
+    });
+  }
+
+  final instruction = '''
+Herramientas locales disponibles (solo solicitud; nunca ejecutes nada tú):
+${jsonEncode(declarations)}
+
+Si una herramienta es necesaria, responde únicamente con este formato exacto:
+$_localToolCallStart{"name":"nombre_exacto","arguments":{}}$_localToolCallEnd
+Usa un solo objeto JSON válido, nombre de la lista y argumentos que cumplan su esquema. No agregues texto antes ni después. Si no necesitas herramientas, responde normalmente. El sistema validará la solicitud y aplicará sus permisos/aprobaciones antes de ejecutar.
+''';
+  var inserted = false;
+  final prepared = <LlmMessage>[];
+  for (final message in messages) {
+    if (!inserted && message.role == MessageRole.system) {
+      prepared.add(LlmMessage.system('${message.content}\n\n$instruction'));
+      inserted = true;
+    } else {
+      prepared.add(message);
+    }
+  }
+  if (!inserted) prepared.insert(0, LlmMessage.system(instruction));
+  return _PreparedLocalRequest(messages: prepared, toolNames: names);
+}
+
+_DecodedLocalToolCall? _decodeLocalToolCall(
+  String raw,
+  Set<String> allowedNames,
+) {
+  final response = raw.trim();
+  if (!response.startsWith(_localToolCallStart) ||
+      !response.endsWith(_localToolCallEnd)) {
+    return null;
+  }
+  final json = response.substring(
+    _localToolCallStart.length,
+    response.length - _localToolCallEnd.length,
+  );
+  try {
+    final decoded = jsonDecode(json);
+    if (decoded is! Map<String, dynamic>) return null;
+    final name = decoded['name'];
+    final rawArguments = decoded['arguments'];
+    if (name is! String ||
+        !allowedNames.contains(name) ||
+        rawArguments is! Map<String, dynamic>) {
+      return null;
+    }
+    return _DecodedLocalToolCall(
+      name,
+      Map<String, Object?>.from(rawArguments),
+    );
+  } on FormatException {
+    return null;
   }
 }

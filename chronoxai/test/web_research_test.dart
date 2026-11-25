@@ -29,7 +29,8 @@ void main() {
         'http://service.local/',
         'http://metadata.internal/',
       ]) {
-        expect(() => WebResearch.validateUrl(url), throwsArgumentError, reason: url);
+        expect(() => WebResearch.validateUrl(url), throwsArgumentError,
+            reason: url);
       }
     });
 
@@ -44,7 +45,8 @@ void main() {
         'http://192.0.2.5/',
         'http://2130706433/',
       ]) {
-        expect(() => WebResearch.validateUrl(url), throwsArgumentError, reason: url);
+        expect(() => WebResearch.validateUrl(url), throwsArgumentError,
+            reason: url);
       }
     });
 
@@ -63,11 +65,13 @@ void main() {
     });
 
     test('limits extracted text size', () {
-      final large = '<p>${'x' * (WebResearch.maxExtractedCharacters + 100)}</p>';
+      final large =
+          '<p>${'x' * (WebResearch.maxExtractedCharacters + 100)}</p>';
       final extracted = WebResearch.extractText(large);
       expect(extracted, startsWith('x' * WebResearch.maxExtractedCharacters));
       expect(extracted, endsWith('[contenido truncado]'));
-      expect(extracted.length, lessThan(WebResearch.maxExtractedCharacters + 40));
+      expect(
+          extracted.length, lessThan(WebResearch.maxExtractedCharacters + 40));
     });
   });
 }

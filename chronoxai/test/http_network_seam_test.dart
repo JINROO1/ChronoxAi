@@ -7,7 +7,8 @@ import 'package:http/testing.dart';
 
 void main() {
   group('HttpNetworkSeam.getWeb', () {
-    test('does not automatically follow redirects and preserves status metadata',
+    test(
+        'does not automatically follow redirects and preserves status metadata',
         () async {
       var followRedirects = true;
       final seam = HttpNetworkSeam(
@@ -28,8 +29,8 @@ void main() {
 
     test('bounds response bytes before returning content', () async {
       final seam = HttpNetworkSeam(
-        clientFactory: () => MockClient((final _) async =>
-            http.Response('x' * 50, 200)),
+        clientFactory: () =>
+            MockClient((final _) async => http.Response('x' * 50, 200)),
       );
 
       await expectLater(

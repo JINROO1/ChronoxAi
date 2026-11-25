@@ -41,7 +41,8 @@ class HttpNetworkSeam implements NetworkSeam {
         ..headers.addAll(headers ?? const <String, String>{});
       final response =
           await client.send(request).timeout(const Duration(seconds: 15));
-      final declaredLength = int.tryParse(response.headers['content-length'] ?? '');
+      final declaredLength =
+          int.tryParse(response.headers['content-length'] ?? '');
       if (declaredLength != null && declaredLength > maxResponseBytes) {
         await response.stream.listen((final _) {}).cancel();
         throw const FormatException('Web response exceeds the allowed size.');
@@ -69,7 +70,8 @@ class HttpNetworkSeam implements NetworkSeam {
           }
         },
         onError: (final Object error, final StackTrace stackTrace) {
-          if (!completer.isCompleted) completer.completeError(error, stackTrace);
+          if (!completer.isCompleted)
+            completer.completeError(error, stackTrace);
         },
         onDone: () {
           if (!completer.isCompleted) {

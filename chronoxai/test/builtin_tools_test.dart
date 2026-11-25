@@ -154,7 +154,8 @@ void main() {
 
   tearDown(() async => events.dispose());
 
-  test('web_search tags results with source IDs and access timestamps', () async {
+  test('web_search tags results with source IDs and access timestamps',
+      () async {
     expect(await host.mount('core-web'), isTrue);
     network.responses.add(const NetworkResponse(
       statusCode: 200,
@@ -174,7 +175,8 @@ void main() {
     expect(result.content, contains('Acceso:'));
   });
 
-  test('web_fetch blocks private targets and validates each redirect', () async {
+  test('web_fetch blocks private targets and validates each redirect',
+      () async {
     expect(await host.mount('core-web'), isTrue);
 
     final blocked = await registry.execute(
@@ -198,7 +200,8 @@ void main() {
     expect(network.requests, <Uri>[Uri.parse('https://public.example/start')]);
   });
 
-  test('web_fetch follows only validated redirects and returns citeable source metadata',
+  test(
+      'web_fetch follows only validated redirects and returns citeable source metadata',
       () async {
     expect(await host.mount('core-web'), isTrue);
     network.responses

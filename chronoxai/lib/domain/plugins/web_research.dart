@@ -19,7 +19,8 @@ abstract final class WebResearch {
         uri.host.isEmpty ||
         uri.userInfo.isNotEmpty ||
         (uri.hasPort && uri.port != expectedPort)) {
-      throw ArgumentError('Only public HTTP(S) URLs on their standard port are allowed.');
+      throw ArgumentError(
+          'Only public HTTP(S) URLs on their standard port are allowed.');
     }
     final host = uri.host
         .toLowerCase()
@@ -38,7 +39,8 @@ abstract final class WebResearch {
     }
     final address = InternetAddress.tryParse(host);
     if (address != null && _isNonPublicAddress(address)) {
-      throw ArgumentError('Private, loopback, link-local and reserved IPs are blocked.');
+      throw ArgumentError(
+          'Private, loopback, link-local and reserved IPs are blocked.');
     }
     // Reject legacy numeric IPv4 forms that some resolvers interpret as
     // loopback/private addresses although they are not canonical IP literals.
@@ -103,9 +105,13 @@ abstract final class WebResearch {
 
   static String stripMarkup(final String html) {
     final text = html
-        .replaceAll(RegExp(r'<script\b[\s\S]*?</script\s*>', caseSensitive: false), ' ')
-        .replaceAll(RegExp(r'<style\b[\s\S]*?</style\s*>', caseSensitive: false), ' ')
-        .replaceAll(RegExp(r'<noscript\b[\s\S]*?</noscript\s*>', caseSensitive: false), ' ')
+        .replaceAll(
+            RegExp(r'<script\b[\s\S]*?</script\s*>', caseSensitive: false), ' ')
+        .replaceAll(
+            RegExp(r'<style\b[\s\S]*?</style\s*>', caseSensitive: false), ' ')
+        .replaceAll(
+            RegExp(r'<noscript\b[\s\S]*?</noscript\s*>', caseSensitive: false),
+            ' ')
         .replaceAll(RegExp(r'<[^>]*>'), ' ');
     return _decode(text)
         .replaceAll(RegExp(r'[\t\r ]+'), ' ')

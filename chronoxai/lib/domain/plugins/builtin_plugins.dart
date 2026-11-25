@@ -1157,8 +1157,12 @@ class _WebPlugin extends ChronoxPlugin {
               .map((final entry) => entry.value.toLowerCase())
               .toList();
           if (contentTypes.isNotEmpty &&
-              !<String>['text/html', 'text/plain', 'application/xhtml+xml', 'application/json']
-                  .any(contentTypes.first.contains)) {
+              !<String>[
+                'text/html',
+                'text/plain',
+                'application/xhtml+xml',
+                'application/json'
+              ].any(contentTypes.first.contains)) {
             return ToolOutcome.error(
               'Tipo de contenido no compatible: ${contentTypes.first}.',
               errorCategory: 'unsupported',
@@ -1180,8 +1184,6 @@ class _WebPlugin extends ChronoxPlugin {
       ),
     );
   }
-
-
 }
 
 // ---------------------------------------------------------------------------

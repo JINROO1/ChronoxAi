@@ -20,6 +20,7 @@ import '../state/app_state.dart';
 import '../widgets/chronox_widgets.dart';
 import 'diagnostics_screen.dart';
 import 'install_screen.dart';
+import 'local_models_screen.dart';
 import 'background_jobs_screen.dart';
 import 'scheduled_tasks_screen.dart';
 import 'project_memory_screen.dart';
@@ -58,37 +59,52 @@ class SettingsScreen extends ConsumerWidget {
                   trailing: const Icon(Icons.expand_more,
                       color: ChronoxColors.textMuted),
                 ),
-                const Divider(height: 1, color: ChronoxColors.border),
-                SettingsRow(
-                  icon: Icons.key_outlined,
-                  title: 'Clave de API',
-                  subtitle: settings.apiKey.isEmpty
-                      ? 'Sin configurar: el agente no podrá pensar'
-                      : 'Configurada (${_masked(settings.apiKey)})',
-                  accent: settings.apiKey.isEmpty
-                      ? ChronoxColors.warning
-                      : ChronoxColors.success,
-                  onTap: () => _editApiKey(context, ref, settings),
-                  trailing: const Icon(
-                    Icons.chevron_right_rounded,
-                    color: ChronoxColors.textMuted,
+                if (settings.kind != ProviderKind.local) ...<Widget>[
+                  const Divider(height: 1, color: ChronoxColors.border),
+                  SettingsRow(
+                    icon: Icons.key_outlined,
+                    title: 'Clave de API',
+                    subtitle: settings.apiKey.isEmpty
+                        ? 'Sin configurar: el agente no podrá pensar'
+                        : 'Configurada (${_masked(settings.apiKey)})',
+                    accent: settings.apiKey.isEmpty
+                        ? ChronoxColors.warning
+                        : ChronoxColors.success,
+                    onTap: () => _editApiKey(context, ref, settings),
+                    trailing: const Icon(
+                      Icons.chevron_right_rounded,
+                      color: ChronoxColors.textMuted,
+                    ),
                   ),
-                ),
-                const Divider(height: 1, color: ChronoxColors.border),
-                SettingsRow(
-                  icon: Icons.dns_outlined,
-                  title: 'Servidor',
-                  subtitle: settings.baseUrl,
-                  onTap: () => _editBaseUrl(context, ref, settings),
-                ),
+                  const Divider(height: 1, color: ChronoxColors.border),
+                  SettingsRow(
+                    icon: Icons.dns_outlined,
+                    title: 'Servidor',
+                    subtitle: settings.baseUrl,
+                    onTap: () => _editBaseUrl(context, ref, settings),
+                  ),
+                ],
                 const Divider(height: 1, color: ChronoxColors.border),
                 SettingsRow(
                   icon: Icons.memory_rounded,
-                  title: 'Modelo',
+                  title: settings.kind == ProviderKind.local
+                      ? 'Modelo local seleccionado'
+                      : 'Modelo',
                   subtitle: settings.model,
                   accent: ChronoxColors.accent,
-                  onTap: () => _editModel(context, ref, settings),
+                  onTap: settings.kind == ProviderKind.local
+                      ? () => _openLocalModels(context)
+                      : () => _editModel(context, ref, settings),
                 ),
+                if (settings.kind != ProviderKind.local)
+                  const Divider(height: 1, color: ChronoxColors.border),
+                if (settings.kind == ProviderKind.local)
+                  SettingsRow(
+                    icon: Icons.download_for_offline_outlined,
+                    title: 'Gestionar modelos sin conexión',
+                    subtitle: 'Descargar, importar o eliminar Qwen GGUF',
+                    onTap: () => _openLocalModels(context),
+                  ),
                 const Divider(height: 1, color: ChronoxColors.border),
                 SettingsRow(
                   icon: Icons.hub_outlined,
@@ -111,8 +127,9 @@ class SettingsScreen extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(4, 10, 4, 0),
             child: Text(
-              'Compatible con DeepSeek, OpenRouter, Groq, Together, vLLM, '
-              'Ollama y LM Studio: basta con cambiar el servidor y el modelo.',
+              settings.kind == ProviderKind.local
+                  ? 'La inferencia local se ejecuta dentro del teléfono. Descarga o importa un GGUF antes de iniciar una sesión offline.'
+                  : 'Compatible con DeepSeek, OpenRouter, Groq, Together, vLLM, Ollama y LM Studio: basta con cambiar el servidor y el modelo.',
               style: TextStyle(
                 color: ChronoxColors.textMuted.withOpacity(0.9),
                 fontSize: 11.5,
@@ -632,6 +649,11 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
   }
+
+  Future<void> _openLocalModels(BuildContext context) =>
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(builder: (final context) => const LocalModelsScreen()),
+      );
 }
 
 class _ModeOption extends StatelessWidget {

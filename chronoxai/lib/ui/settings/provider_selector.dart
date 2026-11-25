@@ -8,7 +8,8 @@ String providerLabel(final ProviderKind kind) => switch (kind) {
       ProviderKind.openAiCompatible => 'OpenAI compatible',
       ProviderKind.anthropic => 'Anthropic Messages API',
       ProviderKind.gemini => 'Google Gemini API',
-      ProviderKind.ollama => 'Ollama local (sin API key)',
+      ProviderKind.ollama => 'Ollama (servidor externo)',
+      ProviderKind.local => 'Modelo local integrado (sin red)',
     };
 
 Future<void> selectProvider(
@@ -50,6 +51,7 @@ Future<void> selectProvider(
         'gemini-2.5-flash'
       ),
     ProviderKind.ollama => ('http://127.0.0.1:11434/v1', 'llama3.2'),
+    ProviderKind.local => ('', 'qwen35-0.8b-q4km'),
   };
   ref.read(providerSettingsProvider.notifier).state = current.copyWith(
     kind: selected,

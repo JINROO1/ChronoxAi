@@ -47,6 +47,8 @@ class MainActivity : FlutterActivity() {
     @Volatile private var localLlmGenerating = false
     @Volatile private var localLlmEventSink: EventChannel.EventSink? = null
     private val projectExportRequestCode = 4004
+    private val localModelPickerRequestCode = 4005
+    private var pendingLocalModelPickerResult: MethodChannel.Result? = null
     private var pendingProjectExportResult: MethodChannel.Result? = null
     private var pendingProjectExportPath: String? = null
 
@@ -116,6 +118,27 @@ class MainActivity : FlutterActivity() {
             localLlmChannelName,
         ).setMethodCallHandler { call, result ->
             when (call.method) {
+                "pickModelFile" -> {
+                    if (pendingLocalModelPickerResult != null) {
+                        result.error("picker_busy", "Ya hay un selector de modelo abierto.", null)
+                    } else {
+                        pendingLocalModelPickerResult = result
+                        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                            type = "*/*"
+                            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf(
+                                "application/octet-stream",
+                                "application/x-gguf",
+                            ))
+                        }
+                        try {
+                            startActivityForResult(intent, localModelPickerRequestCode)
+                        } catch (error: Exception) {
+                            pendingLocalModelPickerResult = null
+                            result.error("picker_unavailable", error.message, null)
+                        }
+                    }
+                }
                 "loadModel" -> {
                     val path = call.argument<String>("path")
                     if (path.isNullOrBlank()) {
@@ -423,6 +446,28 @@ class MainActivity : FlutterActivity() {
     @Deprecated("SpeechRecognizer result returned through the platform channel")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == localModelPickerRequestCode) {
+            val result = pendingLocalModelPickerResult
+            pendingLocalModelPickerResult = null
+            val uri = data?.data
+            if (resultCode != Activity.RESULT_OK || uri == null) {
+                result?.success(null)
+            } else {
+                Thread({
+                    try {
+                        val importDirectory = File(cacheDir, "model-imports").apply { mkdirs() }
+                        val copied = File(importDirectory, "selected-model.gguf")
+                        contentResolver.openInputStream(uri)?.use { input ->
+                            copied.outputStream().use { output -> input.copyTo(output) }
+                        } ?: throw IllegalStateException("No se pudo leer el archivo elegido.")
+                        runOnUiThread { result?.success(copied.absolutePath) }
+                    } catch (error: Exception) {
+                        runOnUiThread { result?.error("model_import_failed", error.message, null) }
+                    }
+                }, "chronox-model-import").start()
+            }
+            return
+        }
         if (requestCode == projectExportRequestCode) {
             val result = pendingProjectExportResult
             val path = pendingProjectExportPath

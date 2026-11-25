@@ -29,9 +29,10 @@ abstract interface class LocalInferenceEngine {
 /// Adapts a local inference engine to the same streaming contract as remote
 /// providers. It deliberately has no fallback path to a network provider.
 class LocalLlmProvider implements LlmProvider {
-  LocalLlmProvider(this.engine);
+  LocalLlmProvider(this.engine, {this.modelFileResolver});
 
   final LocalInferenceEngine engine;
+  final Future<File?> Function()? modelFileResolver;
   bool _generating = false;
 
   @override
@@ -47,6 +48,11 @@ class LocalLlmProvider implements LlmProvider {
 
   Future<void> unloadModel() => engine.unload();
 
+  Future<void> dispose() async {
+    await engine.cancel();
+    await engine.unload();
+  }
+
   @override
   Stream<LlmChunk> stream({
     required List<LlmMessage> messages,
@@ -54,12 +60,6 @@ class LocalLlmProvider implements LlmProvider {
     double? temperature,
     int? maxTokens,
   }) {
-    if (!engine.isLoaded) {
-      return Stream<LlmChunk>.error(const LlmException(
-        LlmErrorKind.unknown,
-        'No hay un modelo local cargado.',
-      ));
-    }
     if (_generating) {
       return Stream<LlmChunk>.error(const LlmException(
         LlmErrorKind.unknown,
@@ -72,6 +72,16 @@ class LocalLlmProvider implements LlmProvider {
     controller = StreamController<LlmChunk>(
       onListen: () async {
         try {
+          if (!engine.isLoaded) {
+            final file = await modelFileResolver?.call();
+            if (file == null) {
+              throw const LlmException(
+                LlmErrorKind.unknown,
+                'No hay un modelo local instalado o seleccionado.',
+              );
+            }
+            await engine.load(file);
+          }
           await for (final token in engine.generate(
             messages: messages,
             tools: tools,

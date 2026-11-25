@@ -6,6 +6,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/llm/anthropic_client.dart';
+import '../../data/llm/local_llm_provider.dart';
+import '../../data/llm/local_model_store.dart';
 import '../../data/network/http_network_seam.dart';
 import '../../data/llm/gemini_client.dart';
 import '../../data/llm/openai_compatible_client.dart';
@@ -26,9 +28,10 @@ import '../../domain/plugins/plugin_api.dart';
 import '../../domain/plugins/plugin_runtime.dart';
 import '../../domain/plugins/seams.dart';
 import '../../domain/terminal/linux_paths.dart';
+import '../../platform/android_local_inference_engine.dart';
 import '../../platform/android_runtime_channel.dart';
 
-enum ProviderKind { openAiCompatible, anthropic, gemini, ollama }
+enum ProviderKind { openAiCompatible, anthropic, gemini, ollama, local }
 
 /// Ajustes del proveedor de modelo.
 ///
@@ -51,9 +54,13 @@ class ProviderSettings {
   final String apiKey;
   final String mcpServerUrl;
 
-  bool get isConfigured =>
-      model.trim().isNotEmpty &&
-      (kind == ProviderKind.ollama || apiKey.trim().isNotEmpty);
+  bool get isConfigured => model.trim().isNotEmpty && switch (kind) {
+        ProviderKind.ollama || ProviderKind.local => true,
+        ProviderKind.openAiCompatible ||
+        ProviderKind.anthropic ||
+        ProviderKind.gemini =>
+          apiKey.trim().isNotEmpty,
+      };
 
   ProviderSettings copyWith({
     final ProviderKind? kind,
@@ -86,6 +93,7 @@ class SessionRuntime {
     required this.host,
     required this.mode,
     required this.llm,
+    required this.provider,
     required this.workspaceDir,
     required this.projectMemory,
   });
@@ -98,10 +106,12 @@ class SessionRuntime {
   final PluginHost host;
   final PluginMode mode;
   final LlmSeam llm;
+  final LlmProvider provider;
   final Directory workspaceDir;
   final ProjectMemoryStore projectMemory;
 
   Future<void> dispose() async {
+    if (provider is LocalLlmProvider) await provider.dispose();
     for (final plugin in host.plugins) {
       await host.unmount(plugin.manifest.id);
     }
@@ -476,6 +486,7 @@ Future<SessionRuntime> startSession(
     host: host,
     mode: mode,
     llm: _ProviderAsSeam(bootstrap.provider),
+    provider: bootstrap.provider,
     workspaceDir: bootstrap.workspaceDir,
     projectMemory: projectMemory,
   );
@@ -527,6 +538,10 @@ LlmProvider clientFromSettings(final ProviderSettings settings) =>
           apiKey: '',
           model: settings.model,
           name: 'Ollama local',
+        ),
+      ProviderKind.local => LocalLlmProvider(
+          AndroidLocalInferenceEngine(model: settings.model),
+          modelFileResolver: () => LocalModelStore().fileForId(settings.model),
         ),
     };
 

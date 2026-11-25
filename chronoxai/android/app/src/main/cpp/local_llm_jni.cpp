@@ -57,25 +57,56 @@ void emit_utf8(JNIEnv *env, jobject sink, jmethodID on_token, std::string &pendi
     pending.erase(0, length);
 }
 
-std::string format_chat(JNIEnv *env, jobjectArray roles, jobjectArray contents) {
+std::string format_chat(JNIEnv *env, const llama_model *model, jobjectArray roles,
+                        jobjectArray contents) {
     const jsize count = env->GetArrayLength(roles);
-    std::string prompt;
+    if (count != env->GetArrayLength(contents) || count == 0) {
+        throw_java(env, "La conversación local está vacía o no es válida.");
+        return {};
+    }
+    std::vector<std::string> role_strings(static_cast<size_t>(count));
+    std::vector<std::string> content_strings(static_cast<size_t>(count));
+    std::vector<llama_chat_message> messages(static_cast<size_t>(count));
     for (jsize i = 0; i < count; ++i) {
         auto role = static_cast<jstring>(env->GetObjectArrayElement(roles, i));
         auto content = static_cast<jstring>(env->GetObjectArrayElement(contents, i));
         const char *role_chars = env->GetStringUTFChars(role, nullptr);
         const char *content_chars = env->GetStringUTFChars(content, nullptr);
-        prompt += "<|im_start|>";
-        prompt += role_chars;
-        prompt += "\n";
-        prompt += content_chars;
-        prompt += "<|im_end|>\n";
+        role_strings[static_cast<size_t>(i)] = role_chars;
+        content_strings[static_cast<size_t>(i)] = content_chars;
         env->ReleaseStringUTFChars(role, role_chars);
         env->ReleaseStringUTFChars(content, content_chars);
         env->DeleteLocalRef(role);
         env->DeleteLocalRef(content);
+        messages[static_cast<size_t>(i)] = {
+            role_strings[static_cast<size_t>(i)].c_str(),
+            content_strings[static_cast<size_t>(i)].c_str(),
+        };
     }
-    prompt += "<|im_start|>assistant\n";
+
+    // Select the template embedded in this exact GGUF and let the pinned
+    // llama.cpp template parser render the recognized Qwen ChatML family; never
+    // fall back to manually concatenated role delimiters.
+    const char *chat_template = llama_model_chat_template(model, nullptr);
+    if (chat_template == nullptr) {
+        throw_java(env, "El GGUF no contiene una plantilla de conversación.");
+        return {};
+    }
+    const int32_t required = llama_chat_apply_template(
+        chat_template, messages.data(), messages.size(), true, nullptr, 0);
+    if (required <= 0) {
+        throw_java(env, "llama.cpp no reconoce la plantilla del GGUF Qwen.");
+        return {};
+    }
+    std::string prompt(static_cast<size_t>(required) + 1, '\0');
+    const int32_t written = llama_chat_apply_template(
+        chat_template, messages.data(), messages.size(), true, prompt.data(),
+        static_cast<int32_t>(prompt.size()));
+    if (written < 0 || written > required) {
+        throw_java(env, "No se pudo aplicar la plantilla de conversación del GGUF.");
+        return {};
+    }
+    prompt.resize(static_cast<size_t>(written));
     return prompt;
 }
 } // namespace
@@ -126,7 +157,7 @@ Java_app_chronoxai_MainActivity_nativeGenerate(JNIEnv *env, jobject, jlong handl
     }
     std::lock_guard<std::mutex> lock(session->generation_mutex);
     session->cancelled.store(false);
-    const auto prompt = format_chat(env, roles, contents);
+    const auto prompt = format_chat(env, session->model, roles, contents);
     if (env->ExceptionCheck()) return;
 
     const int32_t token_count = -llama_tokenize(session->vocab, prompt.c_str(),

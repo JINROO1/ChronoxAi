@@ -213,10 +213,10 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
   }
 
   String _formatBytes(int bytes) {
-    final gib = bytes / (1024 * 1024 * 1024);
-    return gib >= 1
-        ? '${gib.toStringAsFixed(2)} GB'
-        : '${(bytes / (1024 * 1024)).round()} MB';
+    final gigabytes = bytes / 1000000000;
+    return gigabytes >= 1
+        ? '${gigabytes.toStringAsFixed(2)} GB'
+        : '${(bytes / 1000000).round()} MB';
   }
 }
 

@@ -90,7 +90,13 @@ class LocalModelStore {
         LocalModelSpec.catalog.where((final item) => item.id == id).firstOrNull;
     if (spec == null) return null;
     for (final installation in await installedModels()) {
-      if (installation.spec.id == id) return installation.file;
+      if (installation.spec.id == id) {
+        final actualHash = await _hashFile(installation.file);
+        if (actualHash != installation.spec.sha256) {
+          throw const FileSystemException('El SHA-256 del modelo instalado ya no coincide.');
+        }
+        return installation.file;
+      }
     }
     return null;
   }
@@ -206,6 +212,16 @@ class LocalModelStore {
     final manifest = await _readManifest(directory);
     manifest.remove(spec.id);
     await _writeManifest(directory, manifest);
+  }
+
+  Future<String> _hashFile(File file) async {
+    final result = _DigestCollector();
+    final input = sha256.startChunkedConversion(result);
+    await for (final chunk in file.openRead()) {
+      input.add(chunk);
+    }
+    input.close();
+    return result.digest.toString();
   }
 
   Future<void> _publishVerified(

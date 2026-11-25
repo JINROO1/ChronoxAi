@@ -148,9 +148,12 @@ class MainActivity : FlutterActivity() {
                         val threads = call.argument<Int>("threads") ?: 4
                         localLlmExecutor.execute {
                             try {
+                                val oldHandle = localLlmHandle
+                                localLlmHandle = 0L
+                                if (oldHandle != 0L) nativeUnloadModel(oldHandle)
                                 val loaded = nativeLoadModel(path, contextSize, threads)
                                 localLlmHandle = loaded
-                                runOnUiThread { result.success(true) }
+                                runOnUiThread { result.success(null) }
                             } catch (error: Exception) {
                                 runOnUiThread {
                                     result.error("model_load_failed", error.message, null)

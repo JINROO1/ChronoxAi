@@ -136,7 +136,8 @@ void main() {
     expect(fileSystem.globPatterns.single, '/workspace/lib/**/*.dart');
   });
 
-  test('read_many combines bounded reads without failing other paths', () async {
+  test('read_many combines bounded reads without failing other paths',
+      () async {
     expect(await host.mount('core-fs'), isTrue);
 
     final result = await registry.execute(

@@ -531,13 +531,15 @@ class _TerminalPlugin extends ChronoxPlugin {
         inputSchema: _obj(<String, Object?>{
           'terminal_id': _str('Id de la terminal.'),
           'since_offset': _int('Posición de texto desde la que leer.'),
-          'wait_ms': _int('Espera por salida nueva (0–15000 ms, por defecto 0).'),
+          'wait_ms':
+              _int('Espera por salida nueva (0–15000 ms, por defecto 0).'),
         }, required: <String>[
           'terminal_id'
         ]),
         execute: (final args) async {
           final terminalId = args['terminal_id']! as String;
-          final offset = ((args['since_offset'] as int?) ?? 0).clamp(0, 1 << 30);
+          final offset =
+              ((args['since_offset'] as int?) ?? 0).clamp(0, 1 << 30);
           final waitMs = ((args['wait_ms'] as int?) ?? 0).clamp(0, 15000);
           final deadline = DateTime.now().add(Duration(milliseconds: waitMs));
           var output = '';
@@ -549,7 +551,8 @@ class _TerminalPlugin extends ChronoxPlugin {
             );
             if (output.isNotEmpty) break;
             final terminals = await context.services.terminals.list();
-            final current = terminals.where((final item) => item.id == terminalId);
+            final current =
+                terminals.where((final item) => item.id == terminalId);
             if (current.isEmpty || !current.first.isAlive) {
               isAlive = false;
               break;
@@ -562,7 +565,8 @@ class _TerminalPlugin extends ChronoxPlugin {
               ? output.substring(0, outputLimit)
               : output;
           return ToolOutcome(
-            content: visibleOutput.isEmpty ? '(sin salida nueva)' : visibleOutput,
+            content:
+                visibleOutput.isEmpty ? '(sin salida nueva)' : visibleOutput,
             metadata: <String, Object?>{
               'next_offset': offset + visibleOutput.length,
               'is_alive': isAlive,

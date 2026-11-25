@@ -36,6 +36,10 @@ class MainActivity : FlutterActivity() {
     private val schedulerChannelName = "app.chronoxai/scheduler"
     private val voiceChannelName = "app.chronoxai/voice"
     private val secureStoreChannelName = "app.chronoxai/secure_store"
+    private val projectExportChannelName = "app.chronoxai/project_export"
+    private val projectExportRequestCode = 4004
+    private var pendingProjectExportResult: MethodChannel.Result? = null
+    private var pendingProjectExportPath: String? = null
 
     /** Resultado pendiente del diálogo de permisos, que es asíncrono. */
     private var pendingPermissionResult: MethodChannel.Result? = null
@@ -82,6 +86,38 @@ class MainActivity : FlutterActivity() {
                     }
                 }
                 else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            projectExportChannelName,
+        ).setMethodCallHandler { call, result ->
+            if (call.method != "saveZip") {
+                result.notImplemented()
+            } else if (pendingProjectExportResult != null) {
+                result.error("export_busy", "Ya hay una exportación en curso.", null)
+            } else {
+                val path = call.argument<String>("path")
+                val fileName = call.argument<String>("fileName")
+                if (path.isNullOrBlank() || fileName.isNullOrBlank()) {
+                    result.error("invalid_export", "Faltan los datos del archivo.", null)
+                } else {
+                    pendingProjectExportPath = path
+                    pendingProjectExportResult = result
+                    val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                        type = "application/zip"
+                        putExtra(Intent.EXTRA_TITLE, fileName)
+                    }
+                    try {
+                        startActivityForResult(intent, projectExportRequestCode)
+                    } catch (error: Exception) {
+                        pendingProjectExportResult = null
+                        pendingProjectExportPath = null
+                        result.error("export_picker", error.message, null)
+                    }
+                }
             }
         }
 
@@ -280,6 +316,26 @@ class MainActivity : FlutterActivity() {
     @Deprecated("SpeechRecognizer result returned through the platform channel")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == projectExportRequestCode) {
+            val result = pendingProjectExportResult
+            val path = pendingProjectExportPath
+            pendingProjectExportResult = null
+            pendingProjectExportPath = null
+            if (resultCode != Activity.RESULT_OK || data?.data == null) {
+                result?.success(false)
+            } else {
+                try {
+                    val source = File(path ?: throw IllegalStateException("Archivo temporal perdido."))
+                    contentResolver.openOutputStream(data.data!!)?.use { output ->
+                        source.inputStream().use { input -> input.copyTo(output) }
+                    } ?: throw IllegalStateException("No se pudo abrir el destino elegido.")
+                    result?.success(true)
+                } catch (error: Exception) {
+                    result?.error("export_failed", error.message, null)
+                }
+            }
+            return
+        }
         if (requestCode != voiceActivityRequestCode) return
         val result = pendingVoiceResult
         pendingVoiceResult = null

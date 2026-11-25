@@ -663,10 +663,15 @@ class RuntimeException implements Exception {
 
 /// `ctx.shell` sobre el runtime local.
 class ProotShellSeam implements ShellSeam {
-  const ProotShellSeam(this.runtime, {this.policy = const SandboxPolicy()});
+  const ProotShellSeam(
+    this.runtime, {
+    this.policy = const SandboxPolicy(),
+    this.defaultWorkingDirectory,
+  });
 
   final LocalRuntime runtime;
   final SandboxPolicy policy;
+  final String? defaultWorkingDirectory;
 
   @override
   Future<ShellResult> run(
@@ -682,8 +687,11 @@ class ProotShellSeam implements ShellSeam {
         stderr: 'Comando bloqueado por SandboxPolicy: $violation.',
       ));
     }
-    return runtime.run(command,
-        workingDirectory: workingDirectory, timeout: timeout);
+    return runtime.run(
+      command,
+      workingDirectory: workingDirectory ?? defaultWorkingDirectory,
+      timeout: timeout,
+    );
   }
 }
 

@@ -15,6 +15,7 @@ import 'approval_sheet.dart';
 import 'message_bubble.dart';
 import 'plan_sheet.dart';
 import 'sessions_browser.dart';
+import 'workspace_projects_menu.dart';
 
 /// Pantalla de sesión: la conversación con el agente.
 ///
@@ -227,10 +228,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             action: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                FilledButton.icon(
+                PopupMenuButton<String>(
+                  onSelected: (action) {
+                    if (action == 'projects') showWorkspaceProjectsMenu(context, ref);
+                    if (action == 'new') showNewSessionDialog(context, ref);
+                  },
+                  itemBuilder: (_) => const <PopupMenuEntry<String>>[
+                    PopupMenuItem(value: 'projects', child: Text('Proyectos del Workspace')),
+                    PopupMenuItem(value: 'new', child: Text('Nueva sesión')),
+                  ],
+                  child: FilledButton.icon(
+                    onPressed: null,
+                    icon: const Icon(Icons.folder_open_rounded),
+                    label: const Text('Proyectos'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
                   onPressed: () => showNewSessionDialog(context, ref),
-                  icon: const Icon(Icons.play_arrow_rounded),
-                  label: const Text('Abrir sesión'),
+                  icon: const Icon(Icons.add_comment_outlined),
+                  label: const Text('Abrir una sesión'),
                 ),
                 const SizedBox(height: 8),
                 OutlinedButton.icon(

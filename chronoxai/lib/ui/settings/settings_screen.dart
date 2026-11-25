@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
 import '../../core/theme.dart';
 import '../../data/runtime/local_runtime.dart';
@@ -776,18 +778,26 @@ Future<void> showNewSessionDialog(
   final BuildContext context,
   final WidgetRef ref, {
   final String? sessionId,
+  final String? workspacePath,
+  final String? projectPath,
 }) {
   return showDialog<void>(
     context: context,
     barrierDismissible: false,
-    builder: (final context) => _NewSessionDialog(sessionId: sessionId),
+    builder: (final context) => _NewSessionDialog(
+      sessionId: sessionId,
+      workspacePath: workspacePath,
+      projectPath: projectPath,
+    ),
   );
 }
 
 class _NewSessionDialog extends ConsumerStatefulWidget {
-  const _NewSessionDialog({this.sessionId});
+  const _NewSessionDialog({this.sessionId, this.workspacePath, this.projectPath});
 
   final String? sessionId;
+  final String? workspacePath;
+  final String? projectPath;
 
   @override
   ConsumerState<_NewSessionDialog> createState() => _NewSessionDialogState();
@@ -908,13 +918,18 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
         SessionBootstrap(
           provider: clientFromSettings(settings),
           shell: status.isReady
-              ? ProotShellSeam(runtime)
+              ? ProotShellSeam(
+                  runtime,
+                  defaultWorkingDirectory: widget.projectPath == null
+                      ? null
+                      : '/workspace/projects/${p.basename(widget.projectPath!)}',
+                )
               : UnavailableShellSeam(status),
           fileSystem: WorkspaceFileSystemSeam(
-            hostWorkspace: runtime.hostWorkspace,
+            hostWorkspace: widget.workspacePath ?? runtime.hostWorkspace,
           ),
           terminals: ProotTerminalsSeam(runtime),
-          workspaceDir: Directory(runtime.hostWorkspace),
+          workspaceDir: Directory(widget.workspacePath ?? runtime.hostWorkspace),
           mcpServerUrl: settings.mcpServerUrl,
           mcpServerEnvironments: mcpEnvironments,
           startPluginProcess:
@@ -951,6 +966,17 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
         sessionId: widget.sessionId,
         disabledPluginIds: ref.read(disabledPluginIdsProvider),
       );
+      if (widget.projectPath != null) {
+        final projectFile = File(p.join(widget.projectPath!, '.chronox-project.json'));
+        final projectData = <String, Object?>{'name': p.basename(widget.projectPath!), 'lastSessionId': session.log.sessionId};
+        try {
+          final old = jsonDecode(await projectFile.readAsString());
+          if (old is Map<String, dynamic> && old['name'] is String) projectData['name'] = old['name'];
+        } on Object {
+          // Create the metadata if the project predates the project manager.
+        }
+        await projectFile.writeAsString(jsonEncode(projectData), flush: true);
+      }
 
       // El servicio en primer plano es lo que impide que Android congele el
       // proceso (y mate proot) en cuanto la app pasa a segundo plano. Se arranca

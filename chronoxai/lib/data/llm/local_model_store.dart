@@ -116,7 +116,7 @@ class LocalModelStore {
     final temporary = File(p.join(directory.path, '${spec.fileName}.part'));
     final client = http.Client();
     _activeClient = client;
-    final digestResult = DigestSink();
+    final digestResult = _DigestCollector();
     final digestInput = sha256.startChunkedConversion(digestResult);
     var received = 0;
     IOSink? output;
@@ -142,7 +142,7 @@ class LocalModelStore {
       await output.close();
       output = null;
       digestInput.close();
-      final actualHash = digestResult.events.single.toString();
+      final actualHash = digestResult.digest.toString();
       await _publishVerified(spec, temporary, received, actualHash, directory);
       onProgress
           ?.call(ModelTransferProgress(received: received, total: spec.bytes));
@@ -176,7 +176,7 @@ class LocalModelStore {
     final temporary =
         File(p.join(directory.path, '${spec.fileName}.importing'));
     final output = temporary.openWrite();
-    final digestResult = DigestSink();
+    final digestResult = _DigestCollector();
     final digestInput = sha256.startChunkedConversion(digestResult);
     try {
       await for (final chunk in source.openRead()) {
@@ -186,7 +186,7 @@ class LocalModelStore {
       await output.flush();
       await output.close();
       digestInput.close();
-      final actualHash = digestResult.events.single.toString();
+      final actualHash = digestResult.digest.toString();
       await _publishVerified(spec, temporary, length, actualHash, directory);
       return LocalModelInstallation(
         spec: spec,
@@ -253,4 +253,16 @@ extension _FirstOrNull<T> on Iterable<T> {
     final iterator = this.iterator;
     return iterator.moveNext() ? iterator.current : null;
   }
+}
+
+class _DigestCollector implements Sink<Digest> {
+  Digest? _value;
+
+  Digest get digest => _value ?? (throw StateError('El SHA-256 no produjo resultado.'));
+
+  @override
+  void add(Digest value) => _value = value;
+
+  @override
+  void close() {}
 }

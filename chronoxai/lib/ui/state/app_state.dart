@@ -113,7 +113,9 @@ class SessionRuntime {
   final ProjectMemoryStore projectMemory;
 
   Future<void> dispose() async {
-    if (provider is LocalLlmProvider) await provider.dispose();
+    if (provider is LocalLlmProvider) {
+      await (provider as LocalLlmProvider).dispose();
+    }
     for (final plugin in host.plugins) {
       await host.unmount(plugin.manifest.id);
     }

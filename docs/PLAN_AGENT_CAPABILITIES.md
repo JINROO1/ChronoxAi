@@ -1,6 +1,6 @@
 # Plan de capacidades avanzadas del agente
 
-Estado: secuencia incremental; completar y validar una fase antes de empezar la siguiente. Fase 1 implementada y validada (279 tests). Fase 2 implementada y validada en CI (284 tests, analyze, format y Runtime Linux pasan). Fase 3 implementada y validada en CI (290 tests, analyze, format y Runtime Linux). Fase 4 en implementación; no avanzar a Fase 5 hasta completar su validación.
+Estado: secuencia incremental; completar y validar una fase antes de empezar la siguiente. Fase 1 implementada y validada (279 tests). Fase 2 implementada y validada en CI (284 tests, analyze, format y Runtime Linux pasan). Fase 3 implementada y validada en CI (290 tests, analyze, format y Runtime Linux). Fase 4 implementada y validada en CI (295 tests, Analyze, Format y Runtime Linux). Fase 5 aún no iniciada.
 
 ## Principios comunes
 
@@ -38,13 +38,15 @@ Validación: CI `45539601060` exitoso; Format, Analyze, Tests (284 pasaron) y Ru
 4. Añadir operación explícita de rollback, limitada a cambios de la sesión y con aprobación.
 5. Probar rollback, cambios parciales, archivos nuevos, Unicode, rutas fuera del workspace y crash-safe cleanup.
 
-## Fase 4 — Índice de workspace y referencias
+## Fase 4 — Índice de workspace y referencias (completada)
 
-1. Indexado incremental con exclusiones y límites por tamaño/extensión.
-2. Extraer símbolos/imports con parser específico cuando exista; fallback de texto marcado como aproximado.
-3. Herramientas de símbolos/referencias con rutas y rangos reproducibles.
-4. Invalidar índice al detectar cambios de archivos y al reiniciar sesiones.
-5. Comparar resultados contra fixtures de varios lenguajes; medir memoria, latencia y falsos positivos.
+1. Índice de sesión incremental: escanea hasta 500 rutas, procesa como máximo 200 fuentes compatibles, limita cada archivo a 64.000 caracteres y el caché total a 2.000.000; excluye dependencias y directorios generados.
+2. Extrae símbolos/imports para Dart, JavaScript/TypeScript, Python, Go y Rust mediante patrones específicos marcados `approximate`; no añade una dependencia/parser nuevo.
+3. Añade `workspace_symbols`, `workspace_imports` y `workspace_references`, con ruta, línea y columnas deterministas y resultados acotados.
+4. Refresca el contenido antes de cada consulta, vuelve a parsear solo fuentes cambiadas, quita rutas desaparecidas y crea un índice nuevo por sesión/reinicio.
+5. Fixtures multilenguaje cubren nombres, imports, columnas, exclusiones, presupuesto, cambios y falsos positivos por prefijos. Metadatos exponen archivos omitidos, tamaño del caché y duración del escaneo.
+
+Validación: CI `45590687693` exitoso; 295 tests, Analyze, Format y Runtime Linux completados. Las anotaciones solo contienen el warning conocido de Node 20.
 
 ## Fase 5 — Memoria de proyecto entre sesiones
 

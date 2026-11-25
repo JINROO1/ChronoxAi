@@ -104,7 +104,7 @@ Se adopta provisionalmente `Q4_K_M` para mantener el archivo en un rango viable 
 3. Emitir tokens como `TextChunk`; soportar stop, límite de tokens/contexto, timeout, cancelación nativa y cierre idempotente.
 4. Gestionar una sola sesión de inferencia por modelo; cerrar contexto y liberar memoria al cambiar modelo, cerrar sesión o recibir presión de memoria.
 5. Errores tipados y visibles: archivo inválido, arquitectura no compatible, memoria, cancelación, generación fallida. No reenviar a proveedor remoto automáticamente.
-6. Hasta completar Fase 5, rechazar explícitamente solicitudes que incluyan herramientas; no ignorar esquemas ni interpretar texto libre como llamadas ejecutables.
+6. El adaptador local entrega los esquemas al modelo como instrucción y reconoce únicamente el protocolo JSON delimitado `<chronox-tool-call>…</chronox-tool-call>`, comprobando formato/nombre antes de emitir `ToolCallChunk`. Las llamadas continúan por las políticas, aprobaciones y validaciones de `AgentLoop`/`ToolRegistry`. Historial previo de llamadas/resultados se serializa como texto en el contexto. La robustez semántica del modelo, streaming y ejecución end-to-end requieren gate físico; no declarar listas las herramientas offline sin ello.
 
 **Gate:** pruebas unitarias del adaptador con backend falso para token streaming, conversión de roles, stop, cancelación, límites, fallo de carga y liberación; generación real de varios turnos sin fugas/crashes.
 

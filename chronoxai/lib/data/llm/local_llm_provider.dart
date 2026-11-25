@@ -84,7 +84,10 @@ class LocalLlmProvider implements LlmProvider {
             await engine.load(file);
           }
           final request = tools.isEmpty
-              ? _PreparedLocalRequest(messages: messages, toolNames: const {})
+              ? _PreparedLocalRequest(
+                  messages: _normalizeLocalHistory(messages),
+                  toolNames: const <String>{},
+                )
               : _prepareLocalToolRequest(messages, tools);
           final toolAware = tools.isNotEmpty;
           final pendingProtocol = StringBuffer();
@@ -104,14 +107,24 @@ class LocalLlmProvider implements LlmProvider {
             pendingProtocol.write(token);
             final candidate = pendingProtocol.toString();
             final marker = _localToolCallStart;
-            if (candidate.length < marker.length &&
-                marker.startsWith(candidate)) {
-              continue;
-            }
             if (!candidate.startsWith(marker)) {
-              plainText = true;
-              controller.add(TextChunk(candidate));
-              pendingProtocol.clear();
+              var prefixLength = 0;
+              final maximum = candidate.length < marker.length
+                  ? candidate.length
+                  : marker.length - 1;
+              for (var length = maximum; length > 0; length--) {
+                if (candidate.endsWith(marker.substring(0, length))) {
+                  prefixLength = length;
+                  break;
+                }
+              }
+              final safeLength = candidate.length - prefixLength;
+              if (safeLength > 0) {
+                controller.add(TextChunk(candidate.substring(0, safeLength)));
+                pendingProtocol
+                  ..clear()
+                  ..write(candidate.substring(safeLength));
+              }
             }
           }
 
@@ -174,6 +187,32 @@ class _DecodedLocalToolCall {
   final Map<String, Object?> arguments;
 }
 
+List<LlmMessage> _normalizeLocalHistory(List<LlmMessage> messages) {
+  return messages.map((final message) {
+    if (message.role == MessageRole.assistant && message.toolCalls.isNotEmpty) {
+      final calls = message.toolCalls
+          .map((final call) => <String, Object?>{
+                'id': call.id,
+                'name': call.name,
+                'arguments': call.arguments,
+              })
+          .toList();
+      final record = '<tool-call-history>${jsonEncode(calls)}</tool-call-history>';
+      return LlmMessage.assistant(
+        message.content.isEmpty ? record : '${message.content}\n$record',
+        reasoning: message.reasoning,
+      );
+    }
+    if (message.role == MessageRole.tool) {
+      return LlmMessage.user(
+        '<tool-result id="${message.toolCallId ?? 'sin ID'}">\n'
+        '${message.content}\n</tool-result>',
+      );
+    }
+    return message;
+  }).toList(growable: false);
+}
+
 _PreparedLocalRequest _prepareLocalToolRequest(
   List<LlmMessage> messages,
   List<Map<String, Object?>> tools,
@@ -213,7 +252,7 @@ Usa un solo objeto JSON válido, nombre de la lista y argumentos que cumplan su 
 ''';
   var inserted = false;
   final prepared = <LlmMessage>[];
-  for (final message in messages) {
+  for (final message in _normalizeLocalHistory(messages)) {
     if (!inserted && message.role == MessageRole.system) {
       prepared.add(LlmMessage.system('${message.content}\n\n$instruction'));
       inserted = true;

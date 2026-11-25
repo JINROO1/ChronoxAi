@@ -202,8 +202,7 @@ ChronoxPlugin fsPlugin() => _FsPlugin(
                 : rawPattern.startsWith('/')
                     ? rawPattern
                     : '${basePath.startsWith('/') ? basePath : '/workspace/$basePath'}/${rawPattern.startsWith('./') ? rawPattern.substring(2) : rawPattern}';
-            final matches =
-                await context.services.fileSystem.glob(pattern);
+            final matches = await context.services.fileSystem.glob(pattern);
             if (matches.isEmpty) {
               return const ToolOutcome(content: 'Sin coincidencias.');
             }
@@ -604,7 +603,8 @@ class _EditingPlugin extends ChronoxPlugin {
               workingDirectory: '/workspace',
             );
             return ToolOutcome(
-              content: result.output.isEmpty ? 'Patch aplicado.' : result.output,
+              content:
+                  result.output.isEmpty ? 'Patch aplicado.' : result.output,
               isError: !result.isSuccess,
               metadata: <String, Object?>{'exitCode': result.exitCode},
             );

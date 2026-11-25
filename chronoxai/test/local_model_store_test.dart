@@ -5,7 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('LocalModelSpec.catalog', () {
-    test('catalog entries provide versionable runtime and license metadata', () {
+    test('catalog entries provide versionable runtime and license metadata',
+        () {
       for (final spec in LocalModelSpec.catalog) {
         final metadata = spec.toManifestEntry();
         expect(metadata['id'], spec.id);

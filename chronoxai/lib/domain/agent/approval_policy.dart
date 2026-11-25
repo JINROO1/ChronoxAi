@@ -103,6 +103,11 @@ class ApprovalPolicy {
     'todo_write',
     'exit_plan_mode',
     'str_replace_editor_read',
+    'file_exists',
+    'list_dir',
+    'git_status',
+    'git_diff',
+    'git_log',
   };
 
   /// Herramientas que pueden destruir datos o salir del workspace.

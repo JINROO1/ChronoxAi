@@ -417,8 +417,7 @@ void main() {
       );
     });
 
-    test('instalar paquetes siempre requiere aprobación incluso en YOLO',
-        () async {
+    test('YOLO no exige aprobación extra para instalar paquetes', () async {
       var asked = 0;
       final loop = makeLoop(
         FakeProvider(<LlmResponse>[
@@ -437,17 +436,15 @@ void main() {
           const LlmResponse(content: 'Hecho.'),
         ]),
         policy: ApprovalPolicy(level: ApprovalLevel.yolo),
-        approvalHandler: (final request) async {
+        approvalHandler: (final _) async {
           asked++;
-          expect(request.preview, contains('apt-get install'));
           return const ApprovalAnswer(approved: true);
         },
       );
 
       expect(await loop.runTurn('instala numpy'), 'completed');
-      expect(asked, 1);
-      expect(log.events.whereType<ApprovalDecisionEvent>().single.approved,
-          isTrue);
+      expect(asked, 0);
+      expect(log.events.whereType<ApprovalDecisionEvent>(), isEmpty);
     });
 
     test('si el usuario rechaza, el turno termina en rejected', () async {

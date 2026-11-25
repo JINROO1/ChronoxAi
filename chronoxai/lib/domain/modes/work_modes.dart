@@ -20,6 +20,7 @@ abstract final class WorkModes {
     standard: <String>[
       'core-fs',
       'core-shell',
+      'core-git',
       'core-terminal',
       'core-search',
       'core-editing',
@@ -32,6 +33,7 @@ abstract final class WorkModes {
     code: <String>[
       'core-fs',
       'core-shell',
+      'core-git',
       'core-terminal',
       'core-search',
       'core-editing',
@@ -49,6 +51,7 @@ abstract final class WorkModes {
     creator: <String>[
       'core-fs',
       'core-shell',
+      'core-git',
       'core-terminal',
       'core-search',
       'core-editing',
@@ -67,11 +70,12 @@ abstract final class WorkModes {
       id: standard,
       name: 'Standard',
       description:
-          'Agente completo: edición, shell, terminal, búsqueda, planificación '
-          'y subagentes. El modo por defecto.',
+          'Agente completo: edición, shell, Git, terminal, búsqueda web, '
+          'planificación, plugins y subagentes. El modo por defecto.',
       pluginIds: <String>[
         'core-fs',
         'core-shell',
+        'core-git',
         'core-terminal',
         'core-search',
         'core-editing',
@@ -93,6 +97,7 @@ abstract final class WorkModes {
       pluginIds: <String>[
         'core-fs',
         'core-shell',
+        'core-git',
         'core-terminal',
         'core-search',
         'core-editing',
@@ -132,6 +137,7 @@ abstract final class WorkModes {
       pluginIds: <String>[
         'core-fs',
         'core-shell',
+        'core-git',
         'core-terminal',
         'core-search',
         'core-editing',

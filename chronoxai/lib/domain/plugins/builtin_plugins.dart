@@ -110,6 +110,50 @@ ChronoxPlugin fsPlugin() => _FsPlugin(
           },
         ),
         PluginTool(
+          name: 'list_dir',
+          description:
+              'Lista las entradas inmediatas de un directorio del workspace, '
+              'ordenadas por ruta. Para explorar subdirectorios usa glob.',
+          requiresApproval: false,
+          inputSchema: _obj(<String, Object?>{
+            'path': _str('Directorio (por defecto /workspace).'),
+          }),
+          execute: (final args) async {
+            final path = (args['path'] as String?) ?? '/workspace';
+            final entries = await context.services.fileSystem.list(path);
+            if (entries.isEmpty) {
+              return ToolOutcome(content: 'El directorio $path está vacío.');
+            }
+            return ToolOutcome(
+              content: entries.take(500).join('\n'),
+              metadata: <String, Object?>{
+                'path': path,
+                'count': entries.length,
+                'truncated': entries.length > 500,
+              },
+            );
+          },
+        ),
+        PluginTool(
+          name: 'file_exists',
+          description:
+              'Comprueba si un archivo o directorio existe dentro del workspace.',
+          requiresApproval: false,
+          inputSchema: _obj(<String, Object?>{
+            'path': _str('Ruta del archivo o directorio.'),
+          }, required: <String>[
+            'path'
+          ]),
+          execute: (final args) async {
+            final path = args['path']! as String;
+            final exists = await context.services.fileSystem.exists(path);
+            return ToolOutcome(
+              content: exists ? 'Existe: $path' : 'No existe: $path',
+              metadata: <String, Object?>{'path': path, 'exists': exists},
+            );
+          },
+        ),
+        PluginTool(
           name: 'write',
           description:
               'Crea o sobrescribe un fichero. Si el fichero existe, se muestra un '
@@ -146,14 +190,20 @@ ChronoxPlugin fsPlugin() => _FsPlugin(
           requiresApproval: false,
           inputSchema: _obj(<String, Object?>{
             'pattern': _str('Patrón glob.'),
-            'path': _str('Directorio base (por defecto /workspace).'),
+            'path': _str('Directorio base opcional dentro de /workspace.'),
           }, required: <String>[
             'pattern'
           ]),
           execute: (final args) async {
-            final matches = await context.services.fileSystem.glob(
-              args['pattern']! as String,
-            );
+            final rawPattern = args['pattern']! as String;
+            final basePath = args['path'] as String?;
+            final pattern = basePath == null || basePath.trim().isEmpty
+                ? rawPattern
+                : rawPattern.startsWith('/')
+                    ? rawPattern
+                    : '${basePath.startsWith('/') ? basePath : '/workspace/$basePath'}/${rawPattern.startsWith('./') ? rawPattern.substring(2) : rawPattern}';
+            final matches =
+                await context.services.fileSystem.glob(pattern);
             if (matches.isEmpty) {
               return const ToolOutcome(content: 'Sin coincidencias.');
             }
@@ -267,6 +317,91 @@ class _ShellPlugin extends ChronoxPlugin {
           final output = result.output;
           return ToolOutcome(
             content: output.isEmpty ? '(sin salida)' : output,
+            isError: !result.isSuccess,
+            metadata: <String, Object?>{'exitCode': result.exitCode},
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// core-git: inspección no destructiva del repositorio
+// ---------------------------------------------------------------------------
+
+class _GitPlugin extends ChronoxPlugin {
+  @override
+  Future<void> mount(final PluginContext context) async {
+    context.provideTool(
+      PluginTool(
+        name: 'git_status',
+        description:
+            'Muestra la rama actual y los cambios del repositorio en /workspace. '
+            'Es de solo lectura y no modifica el índice ni los archivos.',
+        requiresApproval: false,
+        inputSchema: _obj(const <String, Object?>{}),
+        execute: (final args) async {
+          final result = await context.services.shell.run(
+            'git -C /workspace status --short --branch',
+            timeout: const Duration(seconds: 20),
+          );
+          return ToolOutcome(
+            content: result.output.isEmpty ? '(sin cambios)' : result.output,
+            isError: !result.isSuccess,
+            metadata: <String, Object?>{'exitCode': result.exitCode},
+          );
+        },
+      ),
+    );
+    context.provideTool(
+      PluginTool(
+        name: 'git_diff',
+        description:
+            'Lee el diff no staged del repositorio. No ejecuta hooks ni cambia '
+            'archivos; usa git_status para ver archivos staged o nuevos.',
+        requiresApproval: false,
+        inputSchema: _obj(<String, Object?>{
+          'staged': <String, Object?>{
+            'type': 'boolean',
+            'description': 'Si es true, muestra el diff staged.',
+          },
+        }),
+        execute: (final args) async {
+          final staged = args['staged'] as bool? ?? false;
+          final stagedOption = staged ? ' --cached' : '';
+          final result = await context.services.shell.run(
+            'git -C /workspace diff --no-ext-diff --no-color$stagedOption',
+            timeout: const Duration(seconds: 30),
+          );
+          return ToolOutcome(
+            content: result.output.isEmpty ? '(diff vacío)' : result.output,
+            isError: !result.isSuccess,
+            metadata: <String, Object?>{
+              'exitCode': result.exitCode,
+              'staged': staged,
+            },
+          );
+        },
+      ),
+    );
+    context.provideTool(
+      PluginTool(
+        name: 'git_log',
+        description:
+            'Muestra el historial reciente en formato compacto. Es de solo lectura.',
+        requiresApproval: false,
+        inputSchema: _obj(<String, Object?>{
+          'limit': _int('Número de commits (1–30, por defecto 10).'),
+        }),
+        execute: (final args) async {
+          final limit = ((args['limit'] as int?) ?? 10).clamp(1, 30);
+          final result = await context.services.shell.run(
+            'git -C /workspace log --oneline --decorate -n $limit',
+            timeout: const Duration(seconds: 20),
+          );
+          return ToolOutcome(
+            content: result.output.isEmpty ? '(sin commits)' : result.output,
             isError: !result.isSuccess,
             metadata: <String, Object?>{'exitCode': result.exitCode},
           );
@@ -460,16 +595,22 @@ class _EditingPlugin extends ChronoxPlugin {
           // Se delega en `patch` del contenedor: reimplementar un parser de
           // diffs en Dart sería frágil y el contenedor ya lo tiene.
           final stamp = DateTime.now().microsecondsSinceEpoch;
-          final tmp = '/tmp/chronox-patch-$stamp.diff';
+          final tmp = '/workspace/.chronox-patch-$stamp.diff';
           await context.services.fileSystem
               .writeFile(tmp, args['patch']! as String);
-          final result = await context.services.shell.run(
-            'patch -p1 --forward --input="$tmp" && rm -f "$tmp"',
-          );
-          return ToolOutcome(
-            content: result.output.isEmpty ? 'Patch aplicado.' : result.output,
-            isError: !result.isSuccess,
-          );
+          try {
+            final result = await context.services.shell.run(
+              'patch -p1 --forward --input="$tmp"',
+              workingDirectory: '/workspace',
+            );
+            return ToolOutcome(
+              content: result.output.isEmpty ? 'Patch aplicado.' : result.output,
+              isError: !result.isSuccess,
+              metadata: <String, Object?>{'exitCode': result.exitCode},
+            );
+          } finally {
+            await context.services.shell.run('rm -f -- "$tmp"');
+          }
         },
       ),
     );
@@ -921,22 +1062,26 @@ class _CodeModePlugin extends ChronoxPlugin {
           final script = args['code']! as String;
           final timeoutMs = (args['timeout_ms'] as int?) ?? 300000;
           final path =
-              '/tmp/chronox-run-${DateTime.now().microsecondsSinceEpoch}.py';
+              '/workspace/.chronox-run-${DateTime.now().microsecondsSinceEpoch}.py';
           await context.services.fileSystem.writeFile(path, script);
 
-          final result = await context.services.shell.run(
-            // Comillas simples de shell: el `$?` no lo toca Dart ni el shell exterior.
-            "cd /workspace && python3 '$path'; rc=\$?; rm -f '$path'; exit \$rc",
-            timeout: Duration(milliseconds: timeoutMs.clamp(5000, 900000)),
-          );
+          try {
+            final result = await context.services.shell.run(
+              // Conserva el código de salida de Python y limpia el script.
+              "cd /workspace && python3 '$path'; rc=\$?; rm -f '$path'; exit \$rc",
+              timeout: Duration(milliseconds: timeoutMs.clamp(5000, 900000)),
+            );
 
-          return ToolOutcome(
-            content: result.output.isEmpty
-                ? 'El programa terminó sin salida.'
-                : result.output,
-            isError: !result.isSuccess,
-            metadata: <String, Object?>{'exitCode': result.exitCode},
-          );
+            return ToolOutcome(
+              content: result.output.isEmpty
+                  ? 'El programa terminó sin salida.'
+                  : result.output,
+              isError: !result.isSuccess,
+              metadata: <String, Object?>{'exitCode': result.exitCode},
+            );
+          } finally {
+            await context.services.shell.run('rm -f -- "$path"');
+          }
         },
       ),
     );
@@ -1197,6 +1342,18 @@ List<BuiltinPlugin> builtinPlugins({
         icon: 'terminal',
       ),
       create: _ShellPlugin.new,
+    ),
+    BuiltinPlugin(
+      manifest: manifest(
+        id: 'core-git',
+        name: 'Git',
+        description: 'git_status, git_diff y git_log (solo lectura)',
+        kind: PluginKind.tool,
+        capabilities: const <PluginCapability>[PluginCapability.shell],
+        requires: <String>['core-shell'],
+        icon: 'source',
+      ),
+      create: _GitPlugin.new,
     ),
     BuiltinPlugin(
       manifest: manifest(

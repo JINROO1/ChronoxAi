@@ -113,7 +113,8 @@ void main() {
     fileSystem.files['/workspace/node_modules/pkg/index.js'] =
         'class Hidden {}';
     fileSystem.files['/workspace/build/generated.dart'] = 'class Hidden {}';
-    fileSystem.files['/workspace/lib/huge.dart'] = 'x' * 70000;
+    fileSystem.files['/workspace/lib/huge.dart'] =
+        List<String>.filled(70000, 'x').join();
     for (var index = 0; index < WorkspaceIndex.maxFiles + 3; index++) {
       fileSystem.files['/workspace/src/f$index.dart'] = 'class C$index {}';
     }

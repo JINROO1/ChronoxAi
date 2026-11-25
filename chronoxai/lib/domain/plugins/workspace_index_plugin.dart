@@ -112,7 +112,7 @@ class WorkspaceIndexPlugin extends ChronoxPlugin {
           'properties': <String, Object?>{
             'symbol': <String, Object?>{
               'type': 'string',
-              'description': 'Identificador completo (letras, números, _ o $).',
+              'description': 'Identificador completo (letras, números, _ o \$).',
             },
             'limit': <String, Object?>{
               'type': 'integer',

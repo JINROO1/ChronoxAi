@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
+import '../../data/llm/local_llm_provider.dart';
 import '../../data/llm/local_model_store.dart';
 import '../../platform/android_model_file_picker.dart';
 import '../state/app_state.dart';
@@ -106,7 +107,11 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
 
   Future<void> _remove(LocalModelSpec spec) async {
     final settings = ref.read(providerSettingsProvider);
-    if (settings.kind == ProviderKind.local && settings.model == spec.id) {
+    final activeProvider = ref.read(sessionProvider)?.provider;
+    final modelInUse = activeProvider is LocalLlmProvider &&
+        activeProvider.model == spec.id;
+    if (modelInUse ||
+        (settings.kind == ProviderKind.local && settings.model == spec.id)) {
       setState(() => _error =
           'Selecciona otro proveedor o modelo antes de eliminar el modelo activo.');
       return;

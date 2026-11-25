@@ -17,13 +17,18 @@ set(GGML_LLAMAFILE OFF CACHE BOOL "" FORCE)
 set(GGML_NATIVE OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
 
-FetchContent_Declare(
-    llama_cpp
-    GIT_REPOSITORY https://github.com/ggml-org/llama.cpp.git
-    GIT_TAG 3ba1ce0e28d991800e1585b7d3533f77213939d6
-    GIT_SHALLOW FALSE
-)
-FetchContent_MakeAvailable(llama_cpp)
+if (DEFINED LLAMA_CPP_SOURCE_DIR AND EXISTS "${LLAMA_CPP_SOURCE_DIR}/CMakeLists.txt")
+    set(llama_cpp_SOURCE_DIR "${LLAMA_CPP_SOURCE_DIR}")
+    add_subdirectory("${LLAMA_CPP_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/llama-cpp")
+else()
+    FetchContent_Declare(
+        llama_cpp
+        GIT_REPOSITORY https://github.com/ggml-org/llama.cpp.git
+        GIT_TAG 3ba1ce0e28d991800e1585b7d3533f77213939d6
+        GIT_SHALLOW FALSE
+    )
+    FetchContent_MakeAvailable(llama_cpp)
+endif()
 
 add_library(chronox_local_llm SHARED local_llm_jni.cpp)
 target_compile_features(chronox_local_llm PRIVATE cxx_std_17)

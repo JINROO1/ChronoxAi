@@ -19,6 +19,7 @@ plugins {
 def keystorePropertiesFile = rootProject.file("key.properties")
 def keystoreProperties = new Properties()
 def hasReleaseSigning = keystorePropertiesFile.exists()
+def llamaCppSourceDir = System.getenv("LLAMA_CPP_SOURCE_DIR")
 
 if (hasReleaseSigning) {
     keystorePropertiesFile.withInputStream { stream ->
@@ -58,6 +59,9 @@ android {
             cmake {
                 cppFlags "-std=c++17 -fexceptions -frtti"
                 arguments "-DANDROID_STL=c++_shared", "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
+                if (llamaCppSourceDir != null) {
+                    arguments "-DLLAMA_CPP_SOURCE_DIR=${llamaCppSourceDir}"
+                }
             }
         }
     }

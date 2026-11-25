@@ -174,6 +174,9 @@ Java_app_chronoxai_MainActivity_nativeGenerate(JNIEnv *env, jobject, jlong handl
         return;
     }
 
+    // Provider sends the full current turn history on each call, so discard the
+    // previous KV/recurrent state instead of appending a duplicate transcript.
+    llama_memory_clear(llama_get_memory(session->context), true);
     auto batch = llama_batch_get_one(tokens.data(), token_count);
     if (llama_decode(session->context, batch) != 0) {
         throw_java(env, "Falló la evaluación del prompt local.");

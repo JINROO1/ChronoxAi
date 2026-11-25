@@ -328,12 +328,14 @@ jobs:
   # en cada build; ambas solo corren con el marcador [offline-gate].
   # ---------------------------------------------------------------------------
   offline-android-emulator:
-    name: Offline Qwen Android emulator API 28
+    name: Offline Qwen Android API 28 emulator and JNI app smoke
     if: >-
       (github.event_name == 'push' && contains(github.event.head_commit.message, '[offline-gate]')) ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.title, '[offline-gate]'))
     runs-on: macos-15-intel
     timeout-minutes: 60
+    env:
+      LLAMA_CPP_SOURCE_DIR: ${{ github.workspace }}/llama.cpp
     steps:
       - uses: actions/checkout@v5
 
@@ -343,9 +345,24 @@ jobs:
           ref: 3ba1ce0e28d991800e1585b7d3533f77213939d6
           path: llama.cpp
 
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolver dependencias Flutter
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: flutter pub get
+
       - uses: android-actions/setup-android@v3
         with:
-          packages: 'ndk;27.2.12479018 cmake;3.31.6'
+          packages: 'ndk;27.2.12479018 cmake;3.22.1 cmake;3.31.6 platforms;android-35 build-tools;35.0.0'
 
       - name: Descargar y verificar Qwen 0.8B
         shell: bash
@@ -400,7 +417,13 @@ jobs:
             adb shell /data/local/tmp/llama-simple -m /data/local/tmp/Qwen3.5-0.8B-Q4_K_M.gguf -n 4 -ngl 0 'Responde en español con un saludo breve.' > "$RUNNER_TEMP/qwen-android-emulator.txt" 2>&1 || fail 'llama-simple failed in Android emulator'
             test -s "$RUNNER_TEMP/qwen-android-emulator.txt" || fail 'inference returned no output'
             cat "$RUNNER_TEMP/qwen-android-emulator.txt"
-            echo '### Android API 28 x86_64 emulator: Qwen 0.8B load/generation OK' >> "$GITHUB_STEP_SUMMARY"
+            adb shell mkdir -p /sdcard/Android/data/app.chronoxai.debug/files || fail 'could not prepare app model directory'
+            adb push "$RUNNER_TEMP/qwen-models/Qwen3.5-0.8B-Q4_K_M.gguf" /sdcard/Android/data/app.chronoxai.debug/files/Qwen3.5-0.8B-Q4_K_M.gguf || fail 'could not copy model to app external files'
+            cd "$GITHUB_WORKSPACE/chronoxai"
+            flutter test integration_test/local_llm_smoke_test.dart \
+              --dart-define=LOCAL_QWEN_MODEL_PATH=/storage/emulated/0/Android/data/app.chronoxai.debug/files/Qwen3.5-0.8B-Q4_K_M.gguf \
+              -d emulator-5554
+            echo '### Android API 28 x86_64 emulator: llama.cpp JNI load/stream/unload smoke OK' >> "$GITHUB_STEP_SUMMARY"
 
   # ---------------------------------------------------------------------------
   # 3. Validación del runtime Linux empaquetado

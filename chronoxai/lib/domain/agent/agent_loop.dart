@@ -1156,21 +1156,23 @@ class AgentLoop {
       throw ArgumentError('Subagent prompt must contain 1–6000 characters.');
     }
     if (description != null && description.length > 160) {
-      throw ArgumentError('Subagent description must be at most 160 characters.');
+      throw ArgumentError(
+          'Subagent description must be at most 160 characters.');
     }
     const allowedRoles = <String>{'researcher', 'reviewer', 'tester'};
     if (!allowedRoles.contains(role)) {
       throw ArgumentError.value(role, 'role', 'Unsupported subagent role.');
     }
-    final contract = outputContract ?? switch (role) {
-      'reviewer' =>
-        'Devuelve hallazgos con ruta y línea, evidencia breve, severidad y confianza. '
-            'No reemplaces ni reescribas la respuesta del agente principal.',
-      'tester' =>
-        'Devuelve escenarios/pruebas relevantes, resultados observados y limitaciones.',
-      _ =>
-        'Devuelve hallazgos verificables, rutas/líneas como evidencia y dudas; no modifiques archivos.',
-    };
+    final contract = outputContract ??
+        switch (role) {
+          'reviewer' =>
+            'Devuelve hallazgos con ruta y línea, evidencia breve, severidad y confianza. '
+                'No reemplaces ni reescribas la respuesta del agente principal.',
+          'tester' =>
+            'Devuelve escenarios/pruebas relevantes, resultados observados y limitaciones.',
+          _ =>
+            'Devuelve hallazgos verificables, rutas/líneas como evidencia y dudas; no modifiques archivos.',
+        };
     if (contract.trim().isEmpty || contract.length > 500) {
       throw ArgumentError('Subagent output contract must be 1–500 characters.');
     }

@@ -1266,7 +1266,8 @@ class _SubagentPlugin extends ChronoxPlugin {
           'prompt': _str('Tarea concreta y autocontenida.'),
           'description': _str('Descripción corta, para la UI.'),
           'role': _str('Rol especializado (researcher, reviewer o tester).'),
-          'output_contract': _str('Estructura/formato esperado para el resultado.'),
+          'output_contract':
+              _str('Estructura/formato esperado para el resultado.'),
         }, required: <String>[
           'prompt'
         ]),
@@ -1295,9 +1296,10 @@ class _SubagentPlugin extends ChronoxPlugin {
             'con subagentes read-only y devuelve cada resultado etiquetado.',
         requiresApproval: false,
         inputSchema: _obj(<String, Object?>{
-            'tasks': <String, Object?>{
+          'tasks': <String, Object?>{
             'type': 'array',
-            'description': 'Lista de tareas estructuradas {prompt, description, role, output_contract}. Máximo 4.',
+            'description':
+                'Lista de tareas estructuradas {prompt, description, role, output_contract}. Máximo 4.',
             'items': <String, Object?>{'type': 'object'},
           },
         }, required: <String>[

@@ -49,7 +49,9 @@ Cómo trabajar:
     pásalo como `since_offset`; usa `wait_ms` para esperar salida en vez de
     consultar repetidamente el mismo historial.
 12. Tras cada cambio ejecuta las verificaciones más pequeñas y pertinentes; si
-    fallan, corrige el problema real y repítelas antes de declarar éxito.
+    fallan, corrige el problema real y repítelas antes de declarar éxito. Usa
+    `project_check` para tests/análisis/formato configurados; no declares que una
+    comprobación pasó si fue omitida o no estaba disponible.
 
 Estilo:
 - Responde en el idioma del usuario.

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:chronoxai/domain/agent/agent_events.dart';
 import 'package:chronoxai/domain/agent/tool_registry.dart';
 import 'package:chronoxai/domain/plugins/builtin_plugins.dart';
@@ -8,9 +10,14 @@ import 'package:flutter_test/flutter_test.dart';
 
 class _MemoryFileSystem implements FileSystemSeam {
   final List<String> globPatterns = <String>[];
+  final Map<String, String> files = <String, String>{};
+  final Set<String> directories = <String>{'/workspace', '/workspace/test'};
 
   @override
-  Future<bool> exists(String path) async => path == '/workspace/lib/main.dart';
+  Future<bool> exists(String path) async =>
+      files.containsKey(path) ||
+      directories.contains(path) ||
+      path == '/workspace/lib/main.dart';
 
   @override
   Future<List<String>> glob(String pattern) async {
@@ -27,7 +34,8 @@ class _MemoryFileSystem implements FileSystemSeam {
       <String>['$path/lib', '$path/README.md'];
 
   @override
-  Future<String> readFile(String path) async => 'void main() {}';
+  Future<String> readFile(String path) async =>
+      files[path] ?? 'void main() {}';
 
   @override
   Future<void> writeFile(String path, String content) async {}
@@ -173,6 +181,49 @@ void main() {
       <String, Object?>{'terminal_id': 't1', 'wait_ms': 0},
     );
     expect(closed.metadata['is_alive'], isFalse);
+  });
+
+  test('project_check runs only configured checks for detected Node projects',
+      () async {
+    fileSystem.files['/workspace/package.json'] = jsonEncode(<String, Object?>{
+      'scripts': <String, String>{
+        'test': 'jest',
+        'lint': 'eslint .',
+        'format:check': 'prettier --check .',
+      },
+    });
+    expect(await host.mount('core-project-check'), isTrue);
+
+    final result = await registry.execute(
+      'project_check',
+      const <String, Object?>{'suite': 'all'},
+    );
+
+    expect(result.isError, isFalse);
+    expect(result.metadata['allPassed'], isTrue);
+    expect(shell.commands, <String>[
+      'npm test',
+      'npm run lint',
+      'npm run format:check',
+    ]);
+  });
+
+  test('project_check refuses ambiguous monorepos without running commands',
+      () async {
+    fileSystem.files['/workspace/package.json'] = jsonEncode(
+      <String, Object?>{'scripts': <String, String>{'test': 'jest'}},
+    );
+    fileSystem.files['/workspace/go.mod'] = 'module example.test/app';
+    expect(await host.mount('core-project-check'), isTrue);
+
+    final result = await registry.execute(
+      'project_check',
+      const <String, Object?>{'suite': 'tests'},
+    );
+
+    expect(result.isError, isTrue);
+    expect(result.content, contains('varios ecosistemas'));
+    expect(shell.commands, isEmpty);
   });
 
   test('git tools issue only fixed, read-only git commands', () async {

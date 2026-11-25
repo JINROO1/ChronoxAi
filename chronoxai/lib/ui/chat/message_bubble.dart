@@ -125,6 +125,7 @@ class _ToolCallBlockState extends State<_ToolCallBlock> {
     'grep': Icons.filter_alt_outlined,
     'list_dir': Icons.folder_open_outlined,
     'file_exists': Icons.fact_check_outlined,
+    'project_check': Icons.fact_check_outlined,
     'git_status': Icons.account_tree_outlined,
     'git_diff': Icons.difference_outlined,
     'git_log': Icons.history_rounded,

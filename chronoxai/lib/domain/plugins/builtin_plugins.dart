@@ -8,6 +8,7 @@ import 'mcp_command_parser.dart';
 import 'mcp_server_config.dart';
 import 'plugin_runtime.dart';
 import 'web_search_parser.dart';
+import 'project_check_plugin.dart';
 
 /// Herramientas del núcleo, empaquetadas como plugins.
 ///
@@ -1450,6 +1451,21 @@ List<BuiltinPlugin> builtinPlugins({
         icon: 'source',
       ),
       create: _GitPlugin.new,
+    ),
+    BuiltinPlugin(
+      manifest: manifest(
+        id: 'core-project-check',
+        name: 'Verificación del proyecto',
+        description: 'project_check (tests, análisis y formato)',
+        kind: PluginKind.tool,
+        capabilities: const <PluginCapability>[
+          PluginCapability.fileSystem,
+          PluginCapability.shell,
+        ],
+        requires: <String>['core-fs', 'core-shell'],
+        icon: 'fact_check',
+      ),
+      create: ProjectCheckPlugin.new,
     ),
     BuiltinPlugin(
       manifest: manifest(

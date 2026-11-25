@@ -306,7 +306,8 @@ void main() {
     expect(closed.metadata['is_alive'], isFalse);
   });
 
-  test('terminal_list exposes logical pid, duration, exit code, and output caps',
+  test(
+      'terminal_list exposes logical pid, duration, exit code, and output caps',
       () async {
     expect(await host.mount('core-terminal'), isTrue);
 
@@ -317,7 +318,8 @@ void main() {
     expect(result.content, contains('retenidos'));
   });
 
-  test('terminal_read reports when the requested cursor predates retained output',
+  test(
+      'terminal_read reports when the requested cursor predates retained output',
       () async {
     expect(await host.mount('core-terminal'), isTrue);
     terminals.output = 'world';

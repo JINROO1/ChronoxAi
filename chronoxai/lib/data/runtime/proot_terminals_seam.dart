@@ -38,7 +38,8 @@ class ProotTerminalsSeam implements TerminalsSeam {
       totalBytes += chunk.length;
       output.addAll(chunk);
       if (output.length > _AgentTerminal.maxOutputBytes) {
-        final normalized = utf8.encode(utf8.decode(output, allowMalformed: true));
+        final normalized =
+            utf8.encode(utf8.decode(output, allowMalformed: true));
         var bytesToDrop = normalized.length - _AgentTerminal.maxOutputBytes;
         while (bytesToDrop < normalized.length &&
             (normalized[bytesToDrop] & 0xc0) == 0x80) {

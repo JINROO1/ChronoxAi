@@ -118,7 +118,8 @@ void main() {
     expect(process.sizes, <(int, int)>[(40, 120)]);
   });
 
-  test('close is idempotent, terminates the child, and removes it from registry',
+  test(
+      'close is idempotent, terminates the child, and removes it from registry',
       () async {
     await session.start(
       binary: '/bin/sh',
@@ -149,7 +150,8 @@ void main() {
         required final Map<String, String> environment,
         required final int rows,
         required final int columns,
-      }) => process,
+      }) =>
+          process,
     );
     try {
       await journaledSession.start(

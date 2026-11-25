@@ -123,6 +123,7 @@ class PtySession {
     if (started == null) return null;
     return (_exitedAt ?? DateTime.now()).difference(started);
   }
+
   bool get isRunning => _state == PtyState.running;
 
   static List<Map<String, Object?>> listActive() => _active.entries
@@ -209,13 +210,17 @@ class PtySession {
     if (!_exit.isClosed) _exit.add(code);
     final journal = _journal;
     if (id != null && journal != null) {
-      _journalWrite = journal.finished(
-        id: _journalId ?? 'pty-$id',
-        state: _closing ? RuntimeProcessState.closed : RuntimeProcessState.exited,
-        outputBytes: _outputBytesProduced,
-        exitCode: code,
-        endedAt: _exitedAt!,
-      ).catchError((final Object _) {});
+      _journalWrite = journal
+          .finished(
+            id: _journalId ?? 'pty-$id',
+            state: _closing
+                ? RuntimeProcessState.closed
+                : RuntimeProcessState.exited,
+            outputBytes: _outputBytesProduced,
+            exitCode: code,
+            endedAt: _exitedAt!,
+          )
+          .catchError((final Object _) {});
       final write = _journalWrite;
       if (write != null) unawaited(write);
     }
@@ -253,7 +258,8 @@ class PtySession {
       } on TimeoutException {
         process.kill(ProcessSignal.sigkill);
         try {
-          _handleExit(await process.exitCode.timeout(const Duration(seconds: 1)));
+          _handleExit(
+              await process.exitCode.timeout(const Duration(seconds: 1)));
         } on TimeoutException {
           // El sistema terminará el hijo al destruir el motor/app.
         }

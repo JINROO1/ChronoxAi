@@ -8,7 +8,8 @@ void main() {
   late Directory directory;
 
   setUp(() async {
-    directory = await Directory.systemTemp.createTemp('chronox-process-journal-');
+    directory =
+        await Directory.systemTemp.createTemp('chronox-process-journal-');
   });
 
   tearDown(() async {
@@ -31,8 +32,8 @@ void main() {
       endedAt: startedAt.add(const Duration(seconds: 4)),
     );
 
-    final json = jsonDecode(await journal.file.readAsString())
-        as Map<String, Object?>;
+    final json =
+        jsonDecode(await journal.file.readAsString()) as Map<String, Object?>;
     final record = RuntimeProcessRecord.fromJson(
       (json['records']! as List<Object?>).single as Map<String, Object?>,
     );
@@ -65,10 +66,11 @@ void main() {
     expect(journal.records.single.state, RuntimeProcessState.orphaned);
     expect(journal.records.single.endedAt, isNotNull);
     expect(journal.records.single.exitCode, isNull);
-    final persisted = jsonDecode(await file.readAsString()) as Map<String, Object?>;
+    final persisted =
+        jsonDecode(await file.readAsString()) as Map<String, Object?>;
     expect(
       (((persisted['records']! as List<Object?>).single
-              as Map<String, Object?>)['state']),
+          as Map<String, Object?>)['state']),
       'orphaned',
     );
   });

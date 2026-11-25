@@ -599,15 +599,17 @@ class _TerminalPlugin extends ChronoxPlugin {
             content:
                 visibleOutput.isEmpty ? '(sin salida nueva)' : visibleOutput,
             metadata: <String, Object?>{
-              'next_offset': (offset < outputBaseOffset ? outputBaseOffset : offset) +
-                  visibleOutput.length,
+              'next_offset':
+                  (offset < outputBaseOffset ? outputBaseOffset : offset) +
+                      visibleOutput.length,
               'is_alive': currentInfo?.isAlive ?? false,
               'exit_code': currentInfo?.exitCode,
               'process_id': currentInfo?.processId,
               'started_at': currentInfo?.startedAt?.toIso8601String(),
               'output_base_offset': outputBaseOffset,
               'output_limit_chars': outputLimit,
-              'truncated': output.length > outputLimit || offset < outputBaseOffset,
+              'truncated':
+                  output.length > outputLimit || offset < outputBaseOffset,
             },
           );
         },

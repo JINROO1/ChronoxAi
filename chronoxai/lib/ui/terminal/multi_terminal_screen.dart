@@ -40,7 +40,8 @@ class _MultiTerminalScreenState extends ConsumerState<MultiTerminalScreen> {
   Future<void> _loadJournal() async {
     try {
       final runtime = await ref.read(localRuntimeProvider.future);
-      final journal = await RuntimeProcessJournal.open(runtime.paths.sessionsDir);
+      final journal =
+          await RuntimeProcessJournal.open(runtime.paths.sessionsDir);
       if (mounted) setState(() => _journal = journal);
     } catch (_) {
       // Failure to read history must not prevent opening a fresh terminal.

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'plugin_api.dart';
+import 'seams.dart';
 
 /// Runs bounded, read-only verification commands chosen from project metadata.
 /// It deliberately never installs dependencies or accepts arbitrary commands.

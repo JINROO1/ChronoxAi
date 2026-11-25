@@ -11,6 +11,10 @@ on:
         description: 'Compilar y subir el APK (tarda ~10 min)'
         type: boolean
         default: false
+      offline_gate:
+        description: 'Ejecutar verificación de artefactos y smoke test Android (puede tardar ~40 min)'
+        type: boolean
+        default: false
       runtime_arch:
         description: 'Arquitectura de los binarios proot (arm64 = móvil real, x86_64 = emulador)'
         type: choice
@@ -211,7 +215,8 @@ jobs:
     name: Offline Qwen model gate
     if: >-
       (github.event_name == 'push' && contains(github.event.head_commit.message, '[offline-gate]')) ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.title, '[offline-gate]'))
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.title, '[offline-gate]')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.offline_gate)
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -331,7 +336,8 @@ jobs:
     name: Offline Qwen Android API 28 emulator and JNI app smoke
     if: >-
       (github.event_name == 'push' && contains(github.event.head_commit.message, '[offline-gate]')) ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.title, '[offline-gate]'))
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.title, '[offline-gate]')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.offline_gate)
     runs-on: macos-15-intel
     timeout-minutes: 60
     env:

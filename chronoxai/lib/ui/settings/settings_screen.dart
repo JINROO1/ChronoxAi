@@ -793,7 +793,8 @@ Future<void> showNewSessionDialog(
 }
 
 class _NewSessionDialog extends ConsumerStatefulWidget {
-  const _NewSessionDialog({this.sessionId, this.workspacePath, this.projectPath});
+  const _NewSessionDialog(
+      {this.sessionId, this.workspacePath, this.projectPath});
 
   final String? sessionId;
   final String? workspacePath;
@@ -929,7 +930,8 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
             hostWorkspace: widget.workspacePath ?? runtime.hostWorkspace,
           ),
           terminals: ProotTerminalsSeam(runtime),
-          workspaceDir: Directory(widget.workspacePath ?? runtime.hostWorkspace),
+          workspaceDir:
+              Directory(widget.workspacePath ?? runtime.hostWorkspace),
           mcpServerUrl: settings.mcpServerUrl,
           mcpServerEnvironments: mcpEnvironments,
           startPluginProcess:
@@ -967,11 +969,16 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
         disabledPluginIds: ref.read(disabledPluginIdsProvider),
       );
       if (widget.projectPath != null) {
-        final projectFile = File(p.join(widget.projectPath!, '.chronox-project.json'));
-        final projectData = <String, Object?>{'name': p.basename(widget.projectPath!), 'lastSessionId': session.log.sessionId};
+        final projectFile =
+            File(p.join(widget.projectPath!, '.chronox-project.json'));
+        final projectData = <String, Object?>{
+          'name': p.basename(widget.projectPath!),
+          'lastSessionId': session.log.sessionId
+        };
         try {
           final old = jsonDecode(await projectFile.readAsString());
-          if (old is Map<String, dynamic> && old['name'] is String) projectData['name'] = old['name'];
+          if (old is Map<String, dynamic> && old['name'] is String)
+            projectData['name'] = old['name'];
         } on Object {
           // Create the metadata if the project predates the project manager.
         }

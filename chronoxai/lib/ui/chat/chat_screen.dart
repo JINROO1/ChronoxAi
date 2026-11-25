@@ -230,11 +230,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               children: <Widget>[
                 PopupMenuButton<String>(
                   onSelected: (action) {
-                    if (action == 'projects') showWorkspaceProjectsMenu(context, ref);
+                    if (action == 'projects')
+                      showWorkspaceProjectsMenu(context, ref);
                     if (action == 'new') showNewSessionDialog(context, ref);
                   },
                   itemBuilder: (_) => const <PopupMenuEntry<String>>[
-                    PopupMenuItem(value: 'projects', child: Text('Proyectos del Workspace')),
+                    PopupMenuItem(
+                        value: 'projects',
+                        child: Text('Proyectos del Workspace')),
                     PopupMenuItem(value: 'new', child: Text('Nueva sesión')),
                   ],
                   child: FilledButton.icon(

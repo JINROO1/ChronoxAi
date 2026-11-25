@@ -17,6 +17,19 @@ La app ya abstrae el modelo detrás de `LlmProvider`; se debe integrar el motor 
 
 ## Fase 0 — Verificar artefactos y compatibilidad (gate de decisión)
 
+### Investigación inicial (2026-11-23)
+
+| Dato | Resultado | Implicación |
+|---|---|---|
+| Nombres oficiales | El repositorio oficial de Qwen enumera `Qwen3.5-0.8B` y `Qwen3.5-2B` entre las variantes publicadas el 2026-03-02. | Los nombres pedidos corresponden a tamaños oficiales; en el producto mostraremos nombres oficiales y trataremos `qwen3.5:0.8b`/`:2b` solo como alias solicitados, no como IDs de artefacto. |
+| Runtime | Qwen declara que `llama.cpp` soporta Qwen3.5 texto+visión y recomienda GGUF; el árbol de `llama.cpp` contiene implementación `src/models/qwen35.cpp` y conversión/tokenizer Qwen35. | `llama.cpp` es candidato viable para el spike; aún falta probar los archivos exactos y su API embebida en un teléfono Android. |
+| Android | `llama.cpp` publica documentación, ejemplo Android y workflow de compilación Android. | Hay precedente técnico para ARM Android; no prueba todavía integración en esta app, consumo en el dispositivo mínimo ni rendimiento. |
+| Licencia | El repositorio público de Qwen3.8 declara Apache-2.0. | No asumir que la licencia del repositorio cubre automáticamente cada peso/model card: verificar la licencia de los dos artefactos exactos antes de redistribuirlos. |
+
+Fuentes upstream consultadas: [Qwen official repository and model list](https://github.com/QwenLM/Qwen3.8), [Qwen model license file](https://github.com/QwenLM/Qwen3.8/blob/main/LICENSE), [llama.cpp Qwen3.5 implementation](https://github.com/ggml-org/llama.cpp/blob/master/src/models/qwen35.cpp), [llama.cpp Android guide](https://github.com/ggml-org/llama.cpp/blob/master/docs/android.md), [llama.cpp Android example](https://github.com/ggml-org/llama.cpp/tree/master/examples/llama.android). La documentación oficial enlaza las tarjetas de modelos en Hugging Face/ModelScope, pero todavía no se verificaron las tarjetas ni un GGUF concreto con checksum.
+
+**Estado del gate: EN PROGRESO; no empezar la Fase 1 todavía.** Ya se confirmó existencia oficial de los dos tamaños y soporte upstream de Qwen3.5 en llama.cpp/Android. Pendiente: capturar los IDs y revisiones exactos de 0.8B y 2B, artefacto GGUF concreto para cada uno, template/tokenizer/contexto, licencias por modelo, tamaño+SHA-256, cuantización y un test de carga/generación del archivo exacto en ARM64. No iniciar descargas de pesos grandes ni elegir variante de runtime por intuición.
+
 1. Resolver qué archivos exactos corresponden a `qwen3.5:0.8b` y `qwen3.5:2b`: formato, versión, tokenizer, contexto, licencia, origen, checksum y requisitos de RAM/almacenamiento.
 2. Confirmar compatibilidad del runtime candidato con la arquitectura Qwen 3.5 y el formato/quantización real; confirmar soporte Android NDK para las ABI que compila ChronoxAI.
 3. Fijar dispositivos mínimos de prueba (al menos un teléfono ARM64 real) y presupuesto de RAM, almacenamiento y latencia aceptables.

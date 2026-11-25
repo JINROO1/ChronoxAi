@@ -190,6 +190,7 @@ class _ProjectsSheetState extends State<_ProjectsSheet> {
         }
       }
       final bytes = ZipEncoder().encode(archive);
+      if (bytes == null) throw StateError('No se pudo generar el archivo ZIP.');
       final temp =
           await Directory.systemTemp.createTemp('chronox-project-export-');
       final zip =

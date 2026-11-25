@@ -768,9 +768,10 @@ class _EditingPlugin extends ChronoxPlugin {
               timeout: const Duration(minutes: 2),
             );
             if (!preflight.isSuccess) {
-              return ToolOutcome.error(
-                'Patch rechazado antes de escribir. STDOUT: ${preflight.stdout} '
-                'STDERR: ${preflight.stderr}',
+              return ToolOutcome(
+                content: 'Patch rechazado antes de escribir. '
+                    'STDOUT: ${preflight.stdout} STDERR: ${preflight.stderr}',
+                isError: true,
                 metadata: <String, Object?>{'exitCode': preflight.exitCode},
               );
             }

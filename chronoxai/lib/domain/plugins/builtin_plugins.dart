@@ -497,6 +497,13 @@ class _GitPlugin extends ChronoxPlugin {
 class _TerminalPlugin extends ChronoxPlugin {
   _TerminalPlugin();
 
+  static String _durationLabel(final Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return hours > 0 ? '$hours:$minutes:$seconds' : '$minutes:$seconds';
+  }
+
   @override
   Future<void> mount(final PluginContext context) async {
     context.provideTool(
@@ -563,7 +570,7 @@ class _TerminalPlugin extends ChronoxPlugin {
           final waitMs = ((args['wait_ms'] as int?) ?? 0).clamp(0, 15000);
           final deadline = DateTime.now().add(Duration(milliseconds: waitMs));
           var output = '';
-          var isAlive = true;
+          TerminalInfo? currentInfo;
           do {
             output = await context.services.terminals.read(
               terminalId,
@@ -571,15 +578,19 @@ class _TerminalPlugin extends ChronoxPlugin {
             );
             if (output.isNotEmpty) break;
             final terminals = await context.services.terminals.list();
-            final current =
-                terminals.where((final item) => item.id == terminalId);
-            if (current.isEmpty || !current.first.isAlive) {
-              isAlive = false;
-              break;
-            }
+            final matches =
+                terminals.where((final item) => item.id == terminalId).toList();
+            currentInfo = matches.isEmpty ? null : matches.first;
+            if (currentInfo == null || !currentInfo.isAlive) break;
             if (DateTime.now().isAfter(deadline)) break;
             await Future<void>.delayed(const Duration(milliseconds: 200));
           } while (DateTime.now().isBefore(deadline));
+          final latestTerminals = await context.services.terminals.list();
+          final latestMatches = latestTerminals
+              .where((final item) => item.id == terminalId)
+              .toList();
+          currentInfo = latestMatches.isEmpty ? null : latestMatches.first;
+          final outputBaseOffset = currentInfo?.outputBaseOffset ?? 0;
           const outputLimit = 10000;
           final visibleOutput = output.length > outputLimit
               ? output.substring(0, outputLimit)
@@ -588,9 +599,15 @@ class _TerminalPlugin extends ChronoxPlugin {
             content:
                 visibleOutput.isEmpty ? '(sin salida nueva)' : visibleOutput,
             metadata: <String, Object?>{
-              'next_offset': offset + visibleOutput.length,
-              'is_alive': isAlive,
-              'truncated': output.length > outputLimit,
+              'next_offset': (offset < outputBaseOffset ? outputBaseOffset : offset) +
+                  visibleOutput.length,
+              'is_alive': currentInfo?.isAlive ?? false,
+              'exit_code': currentInfo?.exitCode,
+              'process_id': currentInfo?.processId,
+              'started_at': currentInfo?.startedAt?.toIso8601String(),
+              'output_base_offset': outputBaseOffset,
+              'output_limit_chars': outputLimit,
+              'truncated': output.length > outputLimit || offset < outputBaseOffset,
             },
           );
         },
@@ -609,10 +626,23 @@ class _TerminalPlugin extends ChronoxPlugin {
           }
           final lines = <String>[];
           for (final terminal in terminals) {
-            final state = terminal.isAlive ? 'activa' : 'cerrada';
+            final state = terminal.isAlive
+                ? 'activa'
+                : 'cerrada (código ${terminal.exitCode ?? 'desconocido'})';
+            final elapsed = terminal.startedAt == null
+                ? '—'
+                : _durationLabel(
+                    (terminal.exitedAt ?? DateTime.now().toUtc())
+                        .difference(terminal.startedAt!),
+                  );
+            final retained = terminal.retainedBytes == null
+                ? ''
+                : ' · retenidos ${terminal.retainedBytes}/${terminal.outputLimitBytes} bytes';
             lines.add(
               '${terminal.id} · ${terminal.title} · $state · '
-              '${terminal.bytesProduced} bytes',
+              'PID lógico ${terminal.processId ?? '—'} · $elapsed · '
+              '${terminal.bytesProduced} bytes totales$retained'
+              '${terminal.outputBaseOffset > 0 ? ' · salida anterior truncada' : ''}',
             );
           }
           return ToolOutcome(content: lines.join('\n'));

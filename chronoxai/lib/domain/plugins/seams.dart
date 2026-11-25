@@ -68,12 +68,29 @@ class TerminalInfo {
     required this.title,
     required this.isAlive,
     required this.bytesProduced,
+    this.processId,
+    this.startedAt,
+    this.exitedAt,
+    this.exitCode,
+    this.outputBaseOffset = 0,
+    this.retainedBytes,
+    this.outputLimitBytes,
   });
 
   final String id;
   final String title;
   final bool isAlive;
+  /// Total bytes produced during this process lifetime.
   final int bytesProduced;
+  /// App-assigned logical process id; it is not an OS PID.
+  final int? processId;
+  final DateTime? startedAt;
+  final DateTime? exitedAt;
+  final int? exitCode;
+  /// Earliest retained output offset in decoded characters.
+  final int outputBaseOffset;
+  final int? retainedBytes;
+  final int? outputLimitBytes;
 }
 
 /// `ctx.llm` — adaptador de modelo.

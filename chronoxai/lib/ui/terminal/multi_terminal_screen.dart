@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
+import '../../data/runtime/runtime_process_journal.dart';
 import '../state/app_state.dart';
 import 'terminal_controller.dart';
 import 'terminal_view.dart';
@@ -23,11 +24,27 @@ class _MultiTerminalScreenState extends ConsumerState<MultiTerminalScreen> {
   final List<TerminalController> _terminals = <TerminalController>[];
   int _selected = 0;
   bool _opening = false;
+  Timer? _elapsedTimer;
+  RuntimeProcessJournal? _journal;
 
   @override
   void initState() {
     super.initState();
+    _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (final _) {
+      if (mounted && _terminals.isNotEmpty) setState(() {});
+    });
+    unawaited(_loadJournal());
     unawaited(_addTerminal());
+  }
+
+  Future<void> _loadJournal() async {
+    try {
+      final runtime = await ref.read(localRuntimeProvider.future);
+      final journal = await RuntimeProcessJournal.open(runtime.paths.sessionsDir);
+      if (mounted) setState(() => _journal = journal);
+    } catch (_) {
+      // Failure to read history must not prevent opening a fresh terminal.
+    }
   }
 
   Future<void> _addTerminal() async {
@@ -81,8 +98,16 @@ class _MultiTerminalScreenState extends ConsumerState<MultiTerminalScreen> {
     }
   }
 
+  String _formatDuration(final Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return hours > 0 ? '$hours:$minutes:$seconds' : '$minutes:$seconds';
+  }
+
   @override
   void dispose() {
+    _elapsedTimer?.cancel();
     for (final terminal in _terminals) {
       unawaited(terminal.disposeSession());
       terminal.dispose();
@@ -93,6 +118,8 @@ class _MultiTerminalScreenState extends ConsumerState<MultiTerminalScreen> {
   @override
   Widget build(BuildContext context) {
     final active = _terminals.isEmpty ? null : _terminals[_selected];
+    final journalRecords = _journal?.records.reversed.take(8).toList() ??
+        const <RuntimeProcessRecord>[];
     return Scaffold(
       appBar: AppBar(
         title: const Text('Terminal'),
@@ -132,6 +159,48 @@ class _MultiTerminalScreenState extends ConsumerState<MultiTerminalScreen> {
                   selectedColor: ChronoxColors.primary.withOpacity(.18),
                 ),
               ),
+            ),
+          if (active != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              color: ChronoxColors.surface,
+              child: Wrap(
+                spacing: 14,
+                runSpacing: 4,
+                children: <Widget>[
+                  Text('Estado: ${active.state.status.name}'),
+                  Text('PID lógico: ${active.logicalProcessId ?? '—'}'),
+                  Text(
+                    'Tiempo: ${active.startedAt == null ? '—' : _formatDuration((active.exitedAt ?? DateTime.now()).difference(active.startedAt!))}',
+                  ),
+                  Text('Salida total: ${active.outputBytesProduced} bytes'),
+                  Text(
+                    'Scrollback: ${active.retainedLines}/${active.scrollbackLimitLines} líneas',
+                  ),
+                  if (active.state.exitCode != null)
+                    Text('Código de salida: ${active.state.exitCode}'),
+                ],
+              ),
+            ),
+          if (journalRecords.isNotEmpty)
+            ExpansionTile(
+              title: const Text('Historial de procesos'),
+              subtitle: const Text(
+                'Solo metadatos; las sesiones muertas no se reanudan.',
+              ),
+              children: <Widget>[
+                for (final record in journalRecords)
+                  ListTile(
+                    dense: true,
+                    title: Text('${record.title} · ${record.state.name}'),
+                    subtitle: Text(
+                      '${record.startedAt.toLocal()} · ${record.outputBytes} bytes'
+                      '${record.exitCode == null ? '' : ' · código ${record.exitCode}'}'
+                      '${record.state == RuntimeProcessState.orphaned ? ' · proceso perdido al reiniciar' : ''}',
+                    ),
+                  ),
+              ],
             ),
           const Divider(height: 1),
           Expanded(

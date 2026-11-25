@@ -71,6 +71,7 @@ class _RecordingNetwork implements NetworkSeam {
 class _RecordingTerminals implements TerminalsSeam {
   String output = 'hello world';
   bool isAlive = true;
+  int outputBaseOffset = 0;
 
   @override
   Future<void> close(String terminalId) async {}
@@ -81,7 +82,14 @@ class _RecordingTerminals implements TerminalsSeam {
           id: 't1',
           title: 'test',
           isAlive: isAlive,
-          bytesProduced: output.length,
+          bytesProduced: output.length + outputBaseOffset,
+          processId: 42,
+          startedAt: DateTime.utc(2026, 11, 23, 12),
+          exitedAt: isAlive ? null : DateTime.utc(2026, 11, 23, 12, 1),
+          exitCode: isAlive ? null : 0,
+          outputBaseOffset: outputBaseOffset,
+          retainedBytes: output.length,
+          outputLimitBytes: 1024 * 1024,
         ),
       ];
 
@@ -90,7 +98,8 @@ class _RecordingTerminals implements TerminalsSeam {
 
   @override
   Future<String> read(String terminalId, {int? sinceOffset}) async {
-    final offset = (sinceOffset ?? 0).clamp(0, output.length);
+    final offset = ((sinceOffset ?? outputBaseOffset) - outputBaseOffset)
+        .clamp(0, output.length);
     return output.substring(offset);
   }
 
@@ -285,6 +294,8 @@ void main() {
     );
     expect(chunk.content, 'world');
     expect(chunk.metadata['next_offset'], 11);
+    expect(chunk.metadata['process_id'], 42);
+    expect(chunk.metadata['output_limit_chars'], 10000);
 
     terminals.output = '';
     terminals.isAlive = false;
@@ -293,6 +304,34 @@ void main() {
       <String, Object?>{'terminal_id': 't1', 'wait_ms': 0},
     );
     expect(closed.metadata['is_alive'], isFalse);
+  });
+
+  test('terminal_list exposes logical pid, duration, exit code, and output caps',
+      () async {
+    expect(await host.mount('core-terminal'), isTrue);
+
+    final result = await registry.execute('terminal_list', const {});
+
+    expect(result.content, contains('PID lógico 42'));
+    expect(result.content, contains('bytes totales'));
+    expect(result.content, contains('retenidos'));
+  });
+
+  test('terminal_read reports when the requested cursor predates retained output',
+      () async {
+    expect(await host.mount('core-terminal'), isTrue);
+    terminals.output = 'world';
+    terminals.outputBaseOffset = 6;
+
+    final result = await registry.execute(
+      'terminal_read',
+      const <String, Object?>{'terminal_id': 't1', 'since_offset': 0},
+    );
+
+    expect(result.content, 'world');
+    expect(result.metadata['output_base_offset'], 6);
+    expect(result.metadata['next_offset'], 11);
+    expect(result.metadata['truncated'], isTrue);
   });
 
   test('project_check runs only configured checks for detected Node projects',

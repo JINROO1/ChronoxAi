@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../data/runtime/local_runtime.dart';
 import '../../data/runtime/pty_session.dart';
+import '../../data/runtime/runtime_process_journal.dart';
 import '../../domain/terminal/terminal_buffer.dart';
 
 /// Estado observable de la terminal.
@@ -17,6 +18,7 @@ class TerminalViewState {
     this.status = TerminalStatus.starting,
     this.message = '',
     this.canType = false,
+    this.exitCode,
   });
 
   /// Líneas a pintar, ya recortadas.
@@ -36,6 +38,7 @@ class TerminalViewState {
 
   /// `true` si el proceso acepta entrada.
   final bool canType;
+  final int? exitCode;
 }
 
 /// En qué situación está la terminal.
@@ -87,6 +90,13 @@ class TerminalController extends ChangeNotifier {
   );
 
   TerminalViewState get state => _state;
+  int? get logicalProcessId => _session?.id;
+  DateTime? get startedAt => _session?.startedAt;
+  DateTime? get exitedAt => _session?.exitedAt;
+  int get outputBytesProduced => _totalOutputBytes;
+  int get scrollbackLimitLines => _buffer.rows;
+  int get retainedLines => _buffer.lines.length;
+  int _totalOutputBytes = 0;
 
   /// `true` si merece la pena ofrecer el reintento.
   bool get canRetry =>
@@ -122,10 +132,16 @@ class TerminalController extends ChangeNotifier {
 
     // El PTY nativo hace que bash detecte stdin como terminal real; ya no se
     // depende de `script(1)` ni de que bsdutils exista dentro del rootfs.
-    final session = PtySession(command: 'proot → bash');
+    final journal = await RuntimeProcessJournal.open(runtime.paths.sessionsDir);
+    final session = PtySession(
+      command: 'proot → bash',
+      journal: journal,
+    );
     _session = session;
 
+    _totalOutputBytes = 0;
     _suscripcionesSalida.add(session.output.listen((final bytes) {
+      _totalOutputBytes += bytes.length;
       _buffer.writeBytes(bytes);
       _publicarEstado();
     }));
@@ -215,6 +231,7 @@ class TerminalController extends ChangeNotifier {
             ? ''
             : 'La sesión terminó (código $code). Pulsa reintentar para abrir otra.',
         canType: code == null,
+        exitCode: code,
       ),
     );
   }

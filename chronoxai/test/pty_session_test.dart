@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:chronoxai/data/runtime/pty_session.dart';
+import 'package:chronoxai/data/runtime/runtime_process_journal.dart';
 import 'package:chronoxai/domain/terminal/control_keys.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -117,6 +118,66 @@ void main() {
     expect(process.sizes, <(int, int)>[(40, 120)]);
   });
 
+  test('close is idempotent, terminates the child, and removes it from registry',
+      () async {
+    await session.start(
+      binary: '/bin/sh',
+      arguments: const <String>[],
+      environment: const <String, String>{},
+    );
+
+    await session.close();
+    await session.close();
+
+    expect(session.state, PtyState.exited);
+    expect(session.exitCode, 0);
+    expect(await session.write('ignored'), isFalse);
+    expect(PtySession.listActive(), isEmpty);
+  });
+
+  test('publishes logical id, timing and exit status to process journal',
+      () async {
+    final temp = await Directory.systemTemp.createTemp('chronox-pty-journal-');
+    final journal = await RuntimeProcessJournal.open(temp.path);
+    final journaledSession = PtySession(
+      command: 'journal-test',
+      journal: journal,
+      processFactory: ({
+        required final String executable,
+        required final List<String> arguments,
+        required final String workingDirectory,
+        required final Map<String, String> environment,
+        required final int rows,
+        required final int columns,
+      }) => process,
+    );
+    try {
+      await journaledSession.start(
+        binary: '/bin/sh',
+        arguments: const <String>[],
+        environment: const <String, String>{},
+      );
+      final processId = journaledSession.id;
+      expect(processId, isNotNull);
+      expect(journaledSession.startedAt, isNotNull);
+      expect(journal.records.single.state, RuntimeProcessState.running);
+      process.outputController.add(Uint8List.fromList('hello'.codeUnits));
+      process.exitCompleter.complete(13);
+      await Future<void>.delayed(Duration.zero);
+      await journal.flush();
+
+      expect(journaledSession.exitCode, 13);
+      expect(journaledSession.outputBytesProduced, 5);
+      expect(journaledSession.duration, isNotNull);
+      expect(journal.records.single.state, RuntimeProcessState.exited);
+      expect(journal.records.single.exitCode, 13);
+      expect(journal.records.single.outputBytes, 5);
+    } finally {
+      await journaledSession.close();
+      await temp.delete(recursive: true);
+    }
+  });
+
   test('exit event is published and session is removed from active list',
       () async {
     await session
@@ -127,6 +188,10 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(codes, <int>[7]);
     expect(session.state, PtyState.exited);
+    expect(session.exitCode, 7);
+    expect(session.startedAt, isNotNull);
+    expect(session.exitedAt, isNotNull);
+    expect(session.duration, isNotNull);
     expect(PtySession.listActive(), isEmpty);
   });
 }

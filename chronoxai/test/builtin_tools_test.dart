@@ -269,7 +269,8 @@ void main() {
       const <String, Object?>{},
     );
     expect(rolledBack.isError, isFalse);
-    expect(shell.commands.single, contains("rm -f -- '/workspace/new-file.txt'"));
+    expect(
+        shell.commands.single, contains("rm -f -- '/workspace/new-file.txt'"));
   });
 
   test('write rejects paths that escape the workspace', () async {

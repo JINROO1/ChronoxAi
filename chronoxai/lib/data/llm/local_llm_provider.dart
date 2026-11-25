@@ -197,7 +197,8 @@ List<LlmMessage> _normalizeLocalHistory(List<LlmMessage> messages) {
                 'arguments': call.arguments,
               })
           .toList();
-      final record = '<tool-call-history>${jsonEncode(calls)}</tool-call-history>';
+      final record =
+          '<tool-call-history>${jsonEncode(calls)}</tool-call-history>';
       return LlmMessage.assistant(
         message.content.isEmpty ? record : '${message.content}\n$record',
         reasoning: message.reasoning,

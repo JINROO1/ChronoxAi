@@ -108,8 +108,8 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
   Future<void> _remove(LocalModelSpec spec) async {
     final settings = ref.read(providerSettingsProvider);
     final activeProvider = ref.read(sessionProvider)?.provider;
-    final modelInUse = activeProvider is LocalLlmProvider &&
-        activeProvider.model == spec.id;
+    final modelInUse =
+        activeProvider is LocalLlmProvider && activeProvider.model == spec.id;
     if (modelInUse ||
         (settings.kind == ProviderKind.local && settings.model == spec.id)) {
       setState(() => _error =

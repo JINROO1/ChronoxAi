@@ -237,9 +237,10 @@ ChronoxPlugin fsPlugin() => _FsPlugin(
             final safePath = _workspacePath(path);
             final journal = context.services.changeJournal.originals;
             if (!journal.containsKey(safePath)) {
-              journal[safePath] = await context.services.fileSystem.exists(safePath)
-                  ? await context.services.fileSystem.readFile(safePath)
-                  : null;
+              journal[safePath] =
+                  await context.services.fileSystem.exists(safePath)
+                      ? await context.services.fileSystem.readFile(safePath)
+                      : null;
             }
             await context.services.fileSystem.writeFile(safePath, content);
             final lines = content.split('\n').length;
@@ -638,34 +639,32 @@ class _TerminalPlugin extends ChronoxPlugin {
 // ---------------------------------------------------------------------------
 
 String _workspacePath(final String input) {
-    if (input.contains("'") || input.contains('\n') || input.contains('\r')) {
-      throw ArgumentError('La ruta contiene caracteres no admitidos.');
-    }
-    final raw = input.startsWith('/') ? input : '/workspace/$input';
-    final segments = <String>[];
-    for (final segment in raw.split('/')) {
-      if (segment.isEmpty || segment == '.') continue;
-      if (segment == '..') {
-        if (segments.isEmpty) throw ArgumentError('Ruta fuera del workspace.');
-        segments.removeLast();
-      } else {
-        segments.add(segment);
-      }
-    }
-    final normalized = '/${segments.join('/')}';
-    if (normalized != '/workspace' && !normalized.startsWith('/workspace/')) {
-      throw ArgumentError('Ruta fuera del workspace: $input');
-    }
-    return normalized;
+  if (input.contains("'") || input.contains('\n') || input.contains('\r')) {
+    throw ArgumentError('La ruta contiene caracteres no admitidos.');
   }
-
+  final raw = input.startsWith('/') ? input : '/workspace/$input';
+  final segments = <String>[];
+  for (final segment in raw.split('/')) {
+    if (segment.isEmpty || segment == '.') continue;
+    if (segment == '..') {
+      if (segments.isEmpty) throw ArgumentError('Ruta fuera del workspace.');
+      segments.removeLast();
+    } else {
+      segments.add(segment);
+    }
+  }
+  final normalized = '/${segments.join('/')}';
+  if (normalized != '/workspace' && !normalized.startsWith('/workspace/')) {
+    throw ArgumentError('Ruta fuera del workspace: $input');
+  }
+  return normalized;
+}
 
 class _EditingPlugin extends ChronoxPlugin {
   _EditingPlugin();
 
   /// Primer estado visto en la sesión para cada ruta que modificamos.
   late Map<String, String?> _originals;
-
 
   Future<void> _remember(
     final PluginContext context,
@@ -748,7 +747,8 @@ class _EditingPlugin extends ChronoxPlugin {
             return const ToolOutcome.error(
               'El patch no contiene cabeceras de fichero reconocidas.',
               errorCategory: 'invalid_arguments',
-              recoveryHint: 'Envía un diff unificado con rutas bajo /workspace.',
+              recoveryHint:
+                  'Envía un diff unificado con rutas bajo /workspace.',
             );
           }
           final stamp = DateTime.now().microsecondsSinceEpoch;
@@ -822,7 +822,8 @@ class _EditingPlugin extends ChronoxPlugin {
         }),
         execute: (final _) async {
           if (_originals.isEmpty) {
-            return const ToolOutcome(content: 'No hay cambios de sesión que revertir.');
+            return const ToolOutcome(
+                content: 'No hay cambios de sesión que revertir.');
           }
           final paths = _originals.keys.toList().reversed.toList();
           final failures = <String>[];
@@ -847,7 +848,8 @@ class _EditingPlugin extends ChronoxPlugin {
               'Reversión parcial; fallaron: ${failures.join(', ')}. '
               'El registro se conserva para volver a intentar.',
               errorCategory: 'process_failed',
-              recoveryHint: 'Inspecciona permisos y rutas; no borres el registro de reversión.',
+              recoveryHint:
+                  'Inspecciona permisos y rutas; no borres el registro de reversión.',
             );
           }
           _originals.clear();

@@ -49,6 +49,7 @@ class WorkspaceIndex {
   int skippedFiles = 0;
   int scanDurationMs = 0;
   bool truncated = false;
+  final List<String> skippedPaths = <String>[];
 
   int get fileCount => _files.length;
   int get cachedCharacters => _files.values
@@ -67,6 +68,7 @@ class WorkspaceIndex {
     var totalCharacters = 0;
     updatedFiles = 0;
     skippedFiles = discovered.length - paths.length;
+    skippedPaths.clear();
 
     for (final path in paths) {
       if (totalCharacters >= maxTotalCharacters) {
@@ -96,8 +98,9 @@ class WorkspaceIndex {
           next[path] = IndexedSourceFile.parse(path, content);
           updatedFiles++;
         }
-      } catch (_) {
+      } catch (error) {
         skippedFiles++;
+        skippedPaths.add('$path: $error');
       }
     }
     _files = next;
@@ -271,7 +274,7 @@ class IndexedSourceFile {
     }
     if (language == 'dart') {
       patterns.add(RegExp(
-        r'^\s*(?:Future(?:<[^>]+>)?|void|int|String|bool|dynamic|[A-Z]\w*(?:<[^>]+>)?)\s+(?<name>[A-Za-z_$]\w*)\s*\(',
+        r'^\s*(?<kind>Future(?:<[^>]+>)?|void|int|String|bool|dynamic|[A-Z]\w*(?:<[^>]+>)?)\s+(?<name>[A-Za-z_$]\w*)\s*\(',
       ));
     }
     return patterns;

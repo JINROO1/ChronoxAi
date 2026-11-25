@@ -155,6 +155,7 @@ class WorkspaceIndexPlugin extends ChronoxPlugin {
         'indexedFiles': index.fileCount,
         'updatedFiles': index.updatedFiles,
         'skippedFiles': index.skippedFiles,
+        'skippedPaths': index.skippedPaths.take(10).toList(),
         'truncated': index.truncated,
         'cachedCharacters': index.cachedCharacters,
         'scanDurationMs': index.scanDurationMs,

@@ -60,7 +60,7 @@ void main() {
 
     await index.refresh();
 
-    expect(index.fileCount, 5);
+    expect(index.fileCount, 5, reason: index.skippedPaths.join('; '));
     expect(index.symbols(query: 'Checkout').map((final s) => s.name),
         containsAll(<String>['CheckoutService', 'CheckoutHandler']));
     expect(index.symbols(query: 'submit').map((final s) => s.name),

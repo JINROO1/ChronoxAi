@@ -93,7 +93,8 @@ class LocalModelStore {
       if (installation.spec.id == id) {
         final actualHash = await _hashFile(installation.file);
         if (actualHash != installation.spec.sha256) {
-          throw const FileSystemException('El SHA-256 del modelo instalado ya no coincide.');
+          throw const FileSystemException(
+              'El SHA-256 del modelo instalado ya no coincide.');
         }
         return installation.file;
       }

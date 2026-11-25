@@ -274,7 +274,7 @@ jobs:
               -DLLAMA_BUILD_COMMON=ON \
               -DLLAMA_BUILD_EXAMPLES=ON \
               -DLLAMA_BUILD_SERVER=OFF &&
-            cmake --build "$RUNNER_TEMP/llama-host" --target llama-cli --parallel 2
+            cmake --build "$RUNNER_TEMP/llama-host" --target llama-simple --parallel 2
           } > "$RUNNER_TEMP/llama-host-build.log" 2>&1
           rc=$?
           cat "$RUNNER_TEMP/llama-host-build.log"
@@ -294,11 +294,9 @@ jobs:
           set -euo pipefail
           for size in 0.8B 2B; do
             model="$RUNNER_TEMP/qwen-models/Qwen3.5-${size}-Q4_K_M.gguf"
-            "$RUNNER_TEMP/llama-host/bin/llama-cli" \
-              --model "$model" \
-              --prompt 'Responde en español con un saludo breve.' \
-              --ctx-size 512 --n-predict 8 --threads 2 \
-              --no-display-prompt --simple-io \
+            "$RUNNER_TEMP/llama-host/bin/llama-simple" \
+              -m "$model" -n 8 -ngl 0 \
+              'Responde en español con un saludo breve.' \
               > "$RUNNER_TEMP/qwen-${size}.txt" 2> "$RUNNER_TEMP/qwen-${size}.log"
             test -s "$RUNNER_TEMP/qwen-${size}.txt"
             echo "### Qwen ${size}: carga y generación host OK" >> "$GITHUB_STEP_SUMMARY"

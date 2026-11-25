@@ -225,7 +225,7 @@ jobs:
 
       - uses: android-actions/setup-android@v3
         with:
-          packages: 'ndk;27.2.12479018, cmake;3.31.6'
+          packages: 'ndk;27.2.12479018 cmake;3.31.6'
 
       - name: Descargar artefactos fijados y verificar bytes
         shell: bash

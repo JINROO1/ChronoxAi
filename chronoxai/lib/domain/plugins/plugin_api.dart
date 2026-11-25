@@ -264,8 +264,8 @@ class PluginServices {
     this.llm,
     this.session,
     this.network,
-    this.changeJournal = WorkspaceChangeJournal(),
-  });
+    final WorkspaceChangeJournal? changeJournal,
+  }) : changeJournal = changeJournal ?? WorkspaceChangeJournal();
 
   final ToolRegistry registry;
   final Map<String, PluginSkill> skills;

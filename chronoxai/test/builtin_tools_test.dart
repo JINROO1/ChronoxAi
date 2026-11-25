@@ -223,7 +223,7 @@ void main() {
 
     expect(fetched.isError, isFalse);
     expect(fetched.content, contains('[W1]'));
-    expect(fetched.content, contains('Title: Evidence'));
+    expect(fetched.content, contains('Título: Evidence'));
     expect(fetched.content, contains('Verified fact.'));
     expect(fetched.content, contains('Acceso UTC:'));
     expect(fetched.content, isNot(contains('malicious instruction')));

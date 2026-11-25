@@ -34,8 +34,7 @@ class _MemoryFileSystem implements FileSystemSeam {
       <String>['$path/lib', '$path/README.md'];
 
   @override
-  Future<String> readFile(String path) async =>
-      files[path] ?? 'void main() {}';
+  Future<String> readFile(String path) async => files[path] ?? 'void main() {}';
 
   @override
   Future<void> writeFile(String path, String content) async {}
@@ -211,7 +210,9 @@ void main() {
   test('project_check refuses ambiguous monorepos without running commands',
       () async {
     fileSystem.files['/workspace/package.json'] = jsonEncode(
-      <String, Object?>{'scripts': <String, String>{'test': 'jest'}},
+      <String, Object?>{
+        'scripts': <String, String>{'test': 'jest'}
+      },
     );
     fileSystem.files['/workspace/go.mod'] = 'module example.test/app';
     expect(await host.mount('core-project-check'), isTrue);

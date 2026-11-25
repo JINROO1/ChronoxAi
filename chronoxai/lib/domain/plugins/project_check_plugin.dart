@@ -50,8 +50,8 @@ class ProjectCheckPlugin extends ChronoxPlugin {
           final shell = context.services.shell;
           final suite = (args['suite'] as String?) ?? 'all';
           final requestedEcosystem = (args['ecosystem'] as String?) ?? 'auto';
-          final timeoutMs = ((args['timeout_ms'] as int?) ?? 300000)
-              .clamp(10000, 900000);
+          final timeoutMs =
+              ((args['timeout_ms'] as int?) ?? 300000).clamp(10000, 900000);
 
           final detection = await _detect(fs);
           if (requestedEcosystem == 'auto' && detection.found.isEmpty) {
@@ -225,7 +225,8 @@ class ProjectCheckPlugin extends ChronoxPlugin {
             : await fs.exists('/workspace/yarn.lock')
                 ? 'yarn'
                 : 'npm';
-        commands['tests'] = scripts.containsKey('test') ? '$manager test' : null;
+        commands['tests'] =
+            scripts.containsKey('test') ? '$manager test' : null;
         commands['analyze'] = scripts.containsKey('lint')
             ? '$manager run lint'
             : scripts.containsKey('typecheck')
@@ -256,7 +257,8 @@ class ProjectCheckPlugin extends ChronoxPlugin {
         commands.addAll(<String, String?>{
           'tests': 'go test ./...',
           'analyze': 'go vet ./...',
-          'format': "files=\$(gofmt -l .); if [ -n \"\$files\" ]; then printf '%s\\n' \"\$files\"; exit 1; fi",
+          'format':
+              "files=\$(gofmt -l .); if [ -n \"\$files\" ]; then printf '%s\\n' \"\$files\"; exit 1; fi",
         });
       case 'rust':
         commands.addAll(<String, String?>{

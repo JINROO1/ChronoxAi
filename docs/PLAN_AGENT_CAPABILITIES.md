@@ -1,6 +1,6 @@
 # Plan de capacidades avanzadas del agente
 
-Estado: secuencia incremental; completar y validar una fase antes de empezar la siguiente. Fase 1 implementada y validada (279 tests). Fase 2 implementada y validada en CI (284 tests, analyze, format y Runtime Linux pasan). Fase 3 implementada y validada en CI (290 tests, analyze, format y Runtime Linux). Fase 4 implementada y validada en CI (295 tests, Analyze, Format y Runtime Linux). Fase 5 implementada y validada en CI (304 tests, Analyze, Format y Runtime Linux). Fase 6 implementada y validada en CI (308 tests, Analyze, Format y Runtime Linux). Fase 7 implementada y validada en CI (321 tests, Analyze, Format y Runtime Linux). Fase 8 aún no iniciada.
+Estado: secuencia incremental; completar y validar una fase antes de empezar la siguiente. Fase 1 implementada y validada (279 tests). Fase 2 implementada y validada en CI (284 tests, analyze, format y Runtime Linux pasan). Fase 3 implementada y validada en CI (290 tests, analyze, format y Runtime Linux). Fase 4 implementada y validada en CI (295 tests, Analyze, Format y Runtime Linux). Fase 5 implementada y validada en CI (304 tests, Analyze, Format y Runtime Linux). Fase 6 implementada y validada en CI (308 tests, Analyze, Format y Runtime Linux). Fase 7 implementada y validada en CI (321 tests, Analyze, Format y Runtime Linux). Fase 8 implementada y validada en CI (328 tests, Analyze, Format y Runtime Linux). Todas las fases completadas.
 
 ## Principios comunes
 
@@ -85,6 +85,8 @@ Validación: CI `45597046002` exitoso; 321 tests, Analyze, Format y Runtime Linu
 3. Recuperar estado persistible tras cambio de pantalla/reinicio sin prometer reanudar procesos muertos.
 4. Mostrar límites de timeout/output y permitir terminar procesos desde UI.
 5. Probar procesos largos, sin salida, cerrados, fallidos, cancelados y sesiones huérfanas en Android/PRoot.
+
+Validación: CI `45598665373` exitoso; 328 tests, Analyze, Format y Runtime Linux completados. Las sesiones exponen id lógico, duración, bytes producidos, código de salida y límites de scrollback; las lecturas incrementales informan truncamiento y cursor base. El journal privado conserva hasta 100 registros y marca como huérfanas las sesiones que estaban activas al reiniciar, sin intentar reanudarlas. La cancelación de PTY es idempotente, termina con SIGTERM/SIGKILL acotados y limpia suscripciones/estado. Las anotaciones solo reportan el warning conocido de Node 20 en `actions/upload-artifact@v4`.
 
 ## Referencias de diseño consultadas
 

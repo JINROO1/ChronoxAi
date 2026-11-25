@@ -1,6 +1,6 @@
 # Plan de capacidades avanzadas del agente
 
-Estado: secuencia incremental; completar y validar una fase antes de empezar la siguiente. No se considera una fase terminada hasta que sus pruebas y criterios de aceptación pasan.
+Estado: secuencia incremental; completar y validar una fase antes de empezar la siguiente. Fase 1 implementada y validada (279 tests pasan; analyze y format completados). Fase 2 aún no iniciada. No se considera una fase terminada hasta que sus pruebas y criterios de aceptación pasan.
 
 ## Principios comunes
 

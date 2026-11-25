@@ -258,7 +258,8 @@ extension _FirstOrNull<T> on Iterable<T> {
 class _DigestCollector implements Sink<Digest> {
   Digest? _value;
 
-  Digest get digest => _value ?? (throw StateError('El SHA-256 no produjo resultado.'));
+  Digest get digest =>
+      _value ?? (throw StateError('El SHA-256 no produjo resultado.'));
 
   @override
   void add(Digest value) => _value = value;

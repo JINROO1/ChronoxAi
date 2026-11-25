@@ -14,7 +14,8 @@ class AndroidModelFilePicker {
 
   Future<File?> pickModel() async {
     if (!Platform.isAndroid) {
-      throw UnsupportedError('La importación por selector está disponible en Android.');
+      throw UnsupportedError(
+          'La importación por selector está disponible en Android.');
     }
     final path = await _channel.invokeMethod<String>('pickModelFile');
     if (path == null || path.isEmpty) return null;

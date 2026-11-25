@@ -54,7 +54,9 @@ class ProviderSettings {
   final String apiKey;
   final String mcpServerUrl;
 
-  bool get isConfigured => model.trim().isNotEmpty && switch (kind) {
+  bool get isConfigured =>
+      model.trim().isNotEmpty &&
+      switch (kind) {
         ProviderKind.ollama || ProviderKind.local => true,
         ProviderKind.openAiCompatible ||
         ProviderKind.anthropic ||

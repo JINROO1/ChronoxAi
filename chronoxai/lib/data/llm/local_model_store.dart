@@ -31,8 +31,10 @@ class LocalModelSpec {
       label: 'Qwen3.5 0.8B · Q4_K_M',
       fileName: 'Qwen3.5-0.8B-Q4_K_M.gguf',
       bytes: 532517120,
-      sha256: 'bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517',
-      url: 'https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/6ab461498e2023f6e3c1baea90a8f0fe38ab64d0/Qwen3.5-0.8B-Q4_K_M.gguf',
+      sha256:
+          'bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517',
+      url:
+          'https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/6ab461498e2023f6e3c1baea90a8f0fe38ab64d0/Qwen3.5-0.8B-Q4_K_M.gguf',
       revision: '6ab461498e2023f6e3c1baea90a8f0fe38ab64d0',
     ),
     LocalModelSpec(
@@ -40,8 +42,10 @@ class LocalModelSpec {
       label: 'Qwen3.5 2B · Q4_K_M',
       fileName: 'Qwen3.5-2B-Q4_K_M.gguf',
       bytes: 1280835840,
-      sha256: 'aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223',
-      url: 'https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_K_M.gguf',
+      sha256:
+          'aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223',
+      url:
+          'https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_K_M.gguf',
       revision: 'f6d5376be1edb4d416d56da11e5397a961aca8ae',
     ),
   ];
@@ -60,7 +64,8 @@ class ModelTransferProgress {
   final int received;
   final int total;
 
-  double get fraction => total <= 0 ? 0 : (received / total).clamp(0, 1).toDouble();
+  double get fraction =>
+      total <= 0 ? 0 : (received / total).clamp(0, 1).toDouble();
 }
 
 /// Private-storage catalog and verified model installer. Large GGUF files are
@@ -81,7 +86,8 @@ class LocalModelStore {
   }
 
   Future<File?> fileForId(String id) async {
-    final spec = LocalModelSpec.catalog.where((final item) => item.id == id).firstOrNull;
+    final spec =
+        LocalModelSpec.catalog.where((final item) => item.id == id).firstOrNull;
     if (spec == null) return null;
     for (final installation in await installedModels()) {
       if (installation.spec.id == id) return installation.file;
@@ -118,7 +124,8 @@ class LocalModelStore {
       final request = http.Request('GET', Uri.parse(spec.url));
       final response = await client.send(request);
       if (response.statusCode != HttpStatus.ok) {
-        throw HttpException('Descarga del modelo respondió HTTP ${response.statusCode}.');
+        throw HttpException(
+            'Descarga del modelo respondió HTTP ${response.statusCode}.');
       }
       output = temporary.openWrite();
       await for (final chunk in response.stream) {
@@ -128,7 +135,8 @@ class LocalModelStore {
         }
         output.add(chunk);
         digestInput.add(chunk);
-        onProgress?.call(ModelTransferProgress(received: received, total: spec.bytes));
+        onProgress?.call(
+            ModelTransferProgress(received: received, total: spec.bytes));
       }
       await output.flush();
       await output.close();
@@ -136,7 +144,8 @@ class LocalModelStore {
       digestInput.close();
       final actualHash = digestResult.events.single.toString();
       await _publishVerified(spec, temporary, received, actualHash, directory);
-      onProgress?.call(ModelTransferProgress(received: received, total: spec.bytes));
+      onProgress
+          ?.call(ModelTransferProgress(received: received, total: spec.bytes));
       return LocalModelInstallation(
         spec: spec,
         file: File(p.join(directory.path, spec.fileName)),
@@ -157,11 +166,15 @@ class LocalModelStore {
   Future<LocalModelInstallation> importFile(File source) async {
     final directory = await _modelsDirectory();
     final length = await source.length();
-    final spec = LocalModelSpec.catalog.where((final item) => item.bytes == length).firstOrNull;
+    final spec = LocalModelSpec.catalog
+        .where((final item) => item.bytes == length)
+        .firstOrNull;
     if (spec == null) {
-      throw const FileSystemException('El tamaño no coincide con un modelo Qwen admitido.');
+      throw const FileSystemException(
+          'El tamaño no coincide con un modelo Qwen admitido.');
     }
-    final temporary = File(p.join(directory.path, '${spec.fileName}.importing'));
+    final temporary =
+        File(p.join(directory.path, '${spec.fileName}.importing'));
     final output = temporary.openWrite();
     final digestResult = DigestSink();
     final digestInput = sha256.startChunkedConversion(digestResult);
@@ -203,7 +216,8 @@ class LocalModelStore {
     Directory directory,
   ) async {
     if (actualBytes != spec.bytes || actualHash != spec.sha256) {
-      throw const FileSystemException('Tamaño o SHA-256 del GGUF no coincide con el catálogo.');
+      throw const FileSystemException(
+          'Tamaño o SHA-256 del GGUF no coincide con el catálogo.');
     }
     final destination = File(p.join(directory.path, spec.fileName));
     await temporary.rename(destination.path);
@@ -225,7 +239,8 @@ class LocalModelStore {
     }
   }
 
-  Future<void> _writeManifest(Directory directory, Map<String, String> manifest) async {
+  Future<void> _writeManifest(
+      Directory directory, Map<String, String> manifest) async {
     final file = File(p.join(directory.path, 'models.json'));
     final temporary = File('${file.path}.tmp');
     await temporary.writeAsString(jsonEncode(manifest), flush: true);

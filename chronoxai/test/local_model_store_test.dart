@@ -12,17 +12,22 @@ void main() {
       ]);
       expect(LocalModelSpec.catalog.first.bytes, 532517120);
       expect(LocalModelSpec.catalog.last.bytes, 1280835840);
-      expect(LocalModelSpec.catalog.every((final spec) => spec.sha256.length == 64), isTrue);
+      expect(
+          LocalModelSpec.catalog
+              .every((final spec) => spec.sha256.length == 64),
+          isTrue);
     });
   });
 
   test('does not publish an imported file with an unknown size', () async {
     final root = await Directory.systemTemp.createTemp('chronox-local-model-');
     addTearDown(() => root.delete(recursive: true));
-    final source = File('${root.path}/wrong.gguf')..writeAsStringSync('not a GGUF');
+    final source = File('${root.path}/wrong.gguf')
+      ..writeAsStringSync('not a GGUF');
     final store = LocalModelStore(supportDirectory: () async => root);
 
-    await expectLater(store.importFile(source), throwsA(isA<FileSystemException>()));
+    await expectLater(
+        store.importFile(source), throwsA(isA<FileSystemException>()));
     final installed = await store.installedModels();
     expect(installed, isEmpty);
   });

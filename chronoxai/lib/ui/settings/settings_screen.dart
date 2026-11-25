@@ -652,7 +652,8 @@ class SettingsScreen extends ConsumerWidget {
 
   Future<void> _openLocalModels(BuildContext context) =>
       Navigator.of(context).push<void>(
-        MaterialPageRoute<void>(builder: (final context) => const LocalModelsScreen()),
+        MaterialPageRoute<void>(
+            builder: (final context) => const LocalModelsScreen()),
       );
 }
 

@@ -18,7 +18,8 @@ class LocalModelsScreen extends ConsumerStatefulWidget {
 class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
   final LocalModelStore _store = LocalModelStore();
   List<LocalModelInstallation> _installed = const <LocalModelInstallation>[];
-  final Map<String, ModelTransferProgress> _progress = <String, ModelTransferProgress>{};
+  final Map<String, ModelTransferProgress> _progress =
+      <String, ModelTransferProgress>{};
   bool _busy = false;
   String? _error;
 
@@ -97,7 +98,8 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
     );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${spec.label} seleccionado como modelo local.')),
+        SnackBar(
+            content: Text('${spec.label} seleccionado como modelo local.')),
       );
     }
   }
@@ -105,7 +107,8 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
   Future<void> _remove(LocalModelSpec spec) async {
     final settings = ref.read(providerSettingsProvider);
     if (settings.kind == ProviderKind.local && settings.model == spec.id) {
-      setState(() => _error = 'Selecciona otro proveedor o modelo antes de eliminar el modelo activo.');
+      setState(() => _error =
+          'Selecciona otro proveedor o modelo antes de eliminar el modelo activo.');
       return;
     }
     await _store.remove(spec);
@@ -137,16 +140,17 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
             Text(_error!, style: const TextStyle(color: ChronoxColors.danger)),
           ],
           const SizedBox(height: 16),
-          for (final spec in LocalModelSpec.catalog)
-            _modelCard(spec, settings),
+          for (final spec in LocalModelSpec.catalog) _modelCard(spec, settings),
         ],
       ),
     );
   }
 
   Widget _modelCard(LocalModelSpec spec, ProviderSettings settings) {
-    final installation = _installed.where((final item) => item.spec.id == spec.id).firstOrNull;
-    final active = settings.kind == ProviderKind.local && settings.model == spec.id;
+    final installation =
+        _installed.where((final item) => item.spec.id == spec.id).firstOrNull;
+    final active =
+        settings.kind == ProviderKind.local && settings.model == spec.id;
     final progress = _progress[spec.id];
     return Card(
       color: ChronoxColors.backgroundElevated,
@@ -162,9 +166,11 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
                 style: const TextStyle(color: ChronoxColors.textMuted)),
             if (progress != null) ...<Widget>[
               const SizedBox(height: 12),
-              LinearProgressIndicator(value: progress.total == 0 ? null : progress.fraction),
+              LinearProgressIndicator(
+                  value: progress.total == 0 ? null : progress.fraction),
               const SizedBox(height: 4),
-              Text('${_formatBytes(progress.received)} / ${_formatBytes(spec.bytes)}'),
+              Text(
+                  '${_formatBytes(progress.received)} / ${_formatBytes(spec.bytes)}'),
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
@@ -187,7 +193,9 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
                 else ...<Widget>[
                   FilledButton.icon(
                     onPressed: active || _busy ? null : () => _use(spec),
-                    icon: Icon(active ? Icons.check_circle : Icons.play_circle_outline),
+                    icon: Icon(active
+                        ? Icons.check_circle
+                        : Icons.play_circle_outline),
                     label: Text(active ? 'En uso' : 'Usar localmente'),
                   ),
                   OutlinedButton.icon(
@@ -206,7 +214,9 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
 
   String _formatBytes(int bytes) {
     final gib = bytes / (1024 * 1024 * 1024);
-    return gib >= 1 ? '${gib.toStringAsFixed(2)} GB' : '${(bytes / (1024 * 1024)).round()} MB';
+    return gib >= 1
+        ? '${gib.toStringAsFixed(2)} GB'
+        : '${(bytes / (1024 * 1024)).round()} MB';
   }
 }
 

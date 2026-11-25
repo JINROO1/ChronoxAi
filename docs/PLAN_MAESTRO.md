@@ -6,6 +6,11 @@ Objetivo: cerrar todas las brechas detectadas frente a DeepSeek Harness
 Cada fase se implementa, se prueba en CI (único canal de verificación: no hay
 toolchain local) y se marca `[x]` solo cuando el CI está en verde.
 
+Plan de trabajo consecutivo para inferencia local Qwen 3.5 0.8B/2B, sin Ollama
+ni proveedor externo: [`docs/PLAN_OFFLINE_QWEN.md`](PLAN_OFFLINE_QWEN.md). Este
+plan tiene gates de compatibilidad en dispositivo y no se debe comenzar una fase
+posterior hasta validar la anterior.
+
 ---
 
 ## Fase 0 — Fundación

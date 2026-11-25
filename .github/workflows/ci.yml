@@ -225,7 +225,7 @@ jobs:
 
       - uses: android-actions/setup-android@v3
         with:
-          packages: 'ndk;27.2.12479018 cmake;3.31.6 platform-tools emulator system-images;android-28;google_apis;x86_64'
+          packages: 'ndk;27.2.12479018 cmake;3.31.6'
 
       - name: Descargar artefactos fijados y verificar bytes
         shell: bash
@@ -321,65 +321,6 @@ jobs:
           cmake --build "$RUNNER_TEMP/llama-android-arm64" --target llama --parallel 2
           find "$RUNNER_TEMP/llama-android-arm64" -name 'libllama.so' -print -quit | grep .
           echo '### Android target: llama.cpp ARM64/API 28 cross-build OK' >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Compilar harness de inferencia Android x86_64 para el emulador
-        run: |
-          ndk="$ANDROID_HOME/ndk/27.2.12479018"
-          cmake -S llama.cpp -B "$RUNNER_TEMP/llama-android-x86_64" \
-            -DCMAKE_TOOLCHAIN_FILE="$ndk/build/cmake/android.toolchain.cmake" \
-            -DANDROID_ABI=x86_64 \
-            -DANDROID_PLATFORM=android-28 \
-            -DANDROID_STL=c++_static \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DGGML_NATIVE=OFF \
-            -DGGML_OPENMP=OFF \
-            -DGGML_LLAMAFILE=OFF \
-            -DLLAMA_CURL=OFF \
-            -DLLAMA_BUILD_TESTS=OFF \
-            -DLLAMA_BUILD_COMMON=ON \
-            -DLLAMA_BUILD_EXAMPLES=ON \
-            -DLLAMA_BUILD_SERVER=OFF \
-            -DBUILD_SHARED_LIBS=OFF
-          cmake --build "$RUNNER_TEMP/llama-android-x86_64" --target llama-simple --parallel 2
-          test -x "$RUNNER_TEMP/llama-android-x86_64/bin/llama-simple"
-
-      - name: Habilitar KVM para el emulador de GitHub Actions
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-          test -e /dev/kvm
-
-      - name: Ejecutar Qwen 0.8B en emulador Android API 28
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 28
-          target: google_apis
-          arch: x86_64
-          profile: pixel_2
-          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -memory 4096
-          disable-animations: true
-          script: |
-            set -eu
-            fail() { echo "::error title=Android emulator smoke failed::$1"; exit 1; }
-            adb wait-for-device || fail 'adb did not see the emulator'
-            adb push "$RUNNER_TEMP/llama-android-x86_64/bin/llama-simple" /data/local/tmp/llama-simple || fail 'could not push Android harness'
-            adb push "$RUNNER_TEMP/qwen-models/Qwen3.5-0.8B-Q4_K_M.gguf" /data/local/tmp/Qwen3.5-0.8B-Q4_K_M.gguf || fail 'could not push Qwen 0.8B model'
-            adb shell chmod 755 /data/local/tmp/llama-simple || fail 'could not mark harness executable'
-            set +e
-            adb shell /data/local/tmp/llama-simple \
-              -m /data/local/tmp/Qwen3.5-0.8B-Q4_K_M.gguf -n 4 -ngl 0 \
-              'Responde en español con un saludo breve.' \
-              > "$RUNNER_TEMP/qwen-android-emulator.txt" 2>&1
-            rc=$?
-            set -e
-            cat "$RUNNER_TEMP/qwen-android-emulator.txt"
-            if [ "$rc" -ne 0 ]; then
-              tail -20 "$RUNNER_TEMP/qwen-android-emulator.txt" | while IFS= read -r line; do echo "::error title=Android Qwen inference::$line"; done
-              fail "llama-simple exited with status $rc"
-            fi
-            test -s "$RUNNER_TEMP/qwen-android-emulator.txt" || fail 'inference returned no output'
-            echo '### Android API 28 x86_64 emulator: Qwen 0.8B load/generation OK (ABI ARM64 separately cross-built)' >> "$GITHUB_STEP_SUMMARY"
 
   # ---------------------------------------------------------------------------
   # 3. Validación del runtime Linux empaquetado

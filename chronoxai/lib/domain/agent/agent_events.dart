@@ -317,6 +317,9 @@ class ToolResultEvent extends SessionEvent {
     this.isError = false,
     this.durationMs = 0,
     this.truncated = false,
+    this.errorCategory,
+    this.recoveryHint,
+    this.exitCode,
   });
 
   final String callId;
@@ -327,6 +330,11 @@ class ToolResultEvent extends SessionEvent {
 
   /// `true` si la salida se recortó por presupuesto de contexto.
   final bool truncated;
+
+  /// Diagnóstico estable; nulo para resultados exitosos o logs antiguos.
+  final String? errorCategory;
+  final String? recoveryHint;
+  final int? exitCode;
 
   @override
   String get eventType => 'tool/result';
@@ -339,6 +347,9 @@ class ToolResultEvent extends SessionEvent {
         'isError': isError,
         'durationMs': durationMs,
         'truncated': truncated,
+        if (errorCategory != null) 'errorCategory': errorCategory,
+        if (recoveryHint != null) 'recoveryHint': recoveryHint,
+        if (exitCode != null) 'exitCode': exitCode,
       };
 
   static ToolResultEvent fromJson(final Map<String, Object?> j) =>
@@ -349,6 +360,9 @@ class ToolResultEvent extends SessionEvent {
         isError: (j['isError'] as bool?) ?? false,
         durationMs: (j['durationMs'] as num?)?.toInt() ?? 0,
         truncated: (j['truncated'] as bool?) ?? false,
+        errorCategory: j['errorCategory'] as String?,
+        recoveryHint: j['recoveryHint'] as String?,
+        exitCode: (j['exitCode'] as num?)?.toInt(),
       );
 }
 

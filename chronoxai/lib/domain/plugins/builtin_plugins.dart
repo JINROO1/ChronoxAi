@@ -374,11 +374,18 @@ class _ShellPlugin extends ChronoxPlugin {
             workingDirectory: args['workdir'] as String?,
             timeout: Duration(milliseconds: timeoutMs.clamp(1000, 600000)),
           );
-          final output = result.output;
+          final output = <String>[
+            if (result.stdout.isNotEmpty) 'STDOUT:\n${result.stdout}',
+            if (result.stderr.isNotEmpty) 'STDERR:\n${result.stderr}',
+          ].join('\n');
           return ToolOutcome(
             content: output.isEmpty ? '(sin salida)' : output,
             isError: !result.isSuccess,
-            metadata: <String, Object?>{'exitCode': result.exitCode},
+            metadata: <String, Object?>{
+              'exitCode': result.exitCode,
+              'stdout': result.stdout,
+              'stderr': result.stderr,
+            },
           );
         },
       ),
@@ -700,10 +707,16 @@ class _EditingPlugin extends ChronoxPlugin {
               workingDirectory: '/workspace',
             );
             return ToolOutcome(
-              content:
-                  result.output.isEmpty ? 'Patch aplicado.' : result.output,
+              content: <String>[
+                if (result.stdout.isNotEmpty) 'STDOUT:\n${result.stdout}',
+                if (result.stderr.isNotEmpty) 'STDERR:\n${result.stderr}',
+              ].join('\n'),
               isError: !result.isSuccess,
-              metadata: <String, Object?>{'exitCode': result.exitCode},
+              metadata: <String, Object?>{
+                'exitCode': result.exitCode,
+                'stdout': result.stdout,
+                'stderr': result.stderr,
+              },
             );
           } finally {
             await context.services.shell.run('rm -f -- "$tmp"');
@@ -823,8 +836,13 @@ class _WebPlugin extends ChronoxPlugin {
         ]),
         execute: (final args) async {
           final query = (args['query'] ?? '').toString().trim();
-          if (query.isEmpty)
-            return ToolOutcome.error('La consulta está vacía.');
+          if (query.isEmpty) {
+            return const ToolOutcome.error(
+              'La consulta está vacía.',
+              errorCategory: 'invalid_arguments',
+              recoveryHint: 'Incluye una consulta de búsqueda no vacía.',
+            );
+          }
           final requested = (args['limit'] as num?)?.toInt() ?? 5;
           final limit = requested.clamp(1, 8).toInt();
           final uri =
@@ -840,7 +858,11 @@ class _WebPlugin extends ChronoxPlugin {
           );
           if (!response.isSuccess) {
             return ToolOutcome.error(
-                'Búsqueda web: HTTP ${response.statusCode}.');
+              'Búsqueda web: HTTP ${response.statusCode}.',
+              errorCategory: 'network',
+              recoveryHint:
+                  'Comprueba si el error HTTP es transitorio, ajusta la consulta o usa otra fuente. No repitas sin cambios.',
+            );
           }
           final results = WebSearchParser.parse(response.body, limit: limit);
           if (results.isEmpty) {
@@ -874,6 +896,9 @@ class _WebPlugin extends ChronoxPlugin {
           if (!response.isSuccess) {
             return ToolOutcome.error(
               'HTTP ${response.statusCode} al descargar ${args['url']}.',
+              errorCategory: 'network',
+              recoveryHint:
+                  'Verifica que la URL sea accesible y prueba otra fuente si el servidor falla.',
             );
           }
           final text = _stripHtml(response.body);
@@ -1169,12 +1194,20 @@ class _CodeModePlugin extends ChronoxPlugin {
               timeout: Duration(milliseconds: timeoutMs.clamp(5000, 900000)),
             );
 
+            final output = <String>[
+              if (result.stdout.isNotEmpty) 'STDOUT:\n${result.stdout}',
+              if (result.stderr.isNotEmpty) 'STDERR:\n${result.stderr}',
+            ].join('\n');
             return ToolOutcome(
-              content: result.output.isEmpty
+              content: output.isEmpty
                   ? 'El programa terminó sin salida.'
-                  : result.output,
+                  : output,
               isError: !result.isSuccess,
-              metadata: <String, Object?>{'exitCode': result.exitCode},
+              metadata: <String, Object?>{
+                'exitCode': result.exitCode,
+                'stdout': result.stdout,
+                'stderr': result.stderr,
+              },
             );
           } finally {
             await context.services.shell.run('rm -f -- "$path"');
@@ -1310,9 +1343,18 @@ class _BaseShellPlugin extends ChronoxPlugin {
         execute: (final args) async {
           final result =
               await context.services.shell.run(args['command']! as String);
+          final output = <String>[
+            if (result.stdout.isNotEmpty) 'STDOUT:\n${result.stdout}',
+            if (result.stderr.isNotEmpty) 'STDERR:\n${result.stderr}',
+          ].join('\n');
           return ToolOutcome(
-            content: result.output,
+            content: output.isEmpty ? '(sin salida)' : output,
             isError: !result.isSuccess,
+            metadata: <String, Object?>{
+              'exitCode': result.exitCode,
+              'stdout': result.stdout,
+              'stderr': result.stderr,
+            },
           );
         },
       ),

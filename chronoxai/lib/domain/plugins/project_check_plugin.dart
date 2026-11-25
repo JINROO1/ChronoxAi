@@ -139,6 +139,10 @@ class ProjectCheckPlugin extends ChronoxPlugin {
             content: 'Proyecto: $ecosystem\n'
                 '${sections.join('\n\n')}',
             isError: hasFailure,
+            errorCategory: hasFailure ? 'process_failed' : null,
+            recoveryHint: hasFailure
+                ? 'Revisa el primer chequeo fallido y su salida; corrige la causa antes de reejecutar suite.'
+                : null,
             metadata: <String, Object?>{
               'ecosystem': ecosystem,
               'suite': suite,

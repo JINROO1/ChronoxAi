@@ -406,17 +406,24 @@ class ToolOutcome {
     required this.content,
     this.isError = false,
     this.metadata = const <String, Object?>{},
+    this.errorCategory,
+    this.recoveryHint,
   });
 
   /// Constructor de error. Es `const` a propósito para que los sitios que
   /// devuelven un error fijo no generen objetos en cada invocación.
-  const ToolOutcome.error(this.content)
-      : isError = true,
+  const ToolOutcome.error(
+    this.content, {
+    this.errorCategory,
+    this.recoveryHint,
+  })  : isError = true,
         metadata = const <String, Object?>{};
 
   final String content;
   final bool isError;
   final Map<String, Object?> metadata;
+  final String? errorCategory;
+  final String? recoveryHint;
 }
 
 /// Pack de instrucciones reutilizable.

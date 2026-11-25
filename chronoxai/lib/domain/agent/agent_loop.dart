@@ -11,6 +11,7 @@ import 'approval_policy.dart';
 import 'prompt_builder.dart';
 import 'session_log.dart';
 import 'tool_registry.dart';
+import 'tool_diagnostics.dart';
 
 /// Quién responde cuando el motor pide aprobación.
 ///
@@ -172,6 +173,7 @@ class AgentLoop {
   StreamSubscription<LlmChunk>? _activeStream;
   Completer<void>? _cancelSignal;
   bool _cancelled = false;
+  final Map<String, int> _failedToolSignatures = <String, int>{};
 
   /// Cierra la petición en curso con lo recibido hasta el momento.
   ///
@@ -193,6 +195,7 @@ class AgentLoop {
     }
 
     _cancelled = false;
+    _failedToolSignatures.clear();
     events.emit(const ReasoningResetEvent());
     _cancelSignal = Completer<void>();
     _status = const AgentStatus(isRunning: true, activity: 'Pensando…');
@@ -471,6 +474,23 @@ class AgentLoop {
     return completer.future;
   }
 
+  static String _toolSignature(final LlmToolCall call) {
+    Object? canonicalize(final Object? value) {
+      if (value is Map<String, Object?>) {
+        final keys = value.keys.toList()..sort();
+        return <String, Object?>{
+          for (final key in keys) key: canonicalize(value[key]),
+        };
+      }
+      if (value is List<Object?>) {
+        return value.map(canonicalize).toList();
+      }
+      return value;
+    }
+
+    return '${call.name}:${jsonEncode(canonicalize(call.arguments))}';
+  }
+
   static Map<String, Object?>? _tryDecode(final String raw) {
     if (raw.trim().isEmpty) return const <String, Object?>{};
     try {
@@ -506,7 +526,14 @@ class AgentLoop {
         ToolCallEvent(
             callId: call.id, name: call.name, arguments: call.arguments),
       );
-      await _recordResult(call, hookCall.message, isError: true);
+      await _recordResult(
+        call,
+        hookCall.message,
+        isError: true,
+        errorCategory: ToolFailureKind.policyDenied.jsonName,
+        recoveryHint:
+            'Respeta el bloqueo del hook. No intentes eludirlo con otra herramienta.',
+      );
       return _ToolExecutionOutcome.rejected;
     }
 
@@ -521,6 +548,8 @@ class AgentLoop {
         call,
         'La herramienta "${call.name}" no existe.',
         isError: true,
+        errorCategory: ToolFailureKind.toolError.jsonName,
+        recoveryHint: 'Usa una herramienta presente en el catálogo disponible.',
       );
       return _ToolExecutionOutcome.failed;
     }
@@ -528,7 +557,14 @@ class AgentLoop {
     // Si el modelo mandó argumentos ilegibles, se le pide corregir en lugar de
     // ejecutar con un mapa vacío (que podría borrar algo por accidente).
     if (call.parseError != null) {
-      await _recordResult(call, call.parseError!, isError: true);
+      await _recordResult(
+        call,
+        call.parseError!,
+        isError: true,
+        errorCategory: ToolFailureKind.invalidArguments.jsonName,
+        recoveryHint:
+            'Emite argumentos JSON válidos y completos según el esquema de la herramienta.',
+      );
       return _ToolExecutionOutcome.failed;
     }
 
@@ -542,7 +578,14 @@ class AgentLoop {
 
     final verdict = policy.check(tool);
     if (verdict.isDenied) {
-      await _recordResult(call, verdict.reason ?? 'Rechazado.', isError: true);
+      await _recordResult(
+        call,
+        verdict.reason ?? 'Rechazado.',
+        isError: true,
+        errorCategory: ToolFailureKind.policyDenied.jsonName,
+        recoveryHint:
+            'No eludas la política. Espera aprobación o solicita al usuario ajustar el permiso.',
+      );
       return _ToolExecutionOutcome.rejected;
     }
 
@@ -561,10 +604,33 @@ class AgentLoop {
           'El usuario rechazó la ejecución de "${call.name}". '
           'No lo reintentes sin cambiar de enfoque.',
           isError: true,
+          errorCategory: ToolFailureKind.policyDenied.jsonName,
+          recoveryHint:
+              'El usuario rechazó la acción. Detente o espera nuevas instrucciones; no intentes un bypass.',
         );
         return _ToolExecutionOutcome.rejected;
       }
       if (answer.rememberForSession) policy.trust(call.name);
+    }
+
+    final signature = _toolSignature(call);
+    final priorFailures = _failedToolSignatures[signature] ?? 0;
+    if (priorFailures >= 2) {
+      const diagnostic = ToolDiagnostic(
+        kind: ToolFailureKind.repeatedFailure,
+        recoveryHint:
+            'Esta misma herramienta y estos mismos argumentos ya fallaron dos '
+            'veces. No repitas la llamada; cambia de enfoque, corrige una '
+            'precondición o pide ayuda al usuario.',
+      );
+      await _recordResult(
+        call,
+        'Se detuvo la repetición exacta para evitar un bucle.',
+        isError: true,
+        errorCategory: diagnostic.kind.jsonName,
+        recoveryHint: diagnostic.recoveryHint,
+      );
+      return _ToolExecutionOutcome.failed;
     }
 
     events.emit(ToolStartedEvent(callId: call.id, name: call.name));
@@ -573,12 +639,44 @@ class AgentLoop {
 
     final outcome = await registry.execute(call.name, call.arguments);
     final duration = DateTime.now().difference(started).inMilliseconds;
+    final ToolDiagnostic? diagnostic;
+    if (outcome.isError) {
+      final inferred = ToolDiagnostic.fromMessage(
+        toolName: call.name,
+        message: outcome.content,
+        metadata: outcome.metadata,
+      );
+      final category = ToolFailureKind.values.firstWhere(
+        (final kind) => kind.jsonName == outcome.errorCategory,
+        orElse: () => inferred.kind,
+      );
+      final failures = _failedToolSignatures.update(
+        signature,
+        (final count) => count + 1,
+        ifAbsent: () => 1,
+      );
+      final hint = outcome.recoveryHint ?? inferred.recoveryHint;
+      diagnostic = ToolDiagnostic(
+        kind: category,
+        recoveryHint: failures >= 2
+            ? '$hint La misma llamada ya falló dos veces; no la repitas sin '
+                'cambiar argumentos o precondiciones.'
+            : hint,
+        exitCode: inferred.exitCode,
+      );
+    } else {
+      _failedToolSignatures.remove(signature);
+      diagnostic = null;
+    }
 
     await _recordResult(
       call,
       outcome.content,
       isError: outcome.isError,
       durationMs: duration,
+      errorCategory: diagnostic?.kind.jsonName,
+      recoveryHint: diagnostic?.recoveryHint,
+      exitCode: diagnostic?.exitCode,
     );
     return outcome.isError
         ? _ToolExecutionOutcome.failed
@@ -685,13 +783,34 @@ class AgentLoop {
     final String content, {
     required final bool isError,
     final int durationMs = 0,
+    final String? errorCategory,
+    final String? recoveryHint,
+    final int? exitCode,
   }) async {
-    final truncated = content.length > config.toolOutputBudget;
-    final clipped = truncated
-        ? '${content.substring(0, config.toolOutputBudget)}\n\n'
-            '[salida truncada: ${content.length - config.toolOutputBudget} '
+    final inferred = isError
+        ? ToolDiagnostic.fromMessage(
+            toolName: call.name,
+            message: content,
+            metadata: <String, Object?>{'exitCode': exitCode},
+          )
+        : null;
+    final category = isError
+        ? errorCategory ?? inferred!.kind.jsonName
+        : null;
+    final hint = isError ? recoveryHint ?? inferred!.recoveryHint : null;
+    final diagnosticFooter = category == null
+        ? ''
+        : '\n\n[diagnóstico: $category] Siguiente paso: $hint';
+    final contentBudget = (config.toolOutputBudget - diagnosticFooter.length)
+        .clamp(0, config.toolOutputBudget)
+        .toInt();
+    final truncated = content.length > contentBudget;
+    final clippedContent = truncated
+        ? '${content.substring(0, contentBudget)}\n\n'
+            '[salida truncada: ${content.length - contentBudget} '
             'caracteres omitidos]'
         : content;
+    final clipped = '$clippedContent$diagnosticFooter';
 
     await log.append(
       ToolResultEvent(
@@ -701,12 +820,18 @@ class AgentLoop {
         isError: isError,
         durationMs: durationMs,
         truncated: truncated,
+        errorCategory: category,
+        recoveryHint: hint,
+        exitCode: exitCode,
       ),
     );
     await _runHook(HookPoint.onToolResult, <String, String>{
       'CHRONOX_TOOL_NAME': call.name,
       'CHRONOX_TOOL_CALL_ID': call.id,
       'CHRONOX_TOOL_IS_ERROR': isError.toString(),
+      if (category != null) 'CHRONOX_TOOL_ERROR_CATEGORY': category,
+      if (hint != null) 'CHRONOX_TOOL_RECOVERY_HINT': hint,
+      if (exitCode != null) 'CHRONOX_TOOL_EXIT_CODE': exitCode.toString(),
       'CHRONOX_TOOL_RESULT': clipped,
       'CHRONOX_TOOL_DURATION_MS': durationMs.toString(),
     });

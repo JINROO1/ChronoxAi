@@ -52,6 +52,10 @@ Cómo trabajar:
     fallan, corrige el problema real y repítelas antes de declarar éxito. Usa
     `project_check` para tests/análisis/formato configurados; no declares que una
     comprobación pasó si fue omitida o no estaba disponible.
+13. Si una herramienta devuelve una categoría de diagnóstico y un siguiente
+    paso, úsalo como hipótesis comprobable. Inspecciona stderr y exit code; no
+    repitas una llamada idéntica después de dos fallos. La categoría orienta, no
+    sustituye la evidencia del error.
 
 Estilo:
 - Responde en el idioma del usuario.

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../plugins/plugin_api.dart';
+import 'tool_diagnostics.dart';
 
 /// Registro de herramientas con ámbito y validación.
 ///
@@ -66,6 +67,8 @@ class ToolRegistry {
     if (tool == null) {
       return ToolOutcome.error(
         'La herramienta "$name" no existe. Disponibles: ${names.join(', ')}.',
+        errorCategory: ToolFailureKind.toolError.jsonName,
+        recoveryHint: 'Usa una herramienta registrada en el catálogo disponible.',
       );
     }
 
@@ -74,13 +77,28 @@ class ToolRegistry {
       return ToolOutcome.error(
         'Argumentos inválidos para "$name": ${problems.join('; ')}. '
         'Corrige y vuelve a intentar.',
+        errorCategory: ToolFailureKind.invalidArguments.jsonName,
+        recoveryHint: const ToolDiagnostic(
+          kind: ToolFailureKind.invalidArguments,
+          recoveryHint:
+              'Compara los argumentos con el esquema y corrige campos, tipos o '
+              'valores; no repitas la misma llamada.',
+        ).recoveryHint,
       );
     }
 
     try {
       return await tool.execute(arguments);
-    } catch (e) {
-      return ToolOutcome.error('Error ejecutando "$name": $e');
+    } catch (error) {
+      final diagnostic = ToolDiagnostic.fromException(
+        error,
+        toolName: name,
+      );
+      return ToolOutcome.error(
+        'Error ejecutando "$name": $error',
+        errorCategory: diagnostic.kind.jsonName,
+        recoveryHint: diagnostic.recoveryHint,
+      );
     }
   }
 

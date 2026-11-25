@@ -379,6 +379,53 @@ void main() {
     });
   });
 
+  group('AgentLoop — diagnósticos y recuperación', () {
+    test('devuelve diagnosis y bloquea la tercera repetición idéntica',
+        () async {
+      var executions = 0;
+      registry.add(
+        PluginTool(
+          name: 'unstable',
+          description: 'falla de forma reproducible',
+          inputSchema: const <String, Object?>{'type': 'object'},
+          requiresApproval: false,
+          execute: (final _) async {
+            executions++;
+            return const ToolOutcome.error(
+              'Error: executable file not found',
+              errorCategory: 'missing_executable',
+              recoveryHint: 'Verifica el ejecutable antes de instalar.',
+            );
+          },
+        ),
+      );
+      const arguments = <String, Object?>{'command': 'missing-tool'};
+      final provider = FakeProvider(<LlmResponse>[
+        for (var index = 1; index <= 3; index++)
+          LlmResponse(
+            content: '',
+            toolCalls: <LlmToolCall>[
+              LlmToolCall(
+                id: 'repeat-$index',
+                name: 'unstable',
+                arguments: arguments,
+              ),
+            ],
+          ),
+        const LlmResponse(content: 'Corregido.'),
+      ]);
+
+      expect(await makeLoop(provider).runTurn('ejecuta el programa'), 'completed');
+      expect(executions, 2);
+      final results = log.events.whereType<ToolResultEvent>().toList();
+      expect(results, hasLength(3));
+      expect(results[0].errorCategory, 'missing_executable');
+      expect(results[0].content, contains('Siguiente paso'));
+      expect(results[2].errorCategory, 'repeated_failure');
+      expect(results[2].content, contains('fallaron dos veces'));
+    });
+  });
+
   group('AgentLoop — aprobación', () {
     setUp(() {
       registry.add(tool('bash', requiresApproval: true));

@@ -117,6 +117,7 @@ class _ToolCallBlockState extends State<_ToolCallBlock> {
 
   static const Map<String, IconData> _icons = <String, IconData>{
     'read': Icons.description_outlined,
+    'read_many': Icons.library_books_outlined,
     'write': Icons.save_outlined,
     'edit': Icons.edit_outlined,
     'bash': Icons.terminal_rounded,

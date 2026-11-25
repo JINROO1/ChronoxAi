@@ -33,6 +33,36 @@ class _MemoryFileSystem implements FileSystemSeam {
   Future<void> writeFile(String path, String content) async {}
 }
 
+class _RecordingTerminals implements TerminalsSeam {
+  String output = 'hello world';
+  bool isAlive = true;
+
+  @override
+  Future<void> close(String terminalId) async {}
+
+  @override
+  Future<List<TerminalInfo>> list() async => <TerminalInfo>[
+        TerminalInfo(
+          id: 't1',
+          title: 'test',
+          isAlive: isAlive,
+          bytesProduced: output.length,
+        ),
+      ];
+
+  @override
+  Future<String> open({String? title}) async => 't1';
+
+  @override
+  Future<String> read(String terminalId, {int? sinceOffset}) async {
+    final offset = (sinceOffset ?? 0).clamp(0, output.length);
+    return output.substring(offset);
+  }
+
+  @override
+  Future<void> send(String terminalId, String input) async {}
+}
+
 class _RecordingShell implements ShellSeam {
   final List<String> commands = <String>[];
 
@@ -54,6 +84,7 @@ void main() {
   late ToolRegistry registry;
   late _MemoryFileSystem fileSystem;
   late _RecordingShell shell;
+  late _RecordingTerminals terminals;
   late PluginHost host;
 
   setUp(() {
@@ -61,6 +92,7 @@ void main() {
     registry = ToolRegistry();
     fileSystem = _MemoryFileSystem();
     shell = _RecordingShell();
+    terminals = _RecordingTerminals();
     host = PluginHost(
       events: events,
       services: PluginServices(
@@ -71,6 +103,7 @@ void main() {
         events: events,
         fileSystem: fileSystem,
         shell: shell,
+        terminals: terminals,
       ),
     );
     for (final builtin in builtinPlugins()) {
@@ -101,6 +134,44 @@ void main() {
     expect(exists.content, contains('Existe'));
     expect(matches.content, contains('main.dart'));
     expect(fileSystem.globPatterns.single, '/workspace/lib/**/*.dart');
+  });
+
+  test('read_many combines bounded reads without failing other paths', () async {
+    expect(await host.mount('core-fs'), isTrue);
+
+    final result = await registry.execute(
+      'read_many',
+      <String, Object?>{
+        'files': <String>['/workspace/a.dart', '/workspace/b.dart'],
+        'offset': 1,
+        'limit': 20,
+      },
+    );
+
+    expect(result.content, contains('### /workspace/a.dart'));
+    expect(result.content, contains('### /workspace/b.dart'));
+    expect(result.content, contains('void main() {}'));
+    expect(result.isError, isFalse);
+  });
+
+  test('terminal_read supports incremental offsets and reports process state',
+      () async {
+    expect(await host.mount('core-terminal'), isTrue);
+
+    final chunk = await registry.execute(
+      'terminal_read',
+      <String, Object?>{'terminal_id': 't1', 'since_offset': 6},
+    );
+    expect(chunk.content, 'world');
+    expect(chunk.metadata['next_offset'], 11);
+
+    terminals.output = '';
+    terminals.isAlive = false;
+    final closed = await registry.execute(
+      'terminal_read',
+      <String, Object?>{'terminal_id': 't1', 'wait_ms': 0},
+    );
+    expect(closed.metadata['is_alive'], isFalse);
   });
 
   test('git tools issue only fixed, read-only git commands', () async {

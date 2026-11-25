@@ -93,6 +93,7 @@ class ApprovalPolicy {
   /// Herramientas que nunca modifican estado y por tanto no requieren permiso.
   static const Set<String> readOnlyTools = <String>{
     'read',
+    'read_many',
     'glob',
     'grep',
     'terminal_read',

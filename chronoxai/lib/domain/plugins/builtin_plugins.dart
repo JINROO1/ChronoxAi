@@ -135,6 +135,66 @@ ChronoxPlugin fsPlugin() => _FsPlugin(
           },
         ),
         PluginTool(
+          name: 'read_many',
+          description:
+              'Lee varios ficheros de texto en una sola llamada. Úsala para '
+              'comparar módulos relacionados; limita cada archivo a 200 líneas.',
+          requiresApproval: false,
+          inputSchema: _obj(<String, Object?>{
+            'files': <String, Object?>{
+              'type': 'array',
+              'description': 'Entre 1 y 10 rutas dentro del workspace.',
+              'items': _str('Ruta de un fichero.'),
+            },
+            'offset': _int('Primera línea (1-based, por defecto 1).'),
+            'limit': _int('Líneas por fichero (máximo 200).'),
+          }, required: <String>[
+            'files'
+          ]),
+          execute: (final args) async {
+            final rawFiles = args['files'];
+            if (rawFiles is! List<Object?> ||
+                rawFiles.isEmpty ||
+                rawFiles.length > 10 ||
+                rawFiles.any((final path) => path is! String || path.isEmpty)) {
+              return const ToolOutcome.error(
+                'read_many requiere entre 1 y 10 rutas de archivo no vacías.',
+              );
+            }
+            final offset = ((args['offset'] as int?) ?? 1).clamp(1, 1 << 30);
+            final limit = ((args['limit'] as int?) ?? 200).clamp(1, 200);
+            final sections = <String>[];
+            final errors = <String>[];
+            for (final rawPath in rawFiles) {
+              final path = rawPath! as String;
+              try {
+                final content =
+                    await context.services.fileSystem.readFile(path);
+                final lines = content.split('\n');
+                final start = (offset - 1).clamp(0, lines.length);
+                final end = (start + limit).clamp(0, lines.length);
+                final body = <String>[
+                  for (var index = start; index < end; index++)
+                    '${index + 1}: ${lines[index]}',
+                ];
+                sections.add('### $path\n${body.join('\n')}'
+                    '${end < lines.length ? '\n[truncado; continúa en línea ${end + 1}]' : ''}');
+              } catch (error) {
+                errors.add('$path: $error');
+                sections.add('### $path\n[error de lectura: $error]');
+              }
+            }
+            return ToolOutcome(
+              content: sections.join('\n\n'),
+              isError: errors.length == rawFiles.length,
+              metadata: <String, Object?>{
+                'files': rawFiles.length,
+                'errors': errors,
+              },
+            );
+          },
+        ),
+        PluginTool(
           name: 'file_exists',
           description:
               'Comprueba si un archivo o directorio existe dentro del workspace.',
@@ -463,19 +523,51 @@ class _TerminalPlugin extends ChronoxPlugin {
     context.provideTool(
       PluginTool(
         name: 'terminal_read',
-        description: 'Lee la salida acumulada de una terminal.',
+        description:
+            'Lee la salida de una terminal desde `since_offset`. Puedes esperar '
+            'hasta 15 segundos por salida nueva con `wait_ms`; la respuesta '
+            'incluye `next_offset` para continuar sin repetir el historial.',
         requiresApproval: false,
         inputSchema: _obj(<String, Object?>{
           'terminal_id': _str('Id de la terminal.'),
+          'since_offset': _int('Posición de texto desde la que leer.'),
+          'wait_ms': _int('Espera por salida nueva (0–15000 ms, por defecto 0).'),
         }, required: <String>[
           'terminal_id'
         ]),
         execute: (final args) async {
-          final output = await context.services.terminals.read(
-            args['terminal_id']! as String,
-          );
+          final terminalId = args['terminal_id']! as String;
+          final offset = ((args['since_offset'] as int?) ?? 0).clamp(0, 1 << 30);
+          final waitMs = ((args['wait_ms'] as int?) ?? 0).clamp(0, 15000);
+          final deadline = DateTime.now().add(Duration(milliseconds: waitMs));
+          var output = '';
+          var isAlive = true;
+          do {
+            output = await context.services.terminals.read(
+              terminalId,
+              sinceOffset: offset,
+            );
+            if (output.isNotEmpty) break;
+            final terminals = await context.services.terminals.list();
+            final current = terminals.where((final item) => item.id == terminalId);
+            if (current.isEmpty || !current.first.isAlive) {
+              isAlive = false;
+              break;
+            }
+            if (DateTime.now().isAfter(deadline)) break;
+            await Future<void>.delayed(const Duration(milliseconds: 200));
+          } while (DateTime.now().isBefore(deadline));
+          const outputLimit = 10000;
+          final visibleOutput = output.length > outputLimit
+              ? output.substring(0, outputLimit)
+              : output;
           return ToolOutcome(
-            content: output.isEmpty ? '(sin salida todavía)' : output,
+            content: visibleOutput.isEmpty ? '(sin salida nueva)' : visibleOutput,
+            metadata: <String, Object?>{
+              'next_offset': offset + visibleOutput.length,
+              'is_alive': isAlive,
+              'truncated': output.length > outputLimit,
+            },
           );
         },
       ),

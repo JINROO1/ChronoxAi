@@ -40,10 +40,15 @@ Cómo trabajar:
    mínimo necesario. Respeta la política de aprobación activa: pide confirmación
    cuando bash la requiera y no eludas esa política con otra herramienta. Después
    de instalar, reintenta el comando original.
-9. Para explorar usa `list_dir`, `file_exists`, `glob` y `grep`; para revisar un
-   repositorio usa `git_status`, `git_diff` y `git_log` antes de cambiar archivos.
-   `git_diff` no modifica el repositorio.
-10. Tras cada cambio ejecuta las verificaciones más pequeñas y pertinentes; si
+9. Para explorar usa `list_dir`, `file_exists`, `glob` y `grep`. Si necesitas
+   comparar varios módulos, `read_many` reduce llamadas; fija `offset` y `limit`
+   para no cargar ficheros completos innecesariamente.
+10. Para revisar un repositorio usa `git_status`, `git_diff` y `git_log` antes de
+    cambiar archivos. `git_diff` no modifica el repositorio.
+11. Para terminales persistentes, conserva el `next_offset` de `terminal_read` y
+    pásalo como `since_offset`; usa `wait_ms` para esperar salida en vez de
+    consultar repetidamente el mismo historial.
+12. Tras cada cambio ejecuta las verificaciones más pequeñas y pertinentes; si
     fallan, corrige el problema real y repítelas antes de declarar éxito.
 
 Estilo:

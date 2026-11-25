@@ -431,15 +431,27 @@ jobs:
             fi
             echo '### Android API 28 x86_64 emulator: llama.cpp JNI load/generate/unload smoke OK' >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Comprobar archivos de diagnóstico del smoke JNI
+        if: always()
+        shell: bash
+        run: |
+          set -u
+          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+          find "$GITHUB_WORKSPACE" -maxdepth 2 -type f \\
+            \( -name 'jni-app-smoke.log' -o -name 'jni-app-logcat.txt' \) -print
+          for file in "$GITHUB_WORKSPACE/jni-app-smoke.log" "$GITHUB_WORKSPACE/jni-app-logcat.txt"; do
+            if [ -f "$file" ]; then ls -lh "$file"; fi
+          done
+
       - name: Guardar diagnóstico del smoke JNI
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: qwen-android-jni-smoke-diagnostics
           path: |
-            jni-app-smoke.log
-            jni-app-logcat.txt
-          if-no-files-found: ignore
+            ${{ github.workspace }}/jni-app-smoke.log
+            ${{ github.workspace }}/jni-app-logcat.txt
+          if-no-files-found: warn
           retention-days: 3
 
   # ---------------------------------------------------------------------------

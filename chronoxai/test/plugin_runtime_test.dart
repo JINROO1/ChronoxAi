@@ -75,6 +75,31 @@ void main() {
       expect(registry.length, 0);
     });
 
+    test('normaliza propiedades abreviadas de plugins a objetos JSON Schema', () {
+      final registry = ToolRegistry()
+        ..add(
+          PluginTool(
+            name: 'remote_tool',
+            description: 'herramienta remota',
+            inputSchema: const <String, Object?>{
+              'type': 'object',
+              'properties': <String, Object?>{
+                'query': 'string',
+                'count': <String, Object?>{'type': 'integer'},
+              },
+            },
+            execute: (final _) async => const ToolOutcome(content: ''),
+          ),
+        );
+
+      final function = registry.toOpenAiSchemas().single['function']!
+          as Map<String, Object?>;
+      final parameters = function['parameters']! as Map<String, Object?>;
+      final properties = parameters['properties']! as Map<String, Object?>;
+      expect(properties['query'], <String, Object?>{'type': 'string'});
+      expect(properties['count'], <String, Object?>{'type': 'integer'});
+    });
+
     test('genera esquemas en formato OpenAI', () {
       final registry = ToolRegistry()
         ..add(

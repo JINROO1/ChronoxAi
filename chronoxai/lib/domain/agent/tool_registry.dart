@@ -8,6 +8,47 @@ import 'tool_diagnostics.dart';
 /// Equivalente a `ctx.tools` de dsh: un registro **con ámbito** (cada agente o
 /// modo puede ver un subconjunto) y un pipeline de ejecución con guards.
 class ToolRegistry {
+  static Map<String, Object?> _normalizeSchema(Map<String, Object?> schema) {
+    final normalized = <String, Object?>{};
+    for (final entry in schema.entries) {
+      final value = entry.value;
+      if (entry.key == 'properties' && value is Map) {
+        normalized[entry.key] = <String, Object?>{
+          for (final property in value.entries)
+            property.key.toString(): _normalizeProperty(property.value),
+        };
+      } else if (entry.key == 'items' && value is Map) {
+        normalized[entry.key] = _normalizeSchema(
+          value.map((final key, final item) => MapEntry(key.toString(), item)),
+        );
+      } else if ((entry.key == 'anyOf' || entry.key == 'oneOf' ||
+              entry.key == 'allOf') &&
+          value is List) {
+        normalized[entry.key] = value
+            .map(_normalizeProperty)
+            .toList(growable: false);
+      } else {
+        normalized[entry.key] = value;
+      }
+    }
+    return normalized;
+  }
+
+  static Object? _normalizeProperty(Object? property) {
+    if (property is Map) {
+      return _normalizeSchema(
+        property.map((final key, final value) => MapEntry(key.toString(), value)),
+      );
+    }
+    if (property is String) {
+      const supported = <String>{'string', 'number', 'integer', 'boolean', 'object', 'array'};
+      return <String, Object?>{'type': supported.contains(property) ? property : 'string'};
+    }
+    // Unsupported/non-object declarations are made permissive instead of
+    // sending a malformed tool catalog and failing the whole provider request.
+    return <String, Object?>{'type': 'string'};
+  }
+
   final Map<String, PluginTool> _tools = <String, PluginTool>{};
 
   /// Nombres registrados, ordenados para que el prompt sea determinista.
@@ -46,7 +87,12 @@ class ToolRegistry {
             'function': <String, Object?>{
               'name': t.name,
               'description': t.description,
-              'parameters': t.inputSchema,
+              // MCP y plugins externos pueden publicar shorthand inválidos
+            // (p. ej. `properties: {"query": "string"}`). La API espera un
+            // objeto JSON Schema por propiedad; normalizar evita un HTTP 400
+            // que abortaría todo el turno aunque el resto de herramientas sea
+            // válido.
+            'parameters': _normalizeSchema(t.inputSchema),
             },
           },
         )

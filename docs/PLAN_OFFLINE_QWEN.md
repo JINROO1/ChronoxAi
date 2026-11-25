@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Añadir a ChronoxAI un proveedor de modelos que ejecute inferencia **dentro de la app y del dispositivo**, sin Ollama, daemon local, API remota ni conexión de red durante la generación. Los destinos base solicitados son los artefactos llamados `qwen3.5:0.8b` y `qwen3.5:2b`. La evaluación incluirá Qwen3.5-4B como escalón superior en el mismo backend GGUF, y Gemma 4 E2B como comparador opcional de la clase ~2B con LiteRT-LM; ninguno sustituye a los modelos pedidos sin superar los mismos tests.
+Añadir a ChronoxAI un proveedor de modelos que ejecute inferencia **dentro de la app y del dispositivo**, sin Ollama, daemon local, API remota ni conexión de red durante la generación. Los destinos base solicitados son los artefactos llamados `qwen3.5:0.8b` y `qwen3.5:2b`. Los objetivos de producto son solo Qwen3.5-0.8B y Qwen3.5-2B, priorizando dispositivos Android de gama media con 8 GB de RAM. Qwen3.5-4B y Gemma 4 E2B quedan fuera de la ruta principal y, si se retoman, serán experimentos opt-in separados; no se consideran candidatos recomendados para ese perfil de dispositivo ni sustituyen a los modelos pedidos sin superar los mismos tests.
 
 La app ya abstrae el modelo detrás de `LlmProvider`; se debe integrar el motor como un proveedor nuevo y reutilizar `AgentLoop`, herramientas, aprobaciones e historial. El plan es estrictamente secuencial: **no se inicia una fase hasta que su gate de validación esté verde**.
 
@@ -55,10 +55,10 @@ Comparadores adicionales (no son reemplazos decididos):
 
 | Modelo | Artefacto | Tamaño y hash reportados | Backend | Estado |
 |---|---|---|---|---|
-| Qwen3.5-4B | `Qwen3.5-4B-Q4_K_M.gguf` | 2,740,937,888 bytes; SHA-256 `00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4` | llama.cpp, GGUF | Mejor candidato Qwen superior para benchmark en móviles de mayor RAM; revisión fijada `e87f176479d0855a907a41277aca2f8ee7a09523`. Aún no verificado por descarga/dispositivo. |
-| Gemma 4 E2B IT (~2.3B efectivos) | `gemma-4-E2B-it.litertlm` | 2,588,147,712 bytes; SHA-256 `181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c` | LiteRT-LM, Kotlin Android | Candidato para benchmark separado; pin de revisión/model license y minSdk exacto del AAR aún por verificar. No es intercambiable con GGUF. |
+| Qwen3.5-4B | `Qwen3.5-4B-Q4_K_M.gguf` | 2,740,937,888 bytes; SHA-256 `00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4` | llama.cpp, GGUF | Fuera del objetivo de 8 GB de RAM para gama media; solo experimento opt-in en hardware de más memoria, no bloquea ni amplía la ruta principal. Revisión fijada `e87f176479d0855a907a41277aca2f8ee7a09523`; sin verificar por descarga/dispositivo. |
+| Gemma 4 E2B IT (~2.3B efectivos) | `gemma-4-E2B-it.litertlm` | 2,588,147,712 bytes; SHA-256 `181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c` | LiteRT-LM, Kotlin Android | Alternativa experimental aprobada para estudio comparativo, fuera de la ruta principal de 8 GB; pin de revisión/model license y minSdk exacto aún por verificar. No es intercambiable con GGUF. |
 
-Qwen3.5-9B existe, pero queda fuera del objetivo de teléfono general por su archivo Q4 cercano a 5.75 GB y el margen adicional que necesita el contexto/runtime. Se reconsiderará solo si el dispositivo objetivo tiene suficiente RAM libre y se decide aceptar el coste de almacenamiento. Las generaciones Qwen3.6/3.8 disponibles son 27B o mayores (aunque alguna sea MoE, el total de pesos sigue necesitando almacenamiento/memoria); no son candidatas razonables para este APK/móvil. El siguiente tamaño sensato a probar aquí es 4B.
+Qwen3.5-9B y las generaciones posteriores Qwen3.6/3.8 quedan fuera del objetivo actual de gama media con 8 GB de RAM por su escala y sus requisitos de memoria. No son parte de la evaluación principal. Qwen3.5-4B también queda fuera del perfil recomendado; su mención se conserva solo como experimento opcional en hardware con más memoria. La ruta principal sigue siendo validar primero 0.8B y luego 2B.
 
 Candidatos upstream: [Unsloth 0.8B GGUF pinned file](https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/6ab461498e2023f6e3c1baea90a8f0fe38ab64d0/Qwen3.5-0.8B-Q4_K_M.gguf) y [Unsloth 2B GGUF pinned file](https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_K_M.gguf). Las páginas de los artefactos reportan los SHA anteriores. Los modelos base oficiales se enlazan desde la [colección oficial de Qwen](https://huggingface.co/collections/Qwen/qwen35); los resultados publicados reportan Apache-2.0 para los modelos base, pero antes de distribuir se debe conservar/verificar el archivo LICENSE de cada tarjeta y las atribuciones de la conversión Unsloth.
 
@@ -115,11 +115,12 @@ Se adopta provisionalmente `Q4_K_M` para mantener el archivo en un rango viable 
 
 ## Fase 6 — Comparación de candidatos ~2B y elección
 
-1. Solo si el spike Qwen 0.8B está verde, probar Qwen 3.5 2B, Qwen3.5-4B y Gemma 4 E2B en el conjunto de tareas idéntico.
-2. Usar Q4_K_M para los GGUF Qwen y el artefacto LiteRT-LM oficial fijado para Gemma; registrar que no tienen la misma cuantización, formato ni runtime.
-3. Medir calidad en español, selección/argumentos de herramientas, tasa de corrección, latencia, tokens/s, pico de RAM, temperatura, batería, almacenamiento y requisito de API.
-4. No comparar benchmarks de proveedores como sustituto de pruebas ChronoxAI; declarar los casos en que cada modelo falla.
-5. Elegir un modelo principal y opcionalmente conservar otro como descarga opt-in. Nunca cambiar de modelo ni enviar prompts a la nube sin decisión del usuario.
+1. Solo si el spike Qwen 0.8B está verde, probar Qwen3.5-2B en el conjunto de tareas idéntico y en el perfil objetivo de 8 GB.
+2. Qwen3.5-4B y Gemma 4 E2B no forman parte de esta comparación de producto; estudiarlos únicamente como experimentos separados y opt-in si se dispone de hardware adecuado y se aprueba expresamente ese alcance.
+3. Usar Q4_K_M para los GGUF Qwen; registrar que cualquier comparación experimental con Gemma usa formato y runtime distintos.
+4. Medir calidad en español, selección/argumentos de herramientas, tasa de corrección, latencia, tokens/s, pico de RAM, temperatura, batería, almacenamiento y requisito de API.
+5. No comparar benchmarks de proveedores como sustituto de pruebas ChronoxAI; declarar los casos en que cada modelo falla.
+6. Elegir un modelo principal y opcionalmente conservar otro como descarga opt-in. Nunca cambiar de modelo ni enviar prompts a la nube sin decisión del usuario.
 
 **Gate:** resultados reproducibles en el mismo Android, en modo avión; Gemma solo se considera si LiteRT-LM es compatible con el minSdk objetivo. Si requiere elevarlo, la decisión se confirma antes de tocar `minSdk`. El seleccionado debe superar el corpus de agente y límites de recursos acordados.
 

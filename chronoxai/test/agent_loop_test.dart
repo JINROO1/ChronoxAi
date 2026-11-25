@@ -778,8 +778,9 @@ void main() {
 
       expect(reason, 'rejected');
       expect(executions, 0);
-      expect(log.events.whereType<ToolResultEvent>().single.content,
-          'hook blocked');
+      final blocked = log.events.whereType<ToolResultEvent>().single;
+      expect(blocked.content, startsWith('hook blocked'));
+      expect(blocked.errorCategory, 'policy_denied');
     });
   });
 

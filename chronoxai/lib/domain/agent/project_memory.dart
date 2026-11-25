@@ -75,15 +75,18 @@ class ProjectMemoryStore {
   bool get canWrite => !_unreadable;
   Future<void> _writeTail = Future<void>.value();
 
-  List<ProjectMemoryEntry> get entries => List<ProjectMemoryEntry>.unmodifiable(_entries);
+  List<ProjectMemoryEntry> get entries =>
+      List<ProjectMemoryEntry>.unmodifiable(_entries);
 
   static Future<ProjectMemoryStore> open({
     required final String workspacePath,
     required final Directory storageDirectory,
   }) async {
     final normalizedWorkspace = p.normalize(p.absolute(workspacePath));
-    final workspaceHash = sha256.convert(utf8.encode(normalizedWorkspace)).toString();
-    final directory = Directory(p.join(storageDirectory.path, 'project-memory'));
+    final workspaceHash =
+        sha256.convert(utf8.encode(normalizedWorkspace)).toString();
+    final directory =
+        Directory(p.join(storageDirectory.path, 'project-memory'));
     await directory.create(recursive: true);
     final store = ProjectMemoryStore._(
       file: File(p.join(directory.path, '$workspaceHash.json')),
@@ -145,10 +148,12 @@ class ProjectMemoryStore {
     final cleanText = _validateText(text, maxTextLength, 'text');
     final cleanSource = _validateText(source, maxSourceLength, 'source');
     if (confidence < 0 || confidence > 1 || !confidence.isFinite) {
-      throw ArgumentError.value(confidence, 'confidence', 'Must be between 0 and 1.');
+      throw ArgumentError.value(
+          confidence, 'confidence', 'Must be between 0 and 1.');
     }
     final now = DateTime.now().toUtc();
-    final id = '${now.microsecondsSinceEpoch}-${sha256.convert(utf8.encode('$kind:$cleanText')).toString().substring(0, 10)}';
+    final id =
+        '${now.microsecondsSinceEpoch}-${sha256.convert(utf8.encode('$kind:$cleanText')).toString().substring(0, 10)}';
     final entry = ProjectMemoryEntry(
       id: id,
       kind: kind,
@@ -159,7 +164,8 @@ class ProjectMemoryStore {
     );
     await _enqueue(() async {
       if (_entries.length >= maxEntries) {
-        throw StateError('Project memory is full (maximum $maxEntries entries).');
+        throw StateError(
+            'Project memory is full (maximum $maxEntries entries).');
       }
       if (_entries.any((final current) =>
           current.kind == kind &&
@@ -188,7 +194,8 @@ class ProjectMemoryStore {
     final cleanText = _validateText(text, maxTextLength, 'text');
     final cleanSource = _validateText(source, maxSourceLength, 'source');
     if (confidence < 0 || confidence > 1 || !confidence.isFinite) {
-      throw ArgumentError.value(confidence, 'confidence', 'Must be between 0 and 1.');
+      throw ArgumentError.value(
+          confidence, 'confidence', 'Must be between 0 and 1.');
     }
     await _enqueue(() async {
       final index = _entries.indexWhere((final entry) => entry.id == id);
@@ -291,7 +298,8 @@ class ProjectMemoryStore {
       return !excludedTopics.any((final topic) =>
               topic.isNotEmpty && corpus.contains(topic.toLowerCase())) &&
           !excludedSources.any((final source) =>
-              source.isNotEmpty && entry.source.toLowerCase().contains(source.toLowerCase()));
+              source.isNotEmpty &&
+              entry.source.toLowerCase().contains(source.toLowerCase()));
     }).toList();
     int score(final ProjectMemoryEntry entry) {
       final corpus = '${entry.text} ${entry.source}'.toLowerCase();
@@ -305,8 +313,10 @@ class ProjectMemoryStore {
       final byScore = score(right).compareTo(score(left));
       return byScore != 0 ? byScore : right.createdAt.compareTo(left.createdAt);
     });
-    final selected = candidates.where((final entry) =>
-        queryWords.isEmpty || score(entry) >= 11).take(8).toList();
+    final selected = candidates
+        .where((final entry) => queryWords.isEmpty || score(entry) >= 11)
+        .take(8)
+        .toList();
     if (selected.isEmpty) return '';
 
     final buffer = StringBuffer();
@@ -336,7 +346,8 @@ class ProjectMemoryStore {
       throw StateError('Project memory exceeds the allowed size.');
     }
     await file.parent.create(recursive: true);
-    final temp = File('${file.path}.tmp-${DateTime.now().microsecondsSinceEpoch}');
+    final temp =
+        File('${file.path}.tmp-${DateTime.now().microsecondsSinceEpoch}');
     try {
       await temp.writeAsString(payload, flush: true);
       await temp.rename(file.path);
@@ -360,23 +371,27 @@ class ProjectMemoryStore {
 
   void _ensureWritable() {
     if (_unreadable) {
-      throw StateError('Memory storage could not be read. Clear it explicitly before writing.');
+      throw StateError(
+          'Memory storage could not be read. Clear it explicitly before writing.');
     }
   }
 
-  static String _validateText(final String value, final int max, final String field) {
+  static String _validateText(
+      final String value, final int max, final String field) {
     final result = value.trim();
     if (result.isEmpty || result.length > max) {
       throw ArgumentError('$field must contain 1–$max characters.');
     }
     if (_secretPattern.hasMatch(result)) {
-      throw ArgumentError('Possible credential detected; project memory rejects secrets.');
+      throw ArgumentError(
+          'Possible credential detected; project memory rejects secrets.');
     }
     return result;
   }
 
   static List<String> _normalizeExclusions(final Object? values) {
-    final iterable = values is Iterable ? values.whereType<String>() : const <String>[];
+    final iterable =
+        values is Iterable ? values.whereType<String>() : const <String>[];
     return iterable
         .map((final value) => value.trim())
         .where((final value) => value.isNotEmpty && value.length <= 100)

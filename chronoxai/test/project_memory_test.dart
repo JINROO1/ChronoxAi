@@ -80,7 +80,8 @@ void main() {
     ]);
   });
 
-  test('rejects likely credentials, duplicates, empty provenance and bad scores',
+  test(
+      'rejects likely credentials, duplicates, empty provenance and bad scores',
       () async {
     final store = await ProjectMemoryStore.open(
       workspacePath: tempDir.path,
@@ -100,7 +101,8 @@ void main() {
       );
     }
 
-    await expectLater(add('API key: sk-12345678901234567890'), throwsArgumentError);
+    await expectLater(
+        add('API key: sk-12345678901234567890'), throwsArgumentError);
     await expectLater(add('Valid fact', source: '  '), throwsArgumentError);
     await expectLater(add('Valid fact', confidence: 1.2), throwsArgumentError);
     await add('Uses a local SQLite database.');
@@ -136,7 +138,8 @@ void main() {
     expect(relevant, contains('Stripe test fixtures'));
     expect(relevant, contains('deterministic fake clients'));
     expect(relevant, isNot(contains('12 pixel spacing')));
-    expect(relevant.length, lessThanOrEqualTo(ProjectMemoryStore.maxContextCharacters));
+    expect(relevant.length,
+        lessThanOrEqualTo(ProjectMemoryStore.maxContextCharacters));
 
     await store.configure(
       enabled: true,
@@ -159,7 +162,8 @@ void main() {
     expect(reloaded.enabled, isFalse);
   });
 
-  test('corrupt storage fails open without injecting or overwriting until reset',
+  test(
+      'corrupt storage fails open without injecting or overwriting until reset',
       () async {
     final initial = await ProjectMemoryStore.open(
       workspacePath: tempDir.path,

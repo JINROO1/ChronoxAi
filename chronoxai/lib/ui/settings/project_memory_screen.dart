@@ -36,7 +36,8 @@ class _ProjectMemoryScreenState extends State<ProjectMemoryScreen> {
           ),
           IconButton(
             tooltip: 'Borrar toda la memoria',
-            onPressed: entries.isEmpty && store.loadWarning == null ? null : _clear,
+            onPressed:
+                entries.isEmpty && store.loadWarning == null ? null : _clear,
             icon: const Icon(Icons.delete_sweep_outlined),
           ),
         ],
@@ -214,9 +215,8 @@ class _ProjectMemoryScreenState extends State<ProjectMemoryScreen> {
 
   Future<void> _editExclusions({required final bool topics}) async {
     if (!widget.store.canWrite) return;
-    final current = topics
-        ? widget.store.excludedTopics
-        : widget.store.excludedSources;
+    final current =
+        topics ? widget.store.excludedTopics : widget.store.excludedSources;
     final controller = TextEditingController(text: current.join(', '));
     final value = await showDialog<String>(
       context: context,
@@ -244,7 +244,10 @@ class _ProjectMemoryScreenState extends State<ProjectMemoryScreen> {
     );
     controller.dispose();
     if (value == null) return;
-    final list = value.split(',').map((final item) => item.trim()).where((final item) => item.isNotEmpty);
+    final list = value
+        .split(',')
+        .map((final item) => item.trim())
+        .where((final item) => item.isNotEmpty);
     await widget.store.configure(
       enabled: widget.store.enabled,
       excludedTopics: topics ? list : widget.store.excludedTopics,
@@ -308,7 +311,8 @@ class _ProjectMemoryScreenState extends State<ProjectMemoryScreen> {
               ),
               TextField(
                 controller: confidenceController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
                   labelText: 'Confianza (0–1)',
                 ),
@@ -420,7 +424,8 @@ class _ProjectMemoryScreenState extends State<ProjectMemoryScreen> {
 
   void _message(final String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   static String _kindLabel(final ProjectMemoryKind kind) => switch (kind) {

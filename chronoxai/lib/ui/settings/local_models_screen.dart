@@ -129,9 +129,9 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
         padding: const EdgeInsets.all(16),
         children: <Widget>[
           const Text(
-            'Descarga o importa un GGUF. El archivo se guarda en el almacenamiento privado '
-            'de ChronoxAI; su tamaño y SHA-256 se verifican antes de habilitarlo. '
-            'La generación local no contacta a Ollama ni a un proveedor remoto.',
+            'La descarga inicial requiere Internet; también puedes importar un GGUF desde el teléfono. '
+            'El archivo se guarda en el almacenamiento privado de ChronoxAI y se verifica por tamaño '
+            'y SHA-256 antes de habilitarlo. La generación local no contacta Ollama ni a proveedores remotos.',
             style: TextStyle(color: ChronoxColors.textMuted, height: 1.4),
           ),
           const SizedBox(height: 12),

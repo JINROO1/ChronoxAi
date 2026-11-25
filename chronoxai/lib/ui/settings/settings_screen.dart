@@ -21,6 +21,7 @@ import '../widgets/chronox_widgets.dart';
 import 'diagnostics_screen.dart';
 import 'install_screen.dart';
 import 'local_models_screen.dart';
+import 'offline_licenses_screen.dart';
 import 'background_jobs_screen.dart';
 import 'scheduled_tasks_screen.dart';
 import 'project_memory_screen.dart';
@@ -120,6 +121,17 @@ class SettingsScreen extends ConsumerWidget {
                   title: 'Variables secretas MCP',
                   subtitle: 'Cifradas en Android Keystore, por servidor',
                   onTap: () => _editMcpEnvironment(context, settings),
+                ),
+                const Divider(height: 1, color: ChronoxColors.border),
+                SettingsRow(
+                  icon: Icons.policy_outlined,
+                  title: 'Licencias y atribuciones offline',
+                  subtitle: 'Qwen, Unsloth y llama.cpp',
+                  onTap: () => Navigator.of(context).push<void>(
+                    MaterialPageRoute<void>(
+                      builder: (final context) => const OfflineLicensesScreen(),
+                    ),
+                  ),
                 ),
               ],
             ),

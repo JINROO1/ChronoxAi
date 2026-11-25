@@ -1243,7 +1243,12 @@ class _McpPlugin extends ChronoxPlugin {
 class _SubagentPlugin extends ChronoxPlugin {
   _SubagentPlugin(this.runner, this.parallelRunner);
 
-  final Future<String> Function(String prompt, String? description)? runner;
+  final Future<String> Function(
+    String prompt,
+    String? description,
+    String? role,
+    String? outputContract,
+  )? runner;
   final Future<List<String>> Function(List<Map<String, String>> tasks)?
       parallelRunner;
 
@@ -1260,6 +1265,8 @@ class _SubagentPlugin extends ChronoxPlugin {
         inputSchema: _obj(<String, Object?>{
           'prompt': _str('Tarea concreta y autocontenida.'),
           'description': _str('Descripción corta, para la UI.'),
+          'role': _str('Rol especializado (researcher, reviewer o tester).'),
+          'output_contract': _str('Estructura/formato esperado para el resultado.'),
         }, required: <String>[
           'prompt'
         ]),
@@ -1273,6 +1280,8 @@ class _SubagentPlugin extends ChronoxPlugin {
           final result = await run(
             args['prompt']! as String,
             args['description'] as String?,
+            args['role'] as String?,
+            args['output_contract'] as String?,
           );
           return ToolOutcome(content: result);
         },
@@ -1286,9 +1295,9 @@ class _SubagentPlugin extends ChronoxPlugin {
             'con subagentes read-only y devuelve cada resultado etiquetado.',
         requiresApproval: false,
         inputSchema: _obj(<String, Object?>{
-          'tasks': <String, Object?>{
+            'tasks': <String, Object?>{
             'type': 'array',
-            'description': 'Lista de tareas {prompt, description}. Máximo 4.',
+            'description': 'Lista de tareas estructuradas {prompt, description, role, output_contract}. Máximo 4.',
             'items': <String, Object?>{'type': 'object'},
           },
         }, required: <String>[
@@ -1304,12 +1313,25 @@ class _SubagentPlugin extends ChronoxPlugin {
           if (rawTasks.isEmpty || rawTasks.length > 4) {
             return const ToolOutcome.error('Indica entre 1 y 4 tareas.');
           }
-          final tasks = rawTasks
-              .whereType<Map<String, Object?>>()
+          if (rawTasks.any((final task) => task is! Map<String, Object?>)) {
+            return const ToolOutcome.error(
+              'Cada tarea debe ser un objeto estructurado.',
+            );
+          }
+          final taskMaps = rawTasks.cast<Map<String, Object?>>();
+          if (taskMaps.any((final task) => task['prompt'] is! String)) {
+            return const ToolOutcome.error(
+              'Cada tarea necesita un prompt de texto.',
+            );
+          }
+          final tasks = taskMaps
               .map((final task) => <String, String>{
-                    'prompt': (task['prompt'] ?? '').toString(),
-                    if (task['description'] != null)
-                      'description': task['description'].toString(),
+                    'prompt': task['prompt']! as String,
+                    if (task['description'] is String)
+                      'description': task['description']! as String,
+                    if (task['role'] is String) 'role': task['role']! as String,
+                    if (task['output_contract'] is String)
+                      'output_contract': task['output_contract']! as String,
                   })
               .toList();
           if (tasks.any((final task) => task['prompt']!.trim().isEmpty)) {
@@ -1594,7 +1616,7 @@ class BuiltinPlugin {
 /// necesitan colaboradores del host (subagente, inspectores) se construyen con
 /// argumentos, de ahí que `create` sea una función y no una constante.
 List<BuiltinPlugin> builtinPlugins({
-  Future<String> Function(String, String?)? subagentRunner,
+  Future<String> Function(String, String?, String?, String?)? subagentRunner,
   Future<List<String>> Function(List<Map<String, String>>)?
       parallelSubagentRunner,
   Map<String, Object?> Function()? inspectProvider,

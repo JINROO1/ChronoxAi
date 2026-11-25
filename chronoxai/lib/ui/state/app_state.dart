@@ -385,8 +385,14 @@ Future<SessionRuntime> startSession(
   // entonces devuelve un aviso claro en lugar de fallar en silencio.
   late final AgentLoop loop;
   final plugins = builtinPlugins(
-    subagentRunner: (final prompt, final description) =>
-        loop.runSubagentWithTools(prompt, description: description),
+    subagentRunner: (final prompt, final description, final role,
+            final outputContract) =>
+        loop.runSubagentWithTools(
+      prompt,
+      description: description,
+      role: role ?? 'researcher',
+      outputContract: outputContract,
+    ),
     parallelSubagentRunner: (final tasks) => loop.runSubagents(tasks),
     inspectProvider: () => <String, Object?>{
       'modelo': bootstrap.provider.model,

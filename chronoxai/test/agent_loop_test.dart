@@ -21,6 +21,7 @@ class FakeProvider implements LlmProvider {
   final List<LlmResponse> responses;
   int calls = 0;
   int cancelled = 0;
+  List<LlmMessage>? lastMessages;
 
   @override
   String get name => 'fake';
@@ -38,6 +39,7 @@ class FakeProvider implements LlmProvider {
     final double? temperature,
     final int? maxTokens,
   }) {
+    lastMessages = messages;
     final index = calls < responses.length ? calls : responses.length - 1;
     calls++;
     final response = responses[index];
@@ -826,6 +828,92 @@ void main() {
       expect(answer, 'Encontré el contenido.');
       expect(log.length, initialLength);
       expect(provider.calls, 2);
+    });
+
+    test('subagente no expone herramientas de escritura', () async {
+      var writes = 0;
+      registry.add(PluginTool(
+        name: 'write',
+        description: 'write file',
+        inputSchema: const <String, Object?>{'type': 'object'},
+        requiresApproval: false,
+        execute: (final _) async {
+          writes++;
+          return const ToolOutcome(content: 'written');
+        },
+      ));
+      final provider = FakeProvider(<LlmResponse>[
+        const LlmResponse(
+          content: '',
+          toolCalls: <LlmToolCall>[
+            LlmToolCall(
+              id: 'write-attempt',
+              name: 'write',
+              arguments: <String, Object?>{},
+            ),
+          ],
+        ),
+        const LlmResponse(content: 'No se hizo ningún cambio.'),
+      ]);
+
+      await makeLoop(provider).runSubagentWithTools('Revisa este archivo.');
+
+      expect(writes, 0);
+    });
+
+    test('subagente recibe rol/contrato, límites y rechaza roles desconocidos',
+        () async {
+      final provider = FakeProvider(<LlmResponse>[
+        const LlmResponse(content: 'Hallazgo: ruta confirmada.'),
+      ]);
+      final parent = makeLoop(provider);
+
+      final result = await parent.runSubagentWithTools(
+        'Localiza el punto de entrada.',
+        role: 'reviewer',
+        outputContract: 'Devuelve archivo, línea y evidencia.',
+      );
+
+      expect(result, contains('ruta confirmada'));
+      final prompt = provider.lastMessages!.last.content;
+      expect(prompt, contains('Rol: reviewer'));
+      expect(prompt, contains('Devuelve archivo, línea y evidencia.'));
+      await expectLater(
+        parent.runSubagentWithTools('tarea', role: 'writer'),
+        throwsArgumentError,
+      );
+      await expectLater(
+        parent.runSubagentWithTools('x' * 6001),
+        throwsArgumentError,
+      );
+    });
+
+    test('lote paralelo conserva resultados por tarea y maneja límites',
+        () async {
+      final provider = FakeProvider(<LlmResponse>[
+        const LlmResponse(content: 'Ok'),
+        const LlmResponse(content: 'Ok'),
+      ]);
+      final parent = makeLoop(provider);
+      expect(
+        await parent.runSubagents(const <Map<String, String>>[]),
+        isEmpty,
+      );
+      await expectLater(
+        parent.runSubagents(List<Map<String, String>>.generate(
+          5,
+          (final index) => <String, String>{'prompt': 'tarea $index'},
+        )),
+        throwsArgumentError,
+      );
+      final results = await parent.runSubagents(const <Map<String, String>>[
+        <String, String>{'prompt': 'tarea uno', 'role': 'researcher'},
+        <String, String>{'prompt': 'tarea dos', 'role': 'tester'},
+        <String, String>{'prompt': 'tarea tres', 'role': 'unknown'},
+      ]);
+      expect(results, hasLength(3));
+      expect(results.take(2), <String>['Ok', 'Ok']);
+      expect(results.last, contains('Subagente fallido'));
     });
   });
 

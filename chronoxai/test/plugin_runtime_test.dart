@@ -75,7 +75,8 @@ void main() {
       expect(registry.length, 0);
     });
 
-    test('normaliza propiedades abreviadas de plugins a objetos JSON Schema', () {
+    test('normaliza propiedades abreviadas de plugins a objetos JSON Schema',
+        () {
       final registry = ToolRegistry()
         ..add(
           PluginTool(

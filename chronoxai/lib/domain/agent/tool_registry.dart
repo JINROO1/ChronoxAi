@@ -21,12 +21,12 @@ class ToolRegistry {
         normalized[entry.key] = _normalizeSchema(
           value.map((final key, final item) => MapEntry(key.toString(), item)),
         );
-      } else if ((entry.key == 'anyOf' || entry.key == 'oneOf' ||
+      } else if ((entry.key == 'anyOf' ||
+              entry.key == 'oneOf' ||
               entry.key == 'allOf') &&
           value is List) {
-        normalized[entry.key] = value
-            .map(_normalizeProperty)
-            .toList(growable: false);
+        normalized[entry.key] =
+            value.map(_normalizeProperty).toList(growable: false);
       } else {
         normalized[entry.key] = value;
       }
@@ -37,12 +37,22 @@ class ToolRegistry {
   static Object? _normalizeProperty(Object? property) {
     if (property is Map) {
       return _normalizeSchema(
-        property.map((final key, final value) => MapEntry(key.toString(), value)),
+        property
+            .map((final key, final value) => MapEntry(key.toString(), value)),
       );
     }
     if (property is String) {
-      const supported = <String>{'string', 'number', 'integer', 'boolean', 'object', 'array'};
-      return <String, Object?>{'type': supported.contains(property) ? property : 'string'};
+      const supported = <String>{
+        'string',
+        'number',
+        'integer',
+        'boolean',
+        'object',
+        'array'
+      };
+      return <String, Object?>{
+        'type': supported.contains(property) ? property : 'string'
+      };
     }
     // Unsupported/non-object declarations are made permissive instead of
     // sending a malformed tool catalog and failing the whole provider request.
@@ -88,11 +98,11 @@ class ToolRegistry {
               'name': t.name,
               'description': t.description,
               // MCP y plugins externos pueden publicar shorthand inválidos
-            // (p. ej. `properties: {"query": "string"}`). La API espera un
-            // objeto JSON Schema por propiedad; normalizar evita un HTTP 400
-            // que abortaría todo el turno aunque el resto de herramientas sea
-            // válido.
-            'parameters': _normalizeSchema(t.inputSchema),
+              // (p. ej. `properties: {"query": "string"}`). La API espera un
+              // objeto JSON Schema por propiedad; normalizar evita un HTTP 400
+              // que abortaría todo el turno aunque el resto de herramientas sea
+              // válido.
+              'parameters': _normalizeSchema(t.inputSchema),
             },
           },
         )

@@ -43,13 +43,13 @@ class _FakeEngine implements LocalInferenceEngine {
 }
 
 void main() {
-  test('streams native text as TextChunk and terminates with DoneChunk', () async {
+  test('streams native text as TextChunk and terminates with DoneChunk',
+      () async {
     final engine = _FakeEngine();
     final provider = LocalLlmProvider(engine);
     final messages = <LlmMessage>[const LlmMessage.user('Saluda en español')];
-    final chunks = await provider
-        .stream(messages: messages, tools: const <Map<String, Object?>>[])
-        .toList();
+    final chunks = await provider.stream(
+        messages: messages, tools: const <Map<String, Object?>>[]).toList();
 
     expect(chunks.whereType<TextChunk>().map((final c) => c.text),
         <String>['Hola', ' mundo']);
@@ -63,9 +63,7 @@ void main() {
     final provider = LocalLlmProvider(engine);
 
     await expectLater(
-      provider
-          .stream(messages: const <LlmMessage>[], tools: const [])
-          .toList(),
+      provider.stream(messages: const <LlmMessage>[], tools: const []).toList(),
       throwsA(isA<LlmException>()),
     );
     expect(engine.receivedMessages, isNull);
@@ -82,9 +80,7 @@ void main() {
     final subscription = first.listen((final _) {});
 
     await expectLater(
-      provider
-          .stream(messages: const <LlmMessage>[], tools: const [])
-          .toList(),
+      provider.stream(messages: const <LlmMessage>[], tools: const []).toList(),
       throwsA(isA<LlmException>()),
     );
     await subscription.cancel();

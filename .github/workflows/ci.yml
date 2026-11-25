@@ -361,14 +361,24 @@ jobs:
           disable-animations: true
           script: |
             set -euo pipefail
-            adb push "$RUNNER_TEMP/llama-android-x86_64/bin/llama-simple" /data/local/tmp/llama-simple
-            adb push "$RUNNER_TEMP/qwen-models/Qwen3.5-0.8B-Q4_K_M.gguf" /data/local/tmp/Qwen3.5-0.8B-Q4_K_M.gguf
-            adb shell chmod 755 /data/local/tmp/llama-simple
+            fail() { echo "::error title=Android emulator smoke failed::$1"; exit 1; }
+            adb wait-for-device || fail 'adb did not see the emulator'
+            adb push "$RUNNER_TEMP/llama-android-x86_64/bin/llama-simple" /data/local/tmp/llama-simple || fail 'could not push Android harness'
+            adb push "$RUNNER_TEMP/qwen-models/Qwen3.5-0.8B-Q4_K_M.gguf" /data/local/tmp/Qwen3.5-0.8B-Q4_K_M.gguf || fail 'could not push Qwen 0.8B model'
+            adb shell chmod 755 /data/local/tmp/llama-simple || fail 'could not mark harness executable'
+            set +e
             adb shell /data/local/tmp/llama-simple \
               -m /data/local/tmp/Qwen3.5-0.8B-Q4_K_M.gguf -n 4 -ngl 0 \
               'Responde en español con un saludo breve.' \
-              > "$RUNNER_TEMP/qwen-android-emulator.txt"
-            test -s "$RUNNER_TEMP/qwen-android-emulator.txt"
+              > "$RUNNER_TEMP/qwen-android-emulator.txt" 2>&1
+            rc=$?
+            set -e
+            cat "$RUNNER_TEMP/qwen-android-emulator.txt"
+            if [ "$rc" -ne 0 ]; then
+              tail -20 "$RUNNER_TEMP/qwen-android-emulator.txt" | while IFS= read -r line; do echo "::error title=Android Qwen inference::$line"; done
+              fail "llama-simple exited with status $rc"
+            fi
+            test -s "$RUNNER_TEMP/qwen-android-emulator.txt" || fail 'inference returned no output'
             echo '### Android API 28 x86_64 emulator: Qwen 0.8B load/generation OK (ABI ARM64 separately cross-built)' >> "$GITHUB_STEP_SUMMARY"
 
   # ---------------------------------------------------------------------------

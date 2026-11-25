@@ -20,11 +20,13 @@ class WorkspaceIndexPlugin extends ChronoxPlugin {
           'properties': <String, Object?>{
             'query': <String, Object?>{
               'type': 'string',
-              'description': 'Fragmento del nombre; vacío devuelve símbolos iniciales.',
+              'description':
+                  'Fragmento del nombre; vacío devuelve símbolos iniciales.',
             },
             'kind': <String, Object?>{
               'type': 'string',
-              'description': 'Filtra por clase, función, tipo u otra categoría.',
+              'description':
+                  'Filtra por clase, función, tipo u otra categoría.',
             },
             'limit': <String, Object?>{
               'type': 'integer',
@@ -112,7 +114,8 @@ class WorkspaceIndexPlugin extends ChronoxPlugin {
           'properties': <String, Object?>{
             'symbol': <String, Object?>{
               'type': 'string',
-              'description': 'Identificador completo (letras, números, _ o \$).',
+              'description':
+                  'Identificador completo (letras, números, _ o \$).',
             },
             'limit': <String, Object?>{
               'type': 'integer',

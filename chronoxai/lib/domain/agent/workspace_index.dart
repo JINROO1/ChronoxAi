@@ -31,7 +31,15 @@ class WorkspaceIndex {
   };
 
   static const Set<String> _sourceExtensions = <String>{
-    '.dart', '.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.py', '.go',
+    '.dart',
+    '.js',
+    '.jsx',
+    '.mjs',
+    '.cjs',
+    '.ts',
+    '.tsx',
+    '.py',
+    '.go',
     '.rs',
   };
 
@@ -43,8 +51,8 @@ class WorkspaceIndex {
   bool truncated = false;
 
   int get fileCount => _files.length;
-  int get cachedCharacters =>
-      _files.values.fold<int>(0, (final sum, final file) => sum + file.content.length);
+  int get cachedCharacters => _files.values
+      .fold<int>(0, (final sum, final file) => sum + file.content.length);
 
   Future<void> refresh() async {
     final stopwatch = Stopwatch()..start();
@@ -246,12 +254,17 @@ class IndexedSourceFile {
   static List<RegExp> _symbolPatterns(final String language) {
     final prefix = switch (language) {
       'python' => r'^\s*(?<kind>async\s+def|def|class)\s+(?<name>[A-Za-z_]\w*)',
-      'go' => r'^\s*(?<kind>func|type)\s+(?:\([^)]*\)\s*)?(?<name>[A-Za-z_]\w*)',
-      'rust' => r'^\s*(?:pub(?:\([^)]*\))?\s+)?(?<kind>fn|struct|enum|trait|type|mod)\s+(?<name>[A-Za-z_]\w*)',
-      _ => r'^\s*(?:(?:export|default|abstract|async|public|private|static|final)\s+)*(?<kind>class|interface|enum|type|function)\s+(?<name>[A-Za-z_$][\w$]*)',
+      'go' =>
+        r'^\s*(?<kind>func|type)\s+(?:\([^)]*\)\s*)?(?<name>[A-Za-z_]\w*)',
+      'rust' =>
+        r'^\s*(?:pub(?:\([^)]*\))?\s+)?(?<kind>fn|struct|enum|trait|type|mod)\s+(?<name>[A-Za-z_]\w*)',
+      _ =>
+        r'^\s*(?:(?:export|default|abstract|async|public|private|static|final)\s+)*(?<kind>class|interface|enum|type|function)\s+(?<name>[A-Za-z_$][\w$]*)',
     };
     final patterns = <RegExp>[RegExp(prefix)];
-    if (language == 'dart' || language == 'javascript' || language == 'typescript') {
+    if (language == 'dart' ||
+        language == 'javascript' ||
+        language == 'typescript') {
       patterns.add(RegExp(
         r'^\s*(?:(?:export|default|async|static|final|const|let|var)\s+)*(?<kind>function|const|let|var)\s+(?<name>[A-Za-z_$][\w$]*)\s*(?:=|\()',
       ));
@@ -265,10 +278,12 @@ class IndexedSourceFile {
   }
 
   static RegExp _importPattern(final String language) => switch (language) {
-        'python' => RegExp(r'^\s*(?:from\s+([\w.]+)\s+import|import\s+([\w.]+))'),
+        'python' =>
+          RegExp(r'^\s*(?:from\s+([\w.]+)\s+import|import\s+([\w.]+))'),
         'go' => RegExp(r'^\s*import\s+(?:\w+\s+)?"(?<source>[^"]+)"'),
         'rust' => RegExp(r'^\s*use\s+(?<source>[\w:]+)'),
-        _ => RegExp(r"""^\s*import\s+(?:.*?\s+from\s+)?["'](?<source>[^"']+)["']"""),
+        _ => RegExp(
+            r"""^\s*import\s+(?:.*?\s+from\s+)?["'](?<source>[^"']+)["']"""),
       };
 }
 

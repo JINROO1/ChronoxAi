@@ -21,6 +21,7 @@ class _IndexFileSystem implements FileSystemSeam {
     if (content == null) throw StateError('missing: $path');
     return content;
   }
+
   @override
   Future<void> writeFile(String path, String content) async {
     files[path] = content;
@@ -71,8 +72,7 @@ void main() {
   });
 
   test('returns exact references with stable one-based ranges', () async {
-    fileSystem.files['/workspace/lib/use.dart'] =
-        'final cart = createCart();\n'
+    fileSystem.files['/workspace/lib/use.dart'] = 'final cart = createCart();\n'
         'cart.checkout();\n'
         'cartoon();\n';
 

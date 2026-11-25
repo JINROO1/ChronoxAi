@@ -1684,7 +1684,8 @@ List<BuiltinPlugin> builtinPlugins({
       manifest: manifest(
         id: 'core-workspace-index',
         name: 'Índice de código',
-        description: 'Símbolos, imports y referencias aproximadas del workspace',
+        description:
+            'Símbolos, imports y referencias aproximadas del workspace',
         kind: PluginKind.tool,
         capabilities: fsCaps,
         requires: <String>['core-fs'],

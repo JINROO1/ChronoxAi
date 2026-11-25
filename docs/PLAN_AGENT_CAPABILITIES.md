@@ -1,6 +1,6 @@
 # Plan de capacidades avanzadas del agente
 
-Estado: secuencia incremental; completar y validar una fase antes de empezar la siguiente. Fase 1 implementada y validada (279 tests). Fase 2 implementada y validada en CI (284 tests, analyze, format y Runtime Linux pasan). Fase 3 implementada y validada en CI (290 tests, analyze, format y Runtime Linux). Fase 4 implementada y validada en CI (295 tests, Analyze, Format y Runtime Linux). Fase 5 implementada y validada en CI (304 tests, Analyze, Format y Runtime Linux). Fase 6 implementada y validada en CI (308 tests, Analyze, Format y Runtime Linux). Fase 7 aún no iniciada.
+Estado: secuencia incremental; completar y validar una fase antes de empezar la siguiente. Fase 1 implementada y validada (279 tests). Fase 2 implementada y validada en CI (284 tests, analyze, format y Runtime Linux pasan). Fase 3 implementada y validada en CI (290 tests, analyze, format y Runtime Linux). Fase 4 implementada y validada en CI (295 tests, Analyze, Format y Runtime Linux). Fase 5 implementada y validada en CI (304 tests, Analyze, Format y Runtime Linux). Fase 6 implementada y validada en CI (308 tests, Analyze, Format y Runtime Linux). Fase 7 implementada y validada en CI (321 tests, Analyze, Format y Runtime Linux). Fase 8 aún no iniciada.
 
 ## Principios comunes
 
@@ -75,6 +75,8 @@ Validación: CI `45595301849` exitoso; 308 tests, Analyze, Format y Runtime Linu
 3. Distinguir hechos actuales, opiniones y contenido no verificable.
 4. No ejecutar instrucciones encontradas en páginas; tratarlas como datos hostiles.
 5. Probar páginas vacías, HTML malformado, SSRF, contenido enorme, fuentes contradictorias y citas rotas.
+
+Validación: CI `45597046002` exitoso; 321 tests, Analyze, Format y Runtime Linux completados. La búsqueda entrega IDs de fuente, URL y fecha de acceso; las descargas limitan tamaño/tiempo, no siguen redirecciones automáticamente y validan hasta tres destinos públicos, con título, fecha, fragmento citado y marcadores de contenido no confiable. Las pruebas cubren HTML malformado/vacío, límites de bytes/texto, redirecciones hacia IP privada, extracción y citas. Las anotaciones solo reportan el warning conocido de Node 20 en `actions/upload-artifact@v4`.
 
 ## Fase 8 — Observabilidad y recuperación del runtime
 

@@ -767,7 +767,8 @@ class AgentLoop {
       'write' => 'Escribir ${args['path']}',
       'edit' => 'Editar ${args['path']}',
       'apply_patch' => 'Aplicar patch (rutas incluidas en el diff)',
-      'rollback_changes' => 'Revertir los archivos modificados por Chronox en esta sesión',
+      'rollback_changes' =>
+        'Revertir los archivos modificados por Chronox en esta sesión',
       'terminal_send' => 'Enviar a terminal: ${args['input']}',
       _ => args.isEmpty ? call.name : '$call.name(${args.keys.join(', ')})',
     };

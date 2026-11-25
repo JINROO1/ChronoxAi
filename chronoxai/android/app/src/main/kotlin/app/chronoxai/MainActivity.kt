@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
+import android.os.StatFs
 import android.provider.Settings
 import android.system.Os
 import android.system.OsConstants
@@ -118,6 +119,13 @@ class MainActivity : FlutterActivity() {
             localLlmChannelName,
         ).setMethodCallHandler { call, result ->
             when (call.method) {
+                "availableStorageBytes" -> {
+                    try {
+                        result.success(StatFs(filesDir.absolutePath).availableBytes)
+                    } catch (error: Exception) {
+                        result.error("storage_unavailable", error.message, null)
+                    }
+                }
                 "pickModelFile" -> {
                     if (pendingLocalModelPickerResult != null) {
                         result.error("picker_busy", "Ya hay un selector de modelo abierto.", null)

@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../data/llm/local_llm_provider.dart';
 import '../../data/llm/local_model_store.dart';
 import '../../platform/android_model_file_picker.dart';
+import '../../platform/android_local_storage_info.dart';
 import '../state/app_state.dart';
 
 class LocalModelsScreen extends ConsumerStatefulWidget {
@@ -22,6 +23,7 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
   final Map<String, ModelTransferProgress> _progress =
       <String, ModelTransferProgress>{};
   bool _busy = false;
+  int? _availableBytes;
   String? _error;
 
   @override
@@ -33,13 +35,21 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
   Future<void> _refresh() async {
     try {
       final installed = await _store.installedModels();
-      if (mounted) setState(() => _installed = installed);
+      final availableBytes =
+          await const AndroidLocalStorageInfo().availableBytes();
+      if (mounted) {
+        setState(() {
+          _installed = installed;
+          _availableBytes = availableBytes;
+        });
+      }
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     }
   }
 
   Future<void> _download(LocalModelSpec spec) async {
+    if (!await _ensureSpace(spec)) return;
     setState(() {
       _busy = true;
       _error = null;
@@ -80,6 +90,15 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
     try {
       picked = await const AndroidModelFilePicker().pickModel();
       if (picked == null) return;
+      final bytes = await picked.length();
+      final spec = LocalModelSpec.catalog
+          .where((final candidate) => candidate.bytes == bytes)
+          .firstOrNull;
+      if (spec == null) {
+        throw const FileSystemException(
+            'El tamaño no coincide con un modelo Qwen admitido.');
+      }
+      if (!await _ensureSpace(spec)) return;
       await _store.importFile(picked);
       await _refresh();
     } catch (error) {
@@ -88,6 +107,37 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
       if (picked != null && await picked.exists()) await picked.delete();
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<bool> _ensureSpace(LocalModelSpec spec) async {
+    final int available;
+    try {
+      final result = await const AndroidLocalStorageInfo().availableBytes();
+      if (result == null) {
+        throw const FileSystemException(
+            'Android no informó el almacenamiento disponible.');
+      }
+      available = result;
+    } catch (error) {
+      if (mounted) {
+        setState(() => _error =
+            'No se pudo comprobar el espacio libre; no se inició la transferencia. $error');
+      }
+      return false;
+    }
+
+    const safetyMargin = 128 * 1024 * 1024;
+    final replacing = _installed.any((final item) => item.spec.id == spec.id);
+    final needed = spec.bytes + safetyMargin + (replacing ? spec.bytes : 0);
+    if (mounted) setState(() => _availableBytes = available);
+    if (available >= needed) return true;
+
+    if (mounted) {
+      setState(() => _error =
+          'Espacio insuficiente: quedan ${_formatBytes(available)}; se requieren '
+          'aproximadamente ${_formatBytes(needed)} para completar la operación de forma segura.');
+    }
+    return false;
   }
 
   Future<void> _use(LocalModelSpec spec) async {
@@ -140,6 +190,13 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
             icon: const Icon(Icons.file_open_outlined),
             label: const Text('Importar GGUF desde el dispositivo'),
           ),
+          if (_availableBytes != null) ...<Widget>[
+            const SizedBox(height: 8),
+            Text(
+              'Almacenamiento interno disponible: ${_formatBytes(_availableBytes!)}',
+              style: const TextStyle(color: ChronoxColors.textMuted),
+            ),
+          ],
           if (_error != null) ...<Widget>[
             const SizedBox(height: 12),
             Text(_error!, style: const TextStyle(color: ChronoxColors.danger)),

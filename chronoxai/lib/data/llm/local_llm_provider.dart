@@ -160,7 +160,8 @@ const _localToolCallStart = '<chronox-tool-call>';
 const _localToolCallEnd = '</chronox-tool-call>';
 
 class _PreparedLocalRequest {
-  const _PreparedLocalRequest({required this.messages, required this.toolNames});
+  const _PreparedLocalRequest(
+      {required this.messages, required this.toolNames});
 
   final List<LlmMessage> messages;
   final Set<String> toolNames;
@@ -181,9 +182,8 @@ _PreparedLocalRequest _prepareLocalToolRequest(
   final names = <String>{};
   for (final tool in tools) {
     final rawFunction = tool['function'];
-    final function = rawFunction is Map
-        ? Map<String, Object?>.from(rawFunction)
-        : tool;
+    final function =
+        rawFunction is Map ? Map<String, Object?>.from(rawFunction) : tool;
     final name = function['name'];
     if (name is! String || name.isEmpty || !names.add(name)) {
       throw const LlmException(
@@ -196,7 +196,10 @@ _PreparedLocalRequest _prepareLocalToolRequest(
       'description': function['description']?.toString() ?? '',
       'parameters': function['parameters'] is Map
           ? Map<String, Object?>.from(function['parameters'] as Map)
-          : <String, Object?>{'type': 'object', 'properties': <String, Object?>{}},
+          : <String, Object?>{
+              'type': 'object',
+              'properties': <String, Object?>{}
+            },
     });
   }
 

@@ -61,7 +61,8 @@ void main() {
 
   test('converts a strict local tool envelope into a ToolCallChunk', () async {
     final engine = _FakeEngine()
-      ..response = '<chronox-tool-call>{"name":"read_file","arguments":{"path":"README.md"}}</chronox-tool-call>';
+      ..response =
+          '<chronox-tool-call>{"name":"read_file","arguments":{"path":"README.md"}}</chronox-tool-call>';
     final provider = LocalLlmProvider(engine);
     const tools = <Map<String, Object?>>[
       <String, Object?>{
@@ -100,9 +101,11 @@ void main() {
     expect(chunks.whereType<TextChunk>(), isEmpty);
   });
 
-  test('does not convert malformed or unadvertised local tool requests', () async {
+  test('does not convert malformed or unadvertised local tool requests',
+      () async {
     final engine = _FakeEngine()
-      ..response = '<chronox-tool-call>{"name":"delete_everything","arguments":{}}</chronox-tool-call>';
+      ..response =
+          '<chronox-tool-call>{"name":"delete_everything","arguments":{}}</chronox-tool-call>';
     final provider = LocalLlmProvider(engine);
     const tools = <Map<String, Object?>>[
       <String, Object?>{
@@ -116,7 +119,8 @@ void main() {
     ).toList();
 
     expect(chunks.whereType<ToolCallChunk>(), isEmpty);
-    expect(chunks.whereType<TextChunk>().map((final chunk) => chunk.text).join(),
+    expect(
+        chunks.whereType<TextChunk>().map((final chunk) => chunk.text).join(),
         engine.response);
     expect(chunks.last, isA<DoneChunk>());
   });

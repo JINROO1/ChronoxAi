@@ -460,6 +460,11 @@ class ReasoningDeltaEvent extends AgentEvent {
   final String text;
 }
 
+/// Limpia el razonamiento efímero al iniciar o terminar un turno.
+class ReasoningResetEvent extends AgentEvent {
+  const ReasoningResetEvent();
+}
+
 /// La herramienta empezó a ejecutarse.
 class ToolStartedEvent extends AgentEvent {
   const ToolStartedEvent({required this.callId, required this.name});

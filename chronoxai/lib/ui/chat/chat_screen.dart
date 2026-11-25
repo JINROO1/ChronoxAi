@@ -251,6 +251,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       _scrollToBottom();
     }
     final entries = transcriptOf(history);
+    final reasoning = ref.watch(liveReasoningProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -283,6 +284,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                           MessageBubble(entry: entries[i]),
                     ),
             ),
+            if (reasoning.isNotEmpty)
+              _LiveReasoning(text: reasoning),
             if (view.error != null)
               _ErrorBanner(
                 message: view.error!,
@@ -303,6 +306,52 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       ),
     );
   }
+}
+
+class _LiveReasoning extends StatefulWidget {
+  const _LiveReasoning({required this.text});
+  final String text;
+
+  @override
+  State<_LiveReasoning> createState() => _LiveReasoningState();
+}
+
+class _LiveReasoningState extends State<_LiveReasoning> {
+  bool _expanded = true;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+        child: Container(
+          decoration: BoxDecoration(
+            color: ChronoxColors.surface,
+            border: Border.all(color: ChronoxColors.border),
+            borderRadius: ChronoxRadius.card,
+          ),
+          child: Column(children: <Widget>[
+            ListTile(
+              dense: true,
+              leading: const Icon(Icons.psychology_alt_outlined, size: 18),
+              title: const Text('Razonamiento del modelo'),
+              trailing: IconButton(
+                tooltip: _expanded ? 'Plegar' : 'Expandir',
+                icon: Icon(_expanded ? Icons.expand_less : Icons.expand_more),
+                onPressed: () => setState(() => _expanded = !_expanded),
+              ),
+              onTap: () => setState(() => _expanded = !_expanded),
+            ),
+            if (_expanded)
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 150),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                  child: SelectableText(widget.text,
+                      style: const TextStyle(fontSize: 12, height: 1.4)),
+                ),
+              ),
+          ]),
+        ),
+      );
 }
 
 /// Cabecera: identidad de la app, modo activo y consumo de la sesión.

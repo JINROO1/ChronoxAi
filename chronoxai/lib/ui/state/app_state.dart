@@ -631,6 +631,8 @@ class AgentViewState {
 ///
 /// Se suscribe una sola vez por sesión: reconstruir la pantalla no vuelve a
 /// engancharse al bus (lo que duplicaría los eventos de streaming).
+final liveReasoningProvider = StateProvider<String>((final ref) => '');
+
 final agentViewProvider =
     StateNotifierProvider<AgentViewNotifier, AgentViewState>((final ref) {
   return AgentViewNotifier(ref);
@@ -664,7 +666,14 @@ class AgentViewNotifier extends StateNotifier<AgentViewState> {
       return;
     }
     final events = next.events;
+    _ref.read(liveReasoningProvider.notifier).state = '';
     _subscriptions.addAll(<StreamSubscription<AgentEvent>>[
+      events.of<ReasoningDeltaEvent>().listen((final event) {
+        _ref.read(liveReasoningProvider.notifier).state += event.text;
+      }),
+      events.of<ReasoningResetEvent>().listen((final _) {
+        _ref.read(liveReasoningProvider.notifier).state = '';
+      }),
       events.of<ToolStartedEvent>().listen((final _) {
         state = AgentViewState(
           isRunning: true,

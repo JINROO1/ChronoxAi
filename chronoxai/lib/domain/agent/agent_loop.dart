@@ -193,6 +193,7 @@ class AgentLoop {
     }
 
     _cancelled = false;
+    events.emit(const ReasoningResetEvent());
     _cancelSignal = Completer<void>();
     _status = const AgentStatus(isRunning: true, activity: 'Pensando…');
 
@@ -236,6 +237,7 @@ class AgentLoop {
         'CHRONOX_TURN_REASON': reason,
       });
       await log.append(TurnEndEvent(turnId: turnId, reason: reason));
+      events.emit(const ReasoningResetEvent());
       _status = const AgentStatus(isRunning: false);
       _activeStream = null;
       _abortActiveRequest = null;

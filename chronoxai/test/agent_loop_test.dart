@@ -935,11 +935,9 @@ void main() {
       );
       expect(provider.cancellations, 1);
       expect(
-        Directory.systemTemp
-            .listSync()
-            .where((final entity) =>
-                entity.path.contains('chronox-subagent-') &&
-                !existingTempPaths.contains(entity.path)),
+        Directory.systemTemp.listSync().where((final entity) =>
+            entity.path.contains('chronox-subagent-') &&
+            !existingTempPaths.contains(entity.path)),
         isEmpty,
       );
     });

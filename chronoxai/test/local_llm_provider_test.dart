@@ -63,14 +63,12 @@ void main() {
     final provider = LocalLlmProvider(engine);
 
     await expectLater(
-      provider
-          .stream(
-            messages: const <LlmMessage>[],
-            tools: const <Map<String, Object?>>[
-              <String, Object?>{'name': 'run_shell'},
-            ],
-          )
-          .toList(),
+      provider.stream(
+        messages: const <LlmMessage>[],
+        tools: const <Map<String, Object?>>[
+          <String, Object?>{'name': 'run_shell'},
+        ],
+      ).toList(),
       throwsA(
         isA<LlmException>().having(
           (final error) => error.message,

@@ -104,6 +104,7 @@ Se adopta provisionalmente `Q4_K_M` para mantener el archivo en un rango viable 
 3. Emitir tokens como `TextChunk`; soportar stop, límite de tokens/contexto, timeout, cancelación nativa y cierre idempotente.
 4. Gestionar una sola sesión de inferencia por modelo; cerrar contexto y liberar memoria al cambiar modelo, cerrar sesión o recibir presión de memoria.
 5. Errores tipados y visibles: archivo inválido, arquitectura no compatible, memoria, cancelación, generación fallida. No reenviar a proveedor remoto automáticamente.
+6. Hasta completar Fase 5, rechazar explícitamente solicitudes que incluyan herramientas; no ignorar esquemas ni interpretar texto libre como llamadas ejecutables.
 
 **Gate:** pruebas unitarias del adaptador con backend falso para token streaming, conversión de roles, stop, cancelación, límites, fallo de carga y liberación; generación real de varios turnos sin fugas/crashes.
 

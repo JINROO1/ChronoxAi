@@ -58,6 +58,31 @@ void main() {
     expect(engine.receivedTools, isEmpty);
   });
 
+  test('rejects tool requests instead of silently ignoring them', () async {
+    final engine = _FakeEngine();
+    final provider = LocalLlmProvider(engine);
+
+    await expectLater(
+      provider
+          .stream(
+            messages: const <LlmMessage>[],
+            tools: const <Map<String, Object?>>[
+              <String, Object?>{'name': 'run_shell'},
+            ],
+          )
+          .toList(),
+      throwsA(
+        isA<LlmException>().having(
+          (final error) => error.message,
+          'message',
+          contains('no se ejecutó ninguna'),
+        ),
+      ),
+    );
+    expect(engine.receivedMessages, isNull);
+    expect(engine.receivedTools, isNull);
+  });
+
   test('does not start inference when no local model is loaded', () async {
     final engine = _FakeEngine()..loaded = false;
     final provider = LocalLlmProvider(engine);

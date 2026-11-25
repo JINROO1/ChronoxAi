@@ -60,6 +60,12 @@ class LocalLlmProvider implements LlmProvider {
     double? temperature,
     int? maxTokens,
   }) {
+    if (tools.isNotEmpty) {
+      return Stream<LlmChunk>.error(const LlmException(
+        LlmErrorKind.unknown,
+        'El proveedor local aún no admite llamadas a herramientas; no se ejecutó ninguna.',
+      ));
+    }
     if (_generating) {
       return Stream<LlmChunk>.error(const LlmException(
         LlmErrorKind.unknown,
@@ -103,8 +109,10 @@ class LocalLlmProvider implements LlmProvider {
         }
       },
       onCancel: () async {
+        // Keep the provider busy until onListen's finally block runs. Native
+        // cancellation is asynchronous; releasing the guard here could admit a
+        // second request while the first JNI call still owns the context.
         await engine.cancel();
-        _generating = false;
       },
     );
     return controller.stream;

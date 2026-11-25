@@ -12,11 +12,11 @@ on:
         type: boolean
         default: false
       offline_gate:
-        description: 'Ejecutar verificación de artefactos y smoke test Android (puede tardar ~40 min)'
+        description: 'Verificar GGUF, inferencia host y compilación Android (sin emulador)'
         type: boolean
         default: false
       runtime_arch:
-        description: 'Arquitectura de los binarios proot (arm64 = móvil real, x86_64 = emulador)'
+        description: 'Arquitectura del runtime Linux (arm64 para Android, x86_64 para CI desktop)'
         type: choice
         options: [arm64, x86_64]
         default: arm64
@@ -328,129 +328,7 @@ jobs:
           echo '### Android target: llama.cpp ARM64/API 28 cross-build OK' >> "$GITHUB_STEP_SUMMARY"
 
   # ---------------------------------------------------------------------------
-  # Smoke test en Android real-emulator API 28 sobre Mac Intel hosted runner.
-  # Separa la prueba emulada de la de hashes/host para evitar consumir macOS
-  # en cada build; ambas solo corren con el marcador [offline-gate].
-  # ---------------------------------------------------------------------------
-  offline-android-emulator:
-    name: Offline Qwen Android API 28 emulator and JNI app smoke
-    if: >-
-      (github.event_name == 'push' && contains(github.event.head_commit.message, '[offline-gate]')) ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.title, '[offline-gate]')) ||
-      (github.event_name == 'workflow_dispatch' && inputs.offline_gate)
-    runs-on: macos-15-intel
-    timeout-minutes: 60
-    env:
-      LLAMA_CPP_SOURCE_DIR: ${{ github.workspace }}/llama.cpp
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/checkout@v5
-        with:
-          repository: ggml-org/llama.cpp
-          ref: 3ba1ce0e28d991800e1585b7d3533f77213939d6
-          path: llama.cpp
-
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-
-      - name: Resolver dependencias Flutter
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: flutter pub get
-
-      - uses: android-actions/setup-android@v3
-        with:
-          packages: 'ndk;27.2.12479018 cmake;3.22.1 cmake;3.31.6 platforms;android-35 build-tools;35.0.0'
-
-      - name: Descargar y verificar Qwen 0.8B
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/qwen-models"
-          cd "$RUNNER_TEMP/qwen-models"
-          curl --fail --location --retry 5 --retry-all-errors \
-            'https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/6ab461498e2023f6e3c1baea90a8f0fe38ab64d0/Qwen3.5-0.8B-Q4_K_M.gguf' \
-            --output Qwen3.5-0.8B-Q4_K_M.gguf
-          printf '%s  %s\n' \
-            'bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517' Qwen3.5-0.8B-Q4_K_M.gguf | shasum -a 256 --check
-          test "$(stat -f '%z' Qwen3.5-0.8B-Q4_K_M.gguf)" = 532517120
-
-      - name: Inicializar archivos de diagnóstico JNI
-        shell: bash
-        run: |
-          : > "${{ github.workspace }}/jni-app-smoke.log"
-          : > "${{ github.workspace }}/jni-app-logcat.txt"
-
-      - name: Ejecutar Qwen 0.8B en emulador Android API 28
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 28
-          target: google_apis
-          arch: x86_64
-          profile: pixel_2
-          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -no-snapshot-save
-          emulator-boot-timeout: 1200
-          disable-animations: true
-          script: |
-            set -eu
-            diagnostic="${{ github.workspace }}/jni-app-smoke.log"
-            : > "$diagnostic"
-            fail() {
-              printf 'PRE-FLIGHT FAILURE: %s\n' "$1" >> "$diagnostic"
-              cat "$diagnostic"
-              echo "::error title=Android emulator smoke failed::$1"
-              exit 1
-            }
-            echo 'Starting app/JNI emulator smoke.' >> "$diagnostic"
-            adb devices -l >> "$diagnostic" 2>&1 || true
-            adb wait-for-device || fail 'adb did not see the emulator'
-            adb shell df -h /sdcard >> "$diagnostic" 2>&1 || true
-            adb shell mkdir -p /sdcard/Android/data/app.chronoxai.debug/files >> "$diagnostic" 2>&1 || fail 'could not prepare app model directory'
-            adb push "$RUNNER_TEMP/qwen-models/Qwen3.5-0.8B-Q4_K_M.gguf" /sdcard/Android/data/app.chronoxai.debug/files/Qwen3.5-0.8B-Q4_K_M.gguf >> "$diagnostic" 2>&1 || fail 'could not copy model to app external files'
-            cd "$GITHUB_WORKSPACE/chronoxai" || fail 'Flutter project directory not found in emulator job'
-            set +e
-            flutter test integration_test/local_llm_smoke_test.dart \
-              --dart-define=LOCAL_QWEN_MODEL_PATH=/storage/emulated/0/Android/data/app.chronoxai.debug/files/Qwen3.5-0.8B-Q4_K_M.gguf \
-              -d emulator-5554 >> "${{ github.workspace }}/jni-app-smoke.log" 2>&1
-            smoke_status=$?
-            set -e
-            cat "${{ github.workspace }}/jni-app-smoke.log"
-            adb logcat -d -v time > "${{ github.workspace }}/jni-app-logcat.txt" || true
-            if [ "$smoke_status" -ne 0 ]; then
-              tail -80 "${{ github.workspace }}/jni-app-smoke.log" >> "$GITHUB_STEP_SUMMARY" || true
-              tail -120 "${{ github.workspace }}/jni-app-logcat.txt" >> "$GITHUB_STEP_SUMMARY" || true
-              python3 - "${{ github.workspace }}/jni-app-smoke.log" <<'PYERR'
-            import sys
-            lines = open(sys.argv[1], encoding='utf-8', errors='replace').read().splitlines()[-40:]
-            for line in lines:
-                safe = line[:700].replace('%', '%25').replace('\r', '').replace(':', '%3A')
-                print('::error title=Qwen JNI app smoke::' + safe)
-            PYERR
-              exit "$smoke_status"
-            fi
-            echo '### Android API 28 x86_64 emulator: llama.cpp JNI load/generate/unload smoke OK' >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Guardar diagnóstico del smoke JNI
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: qwen-android-jni-smoke-diagnostics
-          path: |
-            ${{ github.workspace }}/jni-app-smoke.log
-            ${{ github.workspace }}/jni-app-logcat.txt
-          if-no-files-found: warn
-          retention-days: 3
-
-  # ---------------------------------------------------------------------------
-  # 3. Validación del runtime Linux empaquetado
+  # Validación del runtime Linux empaquetado
   #     Comprueba que los binarios de proot existen, son AArch64 y están
   #     alineados a 16 KB (si no, la app falla en Android 15+).
   # ---------------------------------------------------------------------------

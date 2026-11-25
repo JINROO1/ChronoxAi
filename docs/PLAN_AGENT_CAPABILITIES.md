@@ -1,6 +1,6 @@
 # Plan de capacidades avanzadas del agente
 
-Estado: secuencia incremental; completar y validar una fase antes de empezar la siguiente. Fase 1 implementada y validada (279 tests). Fase 2 implementada y validada en CI (284 tests, analyze, format y Runtime Linux pasan). Fase 3 implementada y validada en CI (290 tests, analyze, format y Runtime Linux). Fase 4 implementada y validada en CI (295 tests, Analyze, Format y Runtime Linux). Fase 5 implementada y validada en CI (304 tests, Analyze, Format y Runtime Linux). Fase 6 aún no iniciada.
+Estado: secuencia incremental; completar y validar una fase antes de empezar la siguiente. Fase 1 implementada y validada (279 tests). Fase 2 implementada y validada en CI (284 tests, analyze, format y Runtime Linux pasan). Fase 3 implementada y validada en CI (290 tests, analyze, format y Runtime Linux). Fase 4 implementada y validada en CI (295 tests, Analyze, Format y Runtime Linux). Fase 5 implementada y validada en CI (304 tests, Analyze, Format y Runtime Linux). Fase 6 implementada y validada en CI (308 tests, Analyze, Format y Runtime Linux). Fase 7 aún no iniciada.
 
 ## Principios comunes
 
@@ -65,6 +65,8 @@ Validación: CI `45594146664` exitoso; 304 tests, Analyze, Format y Runtime Linu
 3. Añadir revisión independiente con hallazgos enlazados a archivos/líneas, no reemplazar el resultado del agente principal.
 4. Aislar subagentes read-only por defecto; compartir escritura solo con aprobación explícita.
 5. Probar cancelación, fallos parciales, límites y determinismo de agregación.
+
+Validación: CI `45595301849` exitoso; 308 tests, Analyze, Format y Runtime Linux completados. Los subagentes reciben roles/contratos, limitan prompts, pasos, tokens, contexto, salida y duración; sólo exponen herramientas read-only, procesan como máximo dos tareas concurrentes, retienen resultados parciales y cancelan/limpian la sesión al vencer el timeout. Las anotaciones solo reportan el warning conocido de Node 20 en `actions/upload-artifact@v4`.
 
 ## Fase 7 — Investigación web verificable
 

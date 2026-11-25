@@ -5,6 +5,23 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('LocalModelSpec.catalog', () {
+    test('catalog entries provide versionable runtime and license metadata', () {
+      for (final spec in LocalModelSpec.catalog) {
+        final metadata = spec.toManifestEntry();
+        expect(metadata['id'], spec.id);
+        expect(metadata['fileName'], spec.fileName);
+        expect(metadata['format'], 'GGUF');
+        expect(metadata['runtime'], contains('llama.cpp@'));
+        expect(metadata['bytes'], spec.bytes);
+        expect(metadata['sha256'], spec.sha256);
+        expect(metadata['quantization'], 'Q4_K_M');
+        expect(metadata['license'], 'Apache-2.0');
+        expect(metadata['source'], spec.url);
+        expect(metadata['revision'], spec.revision);
+        expect(metadata['contextWindow'], greaterThan(0));
+      }
+    });
+
     test('pins only the requested Qwen 0.8B and 2B variants', () {
       expect(LocalModelSpec.catalog.map((final spec) => spec.id), <String>[
         'qwen35-0.8b-q4km',

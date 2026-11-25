@@ -15,6 +15,11 @@ class LocalModelSpec {
     required this.sha256,
     required this.url,
     required this.revision,
+    required this.format,
+    required this.runtime,
+    required this.quantization,
+    required this.license,
+    required this.contextWindow,
   });
 
   final String id;
@@ -24,6 +29,26 @@ class LocalModelSpec {
   final String sha256;
   final String url;
   final String revision;
+  final String format;
+  final String runtime;
+  final String quantization;
+  final String license;
+  final int contextWindow;
+
+  Map<String, Object?> toManifestEntry() => <String, Object?>{
+        'id': id,
+        'label': label,
+        'fileName': fileName,
+        'format': format,
+        'runtime': runtime,
+        'bytes': bytes,
+        'sha256': sha256,
+        'quantization': quantization,
+        'license': license,
+        'source': url,
+        'revision': revision,
+        'contextWindow': contextWindow,
+      };
 
   static const List<LocalModelSpec> catalog = <LocalModelSpec>[
     LocalModelSpec(
@@ -36,6 +61,11 @@ class LocalModelSpec {
       url:
           'https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/6ab461498e2023f6e3c1baea90a8f0fe38ab64d0/Qwen3.5-0.8B-Q4_K_M.gguf',
       revision: '6ab461498e2023f6e3c1baea90a8f0fe38ab64d0',
+      format: 'GGUF',
+      runtime: 'llama.cpp@3ba1ce0e28d991800e1585b7d3533f77213939d6',
+      quantization: 'Q4_K_M',
+      license: 'Apache-2.0',
+      contextWindow: 2048,
     ),
     LocalModelSpec(
       id: 'qwen35-2b-q4km',
@@ -47,6 +77,11 @@ class LocalModelSpec {
       url:
           'https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_K_M.gguf',
       revision: 'f6d5376be1edb4d416d56da11e5397a961aca8ae',
+      format: 'GGUF',
+      runtime: 'llama.cpp@3ba1ce0e28d991800e1585b7d3533f77213939d6',
+      quantization: 'Q4_K_M',
+      license: 'Apache-2.0',
+      contextWindow: 2048,
     ),
   ];
 }
@@ -109,7 +144,7 @@ class LocalModelStore {
     for (final spec in LocalModelSpec.catalog) {
       final file = File(p.join(directory.path, spec.fileName));
       if (!await file.exists() || await file.length() != spec.bytes) continue;
-      if (manifest[spec.id] != spec.sha256) continue;
+      if (manifest[spec.id]?['sha256'] != spec.sha256) continue;
       installed.add(LocalModelInstallation(spec: spec, file: file));
     }
     return installed;
@@ -239,28 +274,56 @@ class LocalModelStore {
     final destination = File(p.join(directory.path, spec.fileName));
     await temporary.rename(destination.path);
     final manifest = await _readManifest(directory);
-    manifest[spec.id] = spec.sha256;
+    manifest[spec.id] = spec.toManifestEntry();
     await _writeManifest(directory, manifest);
   }
 
-  Future<Map<String, String>> _readManifest(Directory directory) async {
+  Future<Map<String, Map<String, Object?>>> _readManifest(
+      Directory directory) async {
     final file = File(p.join(directory.path, 'models.json'));
-    if (!await file.exists()) return <String, String>{};
+    if (!await file.exists()) return <String, Map<String, Object?>>{};
     try {
       final decoded = jsonDecode(await file.readAsString());
-      if (decoded is! Map<String, dynamic>) return <String, String>{};
-      return decoded.map((final key, final value) =>
-          MapEntry<String, String>(key, value.toString()));
+      if (decoded is! Map<String, dynamic>) {
+        return <String, Map<String, Object?>>{};
+      }
+      final schemaVersion = decoded['schemaVersion'];
+      final models = decoded['models'];
+      if (schemaVersion == 1 && models is Map<String, dynamic>) {
+        return models.map((final id, final value) => MapEntry(
+              id,
+              value is Map<String, dynamic>
+                  ? Map<String, Object?>.from(value)
+                  : <String, Object?>{},
+            ));
+      }
+
+      // Migrate the original flat `{modelId: sha256}` manifest in memory;
+      // the next successful store/remove rewrites it as schema version 1.
+      final legacy = <String, Map<String, Object?>>{};
+      for (final entry in decoded.entries) {
+        final spec = LocalModelSpec.catalog
+            .where((final candidate) => candidate.id == entry.key)
+            .firstOrNull;
+        if (spec != null && entry.value == spec.sha256) {
+          legacy[spec.id] = spec.toManifestEntry();
+        }
+      }
+      return legacy;
     } on FormatException {
-      return <String, String>{};
+      return <String, Map<String, Object?>>{};
     }
   }
 
   Future<void> _writeManifest(
-      Directory directory, Map<String, String> manifest) async {
+      Directory directory, Map<String, Map<String, Object?>> manifest) async {
     final file = File(p.join(directory.path, 'models.json'));
     final temporary = File('${file.path}.tmp');
-    await temporary.writeAsString(jsonEncode(manifest), flush: true);
+    final document = <String, Object?>{
+      'schemaVersion': 1,
+      'models': manifest,
+    };
+    await temporary.writeAsString(jsonEncode(document), flush: true);
     await temporary.rename(file.path);
   }
 }

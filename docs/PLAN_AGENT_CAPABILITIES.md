@@ -1,6 +1,6 @@
 # Plan de capacidades avanzadas del agente
 
-Estado: secuencia incremental; completar y validar una fase antes de empezar la siguiente. Fase 1 implementada y validada (279 tests). Fase 2 implementada y validada en CI (284 tests, analyze, format y Runtime Linux pasan). Fase 3 implementada y validada en CI (290 tests, analyze, format y Runtime Linux). Fase 4 implementada y validada en CI (295 tests, Analyze, Format y Runtime Linux). Fase 5 aún no iniciada.
+Estado: secuencia incremental; completar y validar una fase antes de empezar la siguiente. Fase 1 implementada y validada (279 tests). Fase 2 implementada y validada en CI (284 tests, analyze, format y Runtime Linux pasan). Fase 3 implementada y validada en CI (290 tests, analyze, format y Runtime Linux). Fase 4 implementada y validada en CI (295 tests, Analyze, Format y Runtime Linux). Fase 5 implementada y validada en CI (304 tests, Analyze, Format y Runtime Linux). Fase 6 aún no iniciada.
 
 ## Principios comunes
 
@@ -55,6 +55,8 @@ Validación: CI `45590687693` exitoso; 295 tests, Analyze, Format y Runtime Linu
 3. Mostrar, editar, exportar y borrar memoria desde UI.
 4. Inyectar fragmentos con presupuesto y permitir excluir archivos/temas.
 5. Probar persistencia, migración, privacidad, aislamiento entre workspaces y borrado completo.
+
+Validación: CI `45594146664` exitoso; 304 tests, Analyze, Format y Runtime Linux completados. Se añadieron pruebas de formato/versiones desconocidas, aislamiento, rechazo de credenciales, relevancia/exclusiones y borrado completo. Las anotaciones solo reportan el warning conocido de Node 20 en `actions/upload-artifact@v4`.
 
 ## Fase 6 — Subagentes especializados y revisión
 

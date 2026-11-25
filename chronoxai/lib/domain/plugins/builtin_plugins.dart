@@ -234,12 +234,19 @@ ChronoxPlugin fsPlugin() => _FsPlugin(
                 'La herramienta write requiere path y content como texto.',
               );
             }
-            await context.services.fileSystem.writeFile(path, content);
+            final safePath = _workspacePath(path);
+            final journal = context.services.changeJournal.originals;
+            if (!journal.containsKey(safePath)) {
+              journal[safePath] = await context.services.fileSystem.exists(safePath)
+                  ? await context.services.fileSystem.readFile(safePath)
+                  : null;
+            }
+            await context.services.fileSystem.writeFile(safePath, content);
             final lines = content.split('\n').length;
             return ToolOutcome(
               content:
-                  'Escrito $path ($lines líneas, ${content.length} caracteres).',
-              metadata: <String, Object?>{'path': path, 'lines': lines},
+                  'Escrito $safePath ($lines líneas, ${content.length} caracteres).',
+              metadata: <String, Object?>{'path': safePath, 'lines': lines},
             );
           },
         ),
@@ -630,11 +637,49 @@ class _TerminalPlugin extends ChronoxPlugin {
 // core-editing: edit (str_replace) y apply_patch
 // ---------------------------------------------------------------------------
 
+String _workspacePath(final String input) {
+    if (input.contains("'") || input.contains('\n') || input.contains('\r')) {
+      throw ArgumentError('La ruta contiene caracteres no admitidos.');
+    }
+    final raw = input.startsWith('/') ? input : '/workspace/$input';
+    final segments = <String>[];
+    for (final segment in raw.split('/')) {
+      if (segment.isEmpty || segment == '.') continue;
+      if (segment == '..') {
+        if (segments.isEmpty) throw ArgumentError('Ruta fuera del workspace.');
+        segments.removeLast();
+      } else {
+        segments.add(segment);
+      }
+    }
+    final normalized = '/${segments.join('/')}';
+    if (normalized != '/workspace' && !normalized.startsWith('/workspace/')) {
+      throw ArgumentError('Ruta fuera del workspace: $input');
+    }
+    return normalized;
+  }
+
+
 class _EditingPlugin extends ChronoxPlugin {
   _EditingPlugin();
 
+  /// Primer estado visto en la sesión para cada ruta que modificamos.
+  late Map<String, String?> _originals;
+
+
+  Future<void> _remember(
+    final PluginContext context,
+    final String path,
+  ) async {
+    if (_originals.containsKey(path)) return;
+    _originals[path] = await context.services.fileSystem.exists(path)
+        ? await context.services.fileSystem.readFile(path)
+        : null;
+  }
+
   @override
   Future<void> mount(final PluginContext context) async {
+    _originals = context.services.changeJournal.originals;
     context.provideTool(
       PluginTool(
         name: 'edit',
@@ -652,7 +697,7 @@ class _EditingPlugin extends ChronoxPlugin {
           'new_str'
         ]),
         execute: (final args) async {
-          final path = args['path']! as String;
+          final path = _workspacePath(args['path']! as String);
           final oldStr = args['old_str']! as String;
           final newStr = (args['new_str'] as String?) ?? '';
 
@@ -674,6 +719,7 @@ class _EditingPlugin extends ChronoxPlugin {
           }
 
           final updated = content.replaceFirst(oldStr, newStr);
+          await _remember(context, path);
           await context.services.fileSystem.writeFile(path, updated);
           return ToolOutcome(
             content:
@@ -695,17 +741,51 @@ class _EditingPlugin extends ChronoxPlugin {
           'patch'
         ]),
         execute: (final args) async {
-          // Se delega en `patch` del contenedor: reimplementar un parser de
-          // diffs en Dart sería frágil y el contenedor ya lo tiene.
+          // `patch --dry-run` valida el lote entero antes de modificar nada.
+          final patchText = args['patch']! as String;
+          final paths = _patchPaths(patchText);
+          if (paths.isEmpty) {
+            return const ToolOutcome.error(
+              'El patch no contiene cabeceras de fichero reconocidas.',
+              errorCategory: 'invalid_arguments',
+              recoveryHint: 'Envía un diff unificado con rutas bajo /workspace.',
+            );
+          }
           final stamp = DateTime.now().microsecondsSinceEpoch;
           final tmp = '/workspace/.chronox-patch-$stamp.diff';
-          await context.services.fileSystem
-              .writeFile(tmp, args['patch']! as String);
+          await context.services.fileSystem.writeFile(tmp, patchText);
+          final snapshots = <String, String?>{};
+          var applyStarted = false;
           try {
+            for (final path in paths) {
+              snapshots[path] = await context.services.fileSystem.exists(path)
+                  ? await context.services.fileSystem.readFile(path)
+                  : null;
+            }
+            final preflight = await context.services.shell.run(
+              'patch --dry-run -p1 --forward --input="$tmp"',
+              workingDirectory: '/workspace',
+              timeout: const Duration(minutes: 2),
+            );
+            if (!preflight.isSuccess) {
+              return ToolOutcome.error(
+                'Patch rechazado antes de escribir. STDOUT: ${preflight.stdout} '
+                'STDERR: ${preflight.stderr}',
+                metadata: <String, Object?>{'exitCode': preflight.exitCode},
+              );
+            }
+            for (final entry in snapshots.entries) {
+              _originals.putIfAbsent(entry.key, () => entry.value);
+            }
+            applyStarted = true;
             final result = await context.services.shell.run(
               'patch -p1 --forward --input="$tmp"',
               workingDirectory: '/workspace',
+              timeout: const Duration(minutes: 2),
             );
+            if (!result.isSuccess) {
+              await _restore(context, snapshots);
+            }
             return ToolOutcome(
               content: <String>[
                 if (result.stdout.isNotEmpty) 'STDOUT:\n${result.stdout}',
@@ -716,14 +796,99 @@ class _EditingPlugin extends ChronoxPlugin {
                 'exitCode': result.exitCode,
                 'stdout': result.stdout,
                 'stderr': result.stderr,
+                'files': paths,
               },
             );
+          } catch (_) {
+            if (applyStarted) await _restore(context, snapshots);
+            rethrow;
           } finally {
-            await context.services.shell.run('rm -f -- "$tmp"');
+            await context.services.shell.run("rm -f -- '$tmp'");
           }
         },
       ),
     );
+    context.provideTool(
+      PluginTool(
+        name: 'rollback_changes',
+        description:
+            'Revierte los cambios de archivos realizados por Chronox en esta '
+            'sesión al estado inicial. Requiere aprobación explícita.',
+        requiresApproval: true,
+        inputSchema: _obj(const <String, Object?>{
+          'type': 'object',
+          'properties': <String, Object?>{},
+          'additionalProperties': false,
+        }),
+        execute: (final _) async {
+          if (_originals.isEmpty) {
+            return const ToolOutcome(content: 'No hay cambios de sesión que revertir.');
+          }
+          final paths = _originals.keys.toList().reversed.toList();
+          final failures = <String>[];
+          for (final path in paths) {
+            try {
+              final original = _originals[path];
+              if (original == null) {
+                final removed = await context.services.shell.run(
+                  "rm -f -- '$path'",
+                  workingDirectory: '/workspace',
+                );
+                if (!removed.isSuccess) failures.add(path);
+              } else {
+                await context.services.fileSystem.writeFile(path, original);
+              }
+            } catch (_) {
+              failures.add(path);
+            }
+          }
+          if (failures.isNotEmpty) {
+            return ToolOutcome.error(
+              'Reversión parcial; fallaron: ${failures.join(', ')}. '
+              'El registro se conserva para volver a intentar.',
+              errorCategory: 'process_failed',
+              recoveryHint: 'Inspecciona permisos y rutas; no borres el registro de reversión.',
+            );
+          }
+          _originals.clear();
+          return ToolOutcome(
+            content: 'Revertidos ${paths.length} archivos al estado inicial.',
+            metadata: <String, Object?>{'files': paths},
+          );
+        },
+      ),
+    );
+  }
+
+  static List<String> _patchPaths(final String patch) {
+    final paths = <String>{};
+    for (final line in patch.split('\n')) {
+      if (!line.startsWith('--- ') && !line.startsWith('+++ ')) continue;
+      var value = line.substring(4).split('\t').first.trim();
+      if (value == '/dev/null') continue;
+      if (value.startsWith('a/') || value.startsWith('b/')) {
+        value = value.substring(2);
+      }
+      paths.add(_workspacePath(value));
+    }
+    return paths.toList();
+  }
+
+  Future<void> _restore(
+    final PluginContext context,
+    final Map<String, String?> snapshots,
+  ) async {
+    for (final entry in snapshots.entries.toList().reversed) {
+      final original = entry.value;
+      if (original == null) {
+        await context.services.shell.run(
+          "rm -f -- '${entry.key}'",
+          workingDirectory: '/workspace',
+        );
+      } else {
+        await context.services.fileSystem.writeFile(entry.key, original);
+      }
+    }
   }
 }
 

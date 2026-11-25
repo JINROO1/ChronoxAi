@@ -140,11 +140,13 @@ class AgentLoop {
     Future<String> Function()? loadProjectInstructions,
     HookRunner? hooks,
     LlmSeam? llm,
+    FileSystemSeam? fileSystem,
   })  : _approvalHandler = approvalHandler,
         _planHandler = planHandler,
         _loadProjectInstructions = loadProjectInstructions,
         _hooks = hooks,
-        _llm = llm;
+        _llm = llm,
+        _fileSystem = fileSystem;
 
   final LlmProvider provider;
   final ToolRegistry registry;
@@ -159,6 +161,7 @@ class AgentLoop {
   final Future<String> Function()? _loadProjectInstructions;
   final HookRunner? _hooks;
   final LlmSeam? _llm;
+  final FileSystemSeam? _fileSystem;
 
   /// Instrucciones del proyecto cargadas para el turno en curso.
   String? _projectInstructions;
@@ -724,6 +727,7 @@ class AgentLoop {
   ) async {
     final handler = _approvalHandler;
     final preview = _previewFor(call);
+    final diff = await _diffFor(call);
     final hook = await _runHook(HookPoint.onApprovalRequest, <String, String>{
       'CHRONOX_TOOL_NAME': call.name,
       'CHRONOX_TOOL_CALL_ID': call.id,
@@ -735,7 +739,7 @@ class AgentLoop {
         callId: call.id,
         toolName: call.name,
         preview: preview,
-        diff: _diffFor(call),
+        diff: diff,
       ),
     );
 
@@ -748,7 +752,7 @@ class AgentLoop {
         callId: call.id,
         toolName: call.name,
         preview: preview,
-        diff: _diffFor(call),
+        diff: diff,
       ),
     );
   }
@@ -768,14 +772,72 @@ class AgentLoop {
     };
   }
 
-  /// Diff unificado, cuando la herramienta lo permite calcular.
-  String? _diffFor(final LlmToolCall call) {
-    if (call.name == 'edit') {
-      final oldStr = call.arguments['old_str']?.toString() ?? '';
-      final newStr = call.arguments['new_str']?.toString() ?? '';
-      return '- $oldStr\n+ $newStr';
+  /// Diff unificado acotado que se calcula contra el contenido actual.
+  Future<String?> _diffFor(final LlmToolCall call) async {
+    final fs = _fileSystem;
+    if (call.name == 'apply_patch') {
+      final patch = call.arguments['patch']?.toString();
+      return patch == null ? null : _clipDiff(patch);
     }
-    return null;
+    if (fs == null || !<String>{'write', 'edit'}.contains(call.name)) {
+      return null;
+    }
+
+    final path = call.arguments['path']?.toString();
+    if (path == null) return null;
+    final exists = await fs.exists(path);
+    final oldContent = exists ? await fs.readFile(path) : '';
+    final newContent = call.name == 'write'
+        ? call.arguments['content']?.toString() ?? ''
+        : oldContent.replaceFirst(
+            call.arguments['old_str']?.toString() ?? '',
+            call.arguments['new_str']?.toString() ?? '',
+          );
+    return _unifiedDiff(path, oldContent, newContent, exists: exists);
+  }
+
+  static String _unifiedDiff(
+    final String path,
+    final String oldContent,
+    final String newContent, {
+    required final bool exists,
+  }) {
+    final displayPath = path.startsWith('/workspace/')
+        ? path.substring('/workspace/'.length)
+        : path;
+    final oldLines = oldContent.split('\n');
+    final newLines = newContent.split('\n');
+    var prefix = 0;
+    while (prefix < oldLines.length &&
+        prefix < newLines.length &&
+        oldLines[prefix] == newLines[prefix]) {
+      prefix++;
+    }
+    var suffix = 0;
+    while (suffix < oldLines.length - prefix &&
+        suffix < newLines.length - prefix &&
+        oldLines[oldLines.length - 1 - suffix] ==
+            newLines[newLines.length - 1 - suffix]) {
+      suffix++;
+    }
+    final oldEnd = oldLines.length - suffix;
+    final newEnd = newLines.length - suffix;
+    final header = '--- ${exists ? 'a/$displayPath' : '/dev/null'}\n'
+        '+++ b/$displayPath\n'
+        '@@ -${prefix + 1},${oldEnd - prefix} '
+        '+${prefix + 1},${newEnd - prefix} @@';
+    final body = <String>[
+      for (final line in oldLines.sublist(prefix, oldEnd)) '-$line',
+      for (final line in newLines.sublist(prefix, newEnd)) '+$line',
+    ];
+    return _clipDiff('$header\n${body.join('\n')}');
+  }
+
+  static String _clipDiff(final String diff) {
+    const maxDiffChars = 8000;
+    if (diff.length <= maxDiffChars) return diff;
+    return '${diff.substring(0, maxDiffChars)}\n[diff recortado; '
+        '${diff.length - maxDiffChars} caracteres omitidos]';
   }
 
   Future<void> _recordResult(

@@ -37,7 +37,9 @@ class _MemoryFileSystem implements FileSystemSeam {
   Future<String> readFile(String path) async => files[path] ?? 'void main() {}';
 
   @override
-  Future<void> writeFile(String path, String content) async {}
+  Future<void> writeFile(String path, String content) async {
+    files[path] = content;
+  }
 }
 
 class _RecordingTerminals implements TerminalsSeam {
@@ -72,6 +74,7 @@ class _RecordingTerminals implements TerminalsSeam {
 
 class _RecordingShell implements ShellSeam {
   final List<String> commands = <String>[];
+  final List<ShellResult> responses = <ShellResult>[];
 
   @override
   Future<ShellResult> run(
@@ -80,7 +83,9 @@ class _RecordingShell implements ShellSeam {
     Duration? timeout,
   }) async {
     commands.add(command);
-    return const ShellResult(exitCode: 0, stdout: 'ok', stderr: '');
+    return responses.isEmpty
+        ? const ShellResult(exitCode: 0, stdout: 'ok', stderr: '')
+        : responses.removeAt(0);
   }
 }
 
@@ -225,6 +230,76 @@ void main() {
     expect(result.isError, isTrue);
     expect(result.content, contains('varios ecosistemas'));
     expect(shell.commands, isEmpty);
+  });
+
+  test('editing records original state and rollback restores it', () async {
+    fileSystem.files['/workspace/note.txt'] = 'before';
+    expect(await host.mount('core-editing'), isTrue);
+
+    final edited = await registry.execute('edit', <String, Object?>{
+      'path': '/workspace/note.txt',
+      'old_str': 'before',
+      'new_str': 'after',
+    });
+    expect(edited.isError, isFalse);
+    expect(fileSystem.files['/workspace/note.txt'], 'after');
+    expect(registry['rollback_changes']!.requiresApproval, isTrue);
+
+    final rolledBack = await registry.execute(
+      'rollback_changes',
+      const <String, Object?>{},
+    );
+    expect(rolledBack.isError, isFalse);
+    expect(fileSystem.files['/workspace/note.txt'], 'before');
+  });
+
+  test('write rejects paths that escape the workspace', () async {
+    expect(await host.mount('core-fs'), isTrue);
+    final result = await registry.execute('write', <String, Object?>{
+      'path': '../../outside.txt',
+      'content': 'unsafe',
+    });
+
+    expect(result.isError, isTrue);
+    expect(fileSystem.files.containsKey('/outside.txt'), isFalse);
+  });
+
+  test('patches preflight all listed paths before applying', () async {
+    expect(await host.mount('core-editing'), isTrue);
+    final patch = '--- a/first.txt\n+++ b/first.txt\n@@ -1 +1 @@\n-old\n+new\n'
+        '--- a/second.txt\n+++ b/second.txt\n@@ -1 +1 @@\n-old\n+new';
+
+    final result = await registry.execute(
+      'apply_patch',
+      <String, Object?>{'patch': patch},
+    );
+
+    expect(result.isError, isFalse);
+    expect(shell.commands.first, contains('--dry-run'));
+    expect(shell.commands[1], startsWith('patch -p1'));
+    expect(result.metadata['files'], <String>[
+      '/workspace/first.txt',
+      '/workspace/second.txt',
+    ]);
+  });
+
+  test('patch preflight failure never starts the mutating command', () async {
+    expect(await host.mount('core-editing'), isTrue);
+    shell.responses.add(
+      const ShellResult(exitCode: 1, stdout: '', stderr: 'hunk failed'),
+    );
+    const patch = '--- a/a.txt\n+++ b/a.txt\n@@ -1 +1 @@\n-old\n+new';
+
+    final result = await registry.execute(
+      'apply_patch',
+      const <String, Object?>{'patch': patch},
+    );
+
+    expect(result.isError, isTrue);
+    expect(shell.commands, hasLength(2));
+    expect(shell.commands.first, contains('--dry-run'));
+    expect(shell.commands.last, startsWith('rm -f --'));
+    expect(fileSystem.files.keys, isNot(contains('/workspace/a.txt')));
   });
 
   test('git tools issue only fixed, read-only git commands', () async {

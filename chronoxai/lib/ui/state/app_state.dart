@@ -431,6 +431,7 @@ Future<SessionRuntime> startSession(
         ProjectInstructions.load(bootstrap.workspaceDir),
     hooks: hooks,
     llm: _ProviderAsSeam(bootstrap.provider),
+    fileSystem: bootstrap.fileSystem,
   );
 
   for (final pluginId in mode.pluginIds) {

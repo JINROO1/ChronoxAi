@@ -264,6 +264,7 @@ class PluginServices {
     this.llm,
     this.session,
     this.network,
+    this.changeJournal = WorkspaceChangeJournal(),
   });
 
   final ToolRegistry registry;
@@ -278,6 +279,7 @@ class PluginServices {
   final LlmSeam? llm;
   final SessionSeam? session;
   final NetworkSeam? network;
+  final WorkspaceChangeJournal changeJournal;
 
   /// Devuelve una vista filtrada para un plugin concreto (mínimo privilegio).
   ///
@@ -286,6 +288,12 @@ class PluginServices {
   /// herramienta a comprobar nulabilidad que nunca se cumple.
   ScopedPluginServices forPlugin(final PluginManifest manifest) =>
       _ScopedServices(parent: this, manifest: manifest);
+}
+
+/// Diario por sesión con la primera versión previa de cada archivo tocado.
+/// `null` significa que el archivo aún no existía.
+class WorkspaceChangeJournal {
+  final Map<String, String?> originals = <String, String?>{};
 }
 
 /// Vista de servicios con garantía de no-nulidad.
@@ -321,6 +329,7 @@ class _ScopedServices extends PluginServices implements ScopedPluginServices {
           modes: parent.modes,
           surfaces: parent.surfaces,
           events: parent.events,
+          changeJournal: parent.changeJournal,
         );
 
   final PluginServices parent;

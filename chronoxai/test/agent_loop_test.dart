@@ -121,6 +121,27 @@ class FlakyProvider implements LlmProvider {
   }
 }
 
+class _PreviewFileSystem implements FileSystemSeam {
+  _PreviewFileSystem(this.files);
+
+  final Map<String, String> files;
+  @override
+  Future<bool> exists(String path) async => files.containsKey(path);
+  @override
+  Future<List<String>> glob(String pattern) async => const <String>[];
+  @override
+  Future<List<String>> grep(String pattern, {String? path}) async =>
+      const <String>[];
+  @override
+  Future<List<String>> list(String path) async => const <String>[];
+  @override
+  Future<String> readFile(String path) async => files[path] ?? '';
+  @override
+  Future<void> writeFile(String path, String content) async {
+    files[path] = content;
+  }
+}
+
 PluginTool tool(
   final String name, {
   required final bool requiresApproval,
@@ -169,6 +190,7 @@ void main() {
     Future<String> Function()? loadProjectInstructions,
     HookRunner? hooks,
     AgentConfig config = const AgentConfig(),
+    FileSystemSeam? fileSystem,
   }) {
     return AgentLoop(
       provider: provider,
@@ -182,6 +204,7 @@ void main() {
       planHandler: planHandler,
       loadProjectInstructions: loadProjectInstructions,
       hooks: hooks,
+      fileSystem: fileSystem,
     );
   }
 
@@ -424,6 +447,50 @@ void main() {
       expect(results[0].content, contains('Siguiente paso'));
       expect(results[2].errorCategory, 'repeated_failure');
       expect(results[2].content, contains('fallaron dos veces'));
+    });
+  });
+
+  group('AgentLoop — previsualización de cambios', () {
+    test('la aprobación muestra un diff real de write acotado a ruta workspace',
+        () async {
+      registry.add(
+        tool('write', requiresApproval: true),
+      );
+      final fs = _PreviewFileSystem(<String, String>{
+        '/workspace/lib/a.dart': 'old line\nunchanged',
+      });
+      ApprovalRequest? request;
+      final provider = FakeProvider(<LlmResponse>[
+        const LlmResponse(
+          content: '',
+          toolCalls: <LlmToolCall>[
+            LlmToolCall(
+              id: 'write-preview',
+              name: 'write',
+              arguments: <String, Object?>{
+                'path': '/workspace/lib/a.dart',
+                'content': 'new line\nunchanged',
+              },
+            ),
+          ],
+        ),
+        const LlmResponse(content: 'Hecho.'),
+      ]);
+
+      await makeLoop(
+        provider,
+        policy: ApprovalPolicy(level: ApprovalLevel.guarded),
+        approvalHandler: (final value) async {
+          request = value;
+          return const ApprovalAnswer(approved: true);
+        },
+        fileSystem: fs,
+      ).runTurn('modifica el archivo');
+
+      expect(request?.diff, contains('--- a/lib/a.dart'));
+      expect(request?.diff, contains('-old line'));
+      expect(request?.diff, contains('+new line'));
+      expect(request?.diff, isNot(contains('/etc/')));
     });
   });
 

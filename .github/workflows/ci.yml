@@ -271,6 +271,8 @@ jobs:
               -DGGML_LLAMAFILE=OFF \
               -DLLAMA_CURL=OFF \
               -DLLAMA_BUILD_TESTS=OFF \
+              -DLLAMA_BUILD_COMMON=ON \
+              -DLLAMA_BUILD_EXAMPLES=ON \
               -DLLAMA_BUILD_SERVER=OFF &&
             cmake --build "$RUNNER_TEMP/llama-host" --target llama-cli --parallel 2
           } > "$RUNNER_TEMP/llama-host-build.log" 2>&1

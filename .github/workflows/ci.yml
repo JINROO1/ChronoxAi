@@ -360,7 +360,7 @@ jobs:
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -memory 4096
           disable-animations: true
           script: |
-            set -euo pipefail
+            set -eu
             fail() { echo "::error title=Android emulator smoke failed::$1"; exit 1; }
             adb wait-for-device || fail 'adb did not see the emulator'
             adb push "$RUNNER_TEMP/llama-android-x86_64/bin/llama-simple" /data/local/tmp/llama-simple || fail 'could not push Android harness'

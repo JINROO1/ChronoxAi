@@ -138,12 +138,14 @@ class AgentLoop {
     ApprovalHandler? approvalHandler,
     PlanHandler? planHandler,
     Future<String> Function()? loadProjectInstructions,
+    Future<String> Function(String userInput)? loadProjectMemory,
     HookRunner? hooks,
     LlmSeam? llm,
     FileSystemSeam? fileSystem,
   })  : _approvalHandler = approvalHandler,
         _planHandler = planHandler,
         _loadProjectInstructions = loadProjectInstructions,
+        _loadProjectMemory = loadProjectMemory,
         _hooks = hooks,
         _llm = llm,
         _fileSystem = fileSystem;
@@ -159,12 +161,14 @@ class AgentLoop {
   ApprovalHandler? _approvalHandler;
   PlanHandler? _planHandler;
   final Future<String> Function()? _loadProjectInstructions;
+  final Future<String> Function(String userInput)? _loadProjectMemory;
   final HookRunner? _hooks;
   final LlmSeam? _llm;
   final FileSystemSeam? _fileSystem;
 
   /// Instrucciones del proyecto cargadas para el turno en curso.
   String? _projectInstructions;
+  String? _projectMemory;
 
   /// Permite a la UI enganchar su diálogo de aprobación después de construir.
   set approvalHandler(final ApprovalHandler? handler) =>
@@ -208,6 +212,17 @@ class AgentLoop {
     // usuario las edita a mitad de turno, el cambio entra en el siguiente.
     final loader = _loadProjectInstructions;
     _projectInstructions = loader == null ? null : await loader();
+    _projectMemory = null;
+    final memoryLoader = _loadProjectMemory;
+    if (memoryLoader != null) {
+      try {
+        _projectMemory = await memoryLoader(userInput);
+      } catch (_) {
+        // Memory is optional context; corrupt/unavailable memory must not block
+        // the user's task.
+        _projectMemory = null;
+      }
+    }
 
     final turnId = 'turn-${DateTime.now().microsecondsSinceEpoch}';
     await log.append(TurnStartEvent(turnId: turnId, userInput: userInput));
@@ -925,6 +940,7 @@ class AgentLoop {
           tools: registry.all.toList(),
           log: log,
           projectInstructions: _projectInstructions,
+          projectMemory: _projectMemory,
         ),
       ),
     ];

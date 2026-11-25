@@ -15,6 +15,7 @@ import '../../domain/agent/agent_loop.dart';
 import '../../domain/agent/approval_policy.dart';
 import '../../domain/agent/hook_runner.dart';
 import '../../domain/agent/project_instructions.dart';
+import '../../domain/agent/project_memory.dart';
 import '../../domain/agent/session_log.dart';
 import '../../domain/agent/tool_registry.dart';
 import '../../domain/llm/llm_types.dart';
@@ -86,6 +87,7 @@ class SessionRuntime {
     required this.mode,
     required this.llm,
     required this.workspaceDir,
+    required this.projectMemory,
   });
 
   final SessionLog log;
@@ -97,6 +99,7 @@ class SessionRuntime {
   final PluginMode mode;
   final LlmSeam llm;
   final Directory workspaceDir;
+  final ProjectMemoryStore projectMemory;
 
   Future<void> dispose() async {
     for (final plugin in host.plugins) {
@@ -356,6 +359,10 @@ Future<SessionRuntime> startSession(
   final events = AgentEventBus();
   final registry = ToolRegistry();
   final policy = ApprovalPolicy(level: approvalLevel);
+  final projectMemory = await ProjectMemoryStore.open(
+    workspacePath: bootstrap.workspaceDir.path,
+    storageDirectory: sessionsDir,
+  );
 
   final services = PluginServices(
     registry: registry,
@@ -429,6 +436,8 @@ Future<SessionRuntime> startSession(
     // AGENTS.md / CLAUDE.md del workspace, cargados en cada turno.
     loadProjectInstructions: () =>
         ProjectInstructions.load(bootstrap.workspaceDir),
+    loadProjectMemory: (final userInput) async =>
+        projectMemory.contextFor(userInput),
     hooks: hooks,
     llm: _ProviderAsSeam(bootstrap.provider),
     fileSystem: bootstrap.fileSystem,
@@ -462,6 +471,7 @@ Future<SessionRuntime> startSession(
     mode: mode,
     llm: _ProviderAsSeam(bootstrap.provider),
     workspaceDir: bootstrap.workspaceDir,
+    projectMemory: projectMemory,
   );
 }
 

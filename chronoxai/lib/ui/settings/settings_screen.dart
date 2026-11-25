@@ -20,6 +20,7 @@ import 'diagnostics_screen.dart';
 import 'install_screen.dart';
 import 'background_jobs_screen.dart';
 import 'scheduled_tasks_screen.dart';
+import 'project_memory_screen.dart';
 import 'provider_selector.dart';
 
 /// Ajustes: proveedor de modelo, modo de trabajo, permisos y estado del runtime.
@@ -157,6 +158,29 @@ class SettingsScreen extends ConsumerWidget {
                     const Divider(height: 1, color: ChronoxColors.border),
                 ],
               ],
+            ),
+          ),
+          const SectionLabel('Memoria del proyecto'),
+          GlassPanel(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            child: SettingsRow(
+              icon: Icons.psychology_alt_outlined,
+              title: 'Gestionar memoria',
+              subtitle: session == null
+                  ? 'Abre una sesión para elegir el workspace'
+                  : '${session.projectMemory.entries.length} notas · '
+                      '${session.projectMemory.enabled ? 'activada' : 'desactivada'}',
+              onTap: session == null
+                  ? null
+                  : () => Navigator.of(context).push<void>(
+                        MaterialPageRoute<void>(
+                          builder: (final context) => ProjectMemoryScreen(
+                            store: session.projectMemory,
+                            workspacePath: session.workspaceDir.path,
+                          ),
+                        ),
+                      ),
+              trailing: const Icon(Icons.chevron_right_rounded),
             ),
           ),
           const SectionLabel('Sesión'),

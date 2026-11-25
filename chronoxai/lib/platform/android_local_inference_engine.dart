@@ -11,7 +11,8 @@ import '../domain/llm/llm_types.dart';
 class AndroidLocalInferenceEngine implements LocalInferenceEngine {
   AndroidLocalInferenceEngine({
     this.model = 'Qwen3.5-0.8B-Q4_K_M',
-    MethodChannel methodChannel = const MethodChannel('app.chronoxai/local_llm'),
+    MethodChannel methodChannel =
+        const MethodChannel('app.chronoxai/local_llm'),
     EventChannel eventChannel =
         const EventChannel('app.chronoxai/local_llm_events'),
     this.contextSize = 2048,
@@ -38,10 +39,12 @@ class AndroidLocalInferenceEngine implements LocalInferenceEngine {
   @override
   Future<void> load(File modelFile) async {
     if (!Platform.isAndroid) {
-      throw UnsupportedError('La inferencia local nativa solo está disponible en Android.');
+      throw UnsupportedError(
+          'La inferencia local nativa solo está disponible en Android.');
     }
     if (!await modelFile.exists()) {
-      throw FileSystemException('No se encontró el archivo GGUF.', modelFile.path);
+      throw FileSystemException(
+          'No se encontró el archivo GGUF.', modelFile.path);
     }
     if (_loaded) await unload();
     await _methodChannel.invokeMethod<void>('loadModel', <String, Object?>{
@@ -60,10 +63,12 @@ class AndroidLocalInferenceEngine implements LocalInferenceEngine {
     int? maxTokens,
   }) {
     if (!_loaded) {
-      return Stream<String>.error(StateError('No hay un modelo local cargado.'));
+      return Stream<String>.error(
+          StateError('No hay un modelo local cargado.'));
     }
     if (_generating) {
-      return Stream<String>.error(StateError('Ya hay una generación local en curso.'));
+      return Stream<String>.error(
+          StateError('Ya hay una generación local en curso.'));
     }
     // This text-only spike intentionally does not serialize tool schemas to the
     // native side. Tool execution stays disabled until the dedicated validation
@@ -99,7 +104,8 @@ class AndroidLocalInferenceEngine implements LocalInferenceEngine {
                 unawaited(controller.close());
               case 'error':
                 unawaited(finishWithError(
-                  StateError(event['message']?.toString() ?? 'Falló la inferencia local.'),
+                  StateError(event['message']?.toString() ??
+                      'Falló la inferencia local.'),
                 ));
             }
           },
@@ -107,7 +113,8 @@ class AndroidLocalInferenceEngine implements LocalInferenceEngine {
             unawaited(finishWithError(error, stackTrace));
           },
           onDone: () {
-            if (!finished) unawaited(finishWithError(StateError('Canal local cerrado.')));
+            if (!finished)
+              unawaited(finishWithError(StateError('Canal local cerrado.')));
           },
         );
         unawaited(_startGeneration(messages, temperature, maxTokens)

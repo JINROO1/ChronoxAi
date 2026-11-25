@@ -884,10 +884,13 @@ class _EditingPlugin extends ChronoxPlugin {
     for (final entry in snapshots.entries.toList().reversed) {
       final original = entry.value;
       if (original == null) {
-        await context.services.shell.run(
+        final removed = await context.services.shell.run(
           "rm -f -- '${entry.key}'",
           workingDirectory: '/workspace',
         );
+        if (!removed.isSuccess) {
+          throw StateError('No se pudo limpiar el archivo nuevo ${entry.key}.');
+        }
       } else {
         await context.services.fileSystem.writeFile(entry.key, original);
       }

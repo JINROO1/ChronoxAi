@@ -871,13 +871,13 @@ void main() {
       final result = await parent.runSubagentWithTools(
         'Localiza el punto de entrada.',
         role: 'reviewer',
-        outputContract: 'Devuelve archivo, línea y evidencia.',
       );
 
       expect(result, contains('ruta confirmada'));
       final prompt = provider.lastMessages!.last.content;
       expect(prompt, contains('Rol: reviewer'));
-      expect(prompt, contains('Devuelve archivo, línea y evidencia.'));
+      expect(prompt, contains('hallazgos con ruta y línea'));
+      expect(prompt, contains('No reemplaces ni reescribas'));
       await expectLater(
         parent.runSubagentWithTools('tarea', role: 'writer'),
         throwsArgumentError,

@@ -232,6 +232,30 @@ void main() {
     expect(shell.commands, isEmpty);
   });
 
+  test('workspace index tools expose symbols, imports, and exact references',
+      () async {
+    expect(await host.mount('core-workspace-index'), isTrue);
+
+    final symbols = await registry.execute(
+      'workspace_symbols',
+      const <String, Object?>{'query': 'main'},
+    );
+    final imports = await registry.execute(
+      'workspace_imports',
+      const <String, Object?>{},
+    );
+    final references = await registry.execute(
+      'workspace_references',
+      const <String, Object?>{'symbol': 'main'},
+    );
+
+    expect(symbols.content, contains('/workspace/lib/main.dart:1'));
+    expect(imports.content, contains('No se encontraron imports'));
+    expect(references.content, contains('/workspace/lib/main.dart:1:6'));
+    expect(symbols.metadata['approximate'], isTrue);
+    expect(symbols.metadata['indexedFiles'], 1);
+  });
+
   test('editing records original state and rollback restores it', () async {
     fileSystem.files['/workspace/note.txt'] = 'before';
     expect(await host.mount('core-editing'), isTrue);

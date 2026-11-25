@@ -9,6 +9,7 @@ import 'mcp_server_config.dart';
 import 'plugin_runtime.dart';
 import 'web_search_parser.dart';
 import 'project_check_plugin.dart';
+import 'workspace_index_plugin.dart';
 
 /// Herramientas del núcleo, empaquetadas como plugins.
 ///
@@ -1678,6 +1679,18 @@ List<BuiltinPlugin> builtinPlugins({
         icon: 'fact_check',
       ),
       create: ProjectCheckPlugin.new,
+    ),
+    BuiltinPlugin(
+      manifest: manifest(
+        id: 'core-workspace-index',
+        name: 'Índice de código',
+        description: 'Símbolos, imports y referencias aproximadas del workspace',
+        kind: PluginKind.tool,
+        capabilities: fsCaps,
+        requires: <String>['core-fs'],
+        icon: 'account_tree',
+      ),
+      create: WorkspaceIndexPlugin.new,
     ),
     BuiltinPlugin(
       manifest: manifest(

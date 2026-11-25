@@ -68,7 +68,8 @@ class ToolRegistry {
       return ToolOutcome.error(
         'La herramienta "$name" no existe. Disponibles: ${names.join(', ')}.',
         errorCategory: ToolFailureKind.toolError.jsonName,
-        recoveryHint: 'Usa una herramienta registrada en el catálogo disponible.',
+        recoveryHint:
+            'Usa una herramienta registrada en el catálogo disponible.',
       );
     }
 

@@ -1199,9 +1199,8 @@ class _CodeModePlugin extends ChronoxPlugin {
               if (result.stderr.isNotEmpty) 'STDERR:\n${result.stderr}',
             ].join('\n');
             return ToolOutcome(
-              content: output.isEmpty
-                  ? 'El programa terminó sin salida.'
-                  : output,
+              content:
+                  output.isEmpty ? 'El programa terminó sin salida.' : output,
               isError: !result.isSuccess,
               metadata: <String, Object?>{
                 'exitCode': result.exitCode,

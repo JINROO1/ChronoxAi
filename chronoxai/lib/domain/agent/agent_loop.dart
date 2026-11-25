@@ -794,9 +794,7 @@ class AgentLoop {
             metadata: <String, Object?>{'exitCode': exitCode},
           )
         : null;
-    final category = isError
-        ? errorCategory ?? inferred!.kind.jsonName
-        : null;
+    final category = isError ? errorCategory ?? inferred!.kind.jsonName : null;
     final hint = isError ? recoveryHint ?? inferred!.recoveryHint : null;
     final diagnosticFooter = category == null
         ? ''

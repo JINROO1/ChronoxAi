@@ -415,7 +415,8 @@ void main() {
         const LlmResponse(content: 'Corregido.'),
       ]);
 
-      expect(await makeLoop(provider).runTurn('ejecuta el programa'), 'completed');
+      expect(
+          await makeLoop(provider).runTurn('ejecuta el programa'), 'completed');
       expect(executions, 2);
       final results = log.events.whereType<ToolResultEvent>().toList();
       expect(results, hasLength(3));

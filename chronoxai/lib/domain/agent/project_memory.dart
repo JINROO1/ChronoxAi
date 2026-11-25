@@ -304,9 +304,7 @@ class ProjectMemoryStore {
     }).toList();
     int overlapCount(final ProjectMemoryEntry entry) {
       final corpus = '${entry.text} ${entry.source}'.toLowerCase();
-      return queryWords
-          .where((final word) => corpus.contains(word))
-          .length;
+      return queryWords.where((final word) => corpus.contains(word)).length;
     }
 
     int score(final ProjectMemoryEntry entry) {

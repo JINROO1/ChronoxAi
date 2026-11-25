@@ -383,10 +383,14 @@ jobs:
             'bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517' Qwen3.5-0.8B-Q4_K_M.gguf | shasum -a 256 --check
           test "$(stat -f '%z' Qwen3.5-0.8B-Q4_K_M.gguf)" = 532517120
 
+      - name: Inicializar archivos de diagnóstico JNI
+        shell: bash
+        run: |
+          : > "${{ github.workspace }}/jni-app-smoke.log"
+          : > "${{ github.workspace }}/jni-app-logcat.txt"
+
       - name: Ejecutar Qwen 0.8B en emulador Android API 28
         uses: reactivecircus/android-emulator-runner@v2
-        env:
-          JNI_DIAG_DIR: ${{ github.workspace }}
         with:
           api-level: 28
           target: google_apis
@@ -396,7 +400,7 @@ jobs:
           disable-animations: true
           script: |
             set -eu
-            diagnostic="$JNI_DIAG_DIR/jni-app-smoke.log"
+            diagnostic="${{ github.workspace }}/jni-app-smoke.log"
             : > "$diagnostic"
             fail() {
               printf 'PRE-FLIGHT FAILURE: %s\n' "$1" >> "$diagnostic"
@@ -414,15 +418,15 @@ jobs:
             set +e
             flutter test integration_test/local_llm_smoke_test.dart \
               --dart-define=LOCAL_QWEN_MODEL_PATH=/storage/emulated/0/Android/data/app.chronoxai.debug/files/Qwen3.5-0.8B-Q4_K_M.gguf \
-              -d emulator-5554 >> "$JNI_DIAG_DIR/jni-app-smoke.log" 2>&1
+              -d emulator-5554 >> "${{ github.workspace }}/jni-app-smoke.log" 2>&1
             smoke_status=$?
             set -e
-            cat "$JNI_DIAG_DIR/jni-app-smoke.log"
-            adb logcat -d -v time > "$JNI_DIAG_DIR/jni-app-logcat.txt" || true
+            cat "${{ github.workspace }}/jni-app-smoke.log"
+            adb logcat -d -v time > "${{ github.workspace }}/jni-app-logcat.txt" || true
             if [ "$smoke_status" -ne 0 ]; then
-              tail -80 "$JNI_DIAG_DIR/jni-app-smoke.log" >> "$GITHUB_STEP_SUMMARY" || true
-              tail -120 "$JNI_DIAG_DIR/jni-app-logcat.txt" >> "$GITHUB_STEP_SUMMARY" || true
-              python3 - "$JNI_DIAG_DIR/jni-app-smoke.log" <<'PYERR'
+              tail -80 "${{ github.workspace }}/jni-app-smoke.log" >> "$GITHUB_STEP_SUMMARY" || true
+              tail -120 "${{ github.workspace }}/jni-app-logcat.txt" >> "$GITHUB_STEP_SUMMARY" || true
+              python3 - "${{ github.workspace }}/jni-app-smoke.log" <<'PYERR'
             import sys
             lines = open(sys.argv[1], encoding='utf-8', errors='replace').read().splitlines()[-40:]
             for line in lines:
@@ -432,16 +436,6 @@ jobs:
               exit "$smoke_status"
             fi
             echo '### Android API 28 x86_64 emulator: llama.cpp JNI load/generate/unload smoke OK' >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Comprobar archivos de diagnóstico del smoke JNI
-        if: always()
-        shell: bash
-        run: |
-          echo "JNI_DIAG_DIR=${{ github.workspace }}"
-          find "${{ github.workspace }}" -maxdepth 2 -type f -name 'jni-app-*' -print || true
-          for file in "${{ github.workspace }}/jni-app-smoke.log" "${{ github.workspace }}/jni-app-logcat.txt"; do
-            if [ -f "$file" ]; then ls -lh "$file"; fi
-          done
 
       - name: Guardar diagnóstico del smoke JNI
         if: always()

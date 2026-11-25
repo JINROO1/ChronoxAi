@@ -15,7 +15,9 @@ void main() {
     expect(await File(modelPath).length(), 532517120);
 
     final engine = AndroidLocalInferenceEngine(contextSize: 1024, threads: 4);
-    await engine.load(File(modelPath));
+    print('JNI_SMOKE: starting model load');
+    await engine.load(File(modelPath)).timeout(const Duration(minutes: 5));
+    print('JNI_SMOKE: model loaded; starting generation');
     try {
       final chunks = await engine
           .generate(
@@ -27,11 +29,13 @@ void main() {
             temperature: 0,
           )
           .toList()
-          .timeout(const Duration(minutes: 10));
+          .timeout(const Duration(minutes: 5));
+      print('JNI_SMOKE: generation finished (${chunks.length} chunks)');
       expect(chunks, isNotEmpty);
       expect(chunks.join().trim(), isNotEmpty);
     } finally {
-      await engine.unload();
+      print('JNI_SMOKE: unloading model');
+      await engine.unload().timeout(const Duration(minutes: 2));
     }
     expect(tester, isNotNull);
   });

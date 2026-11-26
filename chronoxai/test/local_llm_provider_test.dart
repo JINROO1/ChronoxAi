@@ -135,12 +135,18 @@ void main() {
     await provider.stream(messages: messages, tools: tools).toList();
 
     final history = engine.receivedMessages!;
-    expect(history[1].content, contains('tool-call-history'));
-    expect(history[1].content, contains('README.md'));
-    expect(history[1].toolCalls, isEmpty);
-    expect(history[2].role, MessageRole.user);
-    expect(history[2].content, contains('call_1'));
-    expect(history[2].content, contains('contenido'));
+    final assistantHistory = history.firstWhere(
+      (final message) => message.role == MessageRole.assistant,
+    );
+    final toolResult = history.lastWhere(
+      (final message) => message.content.contains('tool-result'),
+    );
+    expect(assistantHistory.content, contains('tool-call-history'));
+    expect(assistantHistory.content, contains('README.md'));
+    expect(assistantHistory.toolCalls, isEmpty);
+    expect(toolResult.role, MessageRole.user);
+    expect(toolResult.content, contains('call_1'));
+    expect(toolResult.content, contains('contenido'));
   });
 
   test('does not convert malformed or unadvertised local tool requests',
@@ -189,6 +195,7 @@ void main() {
 
     gate.complete();
     await settled.future;
+    await Future<void>.delayed(Duration.zero);
     final next = await provider
         .stream(messages: const <LlmMessage>[], tools: const []).toList();
     expect(next.last, isA<DoneChunk>());

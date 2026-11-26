@@ -3,6 +3,10 @@ package app.chronoxai
 import android.Manifest
 import android.app.Activity
 import android.app.ActivityManager
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Intent
 import android.speech.RecognizerIntent
 import android.content.pm.PackageManager
@@ -39,6 +43,7 @@ import android.util.Base64
 class MainActivity : FlutterActivity() {
 
     private val platformChannel = "app.chronoxai/platform"
+    private val modelDownloadNotificationsChannel = "app.chronoxai/model_download_notifications"
     private val permissionsChannel = "app.chronoxai/permissions"
     private val schedulerChannelName = "app.chronoxai/scheduler"
     private val voiceChannelName = "app.chronoxai/voice"
@@ -121,6 +126,33 @@ class MainActivity : FlutterActivity() {
                     }
                 }
                 else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            modelDownloadNotificationsChannel,
+        ).setMethodCallHandler { call, result ->
+            try {
+                when (call.method) {
+                    "progress" -> {
+                        val title = call.argument<String>("title") ?: "Descargando modelo"
+                        val received = call.argument<Number>("received")?.toLong() ?: 0L
+                        val total = call.argument<Number>("total")?.toLong() ?: 0L
+                        showModelDownloadNotification(title, received, total)
+                        result.success(null)
+                    }
+                    "finished", "failed" -> {
+                        val title = call.argument<String>("title") ?: "ChronoxAI"
+                        val message = call.argument<String>("message") ?: ""
+                        showModelDownloadResult(title, message)
+                        result.success(null)
+                    }
+                    else -> result.notImplemented()
+                }
+            } catch (error: Exception) {
+                // Notification denial/settings must never break the model transfer.
+                result.error("model_notification_failed", error.message, null)
             }
         }
 
@@ -506,6 +538,91 @@ class MainActivity : FlutterActivity() {
             (getSystemService(ALARM_SERVICE) as android.app.AlarmManager).cancel(pending)
             pending.cancel()
         }
+    }
+
+    private val modelDownloadNotificationId = 4207
+    private val modelDownloadNotificationChannelId = "model_downloads"
+
+    private fun modelDownloadNotificationManager(): NotificationManager {
+        val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            manager.createNotificationChannel(
+                NotificationChannel(
+                    modelDownloadNotificationChannelId,
+                    "Descargas de modelos",
+                    NotificationManager.IMPORTANCE_LOW,
+                ).apply {
+                    description = "Progreso de descargas de modelos locales"
+                    setShowBadge(false)
+                },
+            )
+        }
+        return manager
+    }
+
+    private fun showModelDownloadNotification(title: String, received: Long, total: Long) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED) return
+
+        val manager = modelDownloadNotificationManager()
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+        val pendingIntent = launchIntent?.let {
+            PendingIntent.getActivity(
+                this,
+                modelDownloadNotificationId,
+                it,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+        }
+        val determinate = total > 0
+        val percent = if (determinate) ((received * 100L / total).coerceIn(0L, 100L)).toInt() else 0
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, modelDownloadNotificationChannelId)
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(this)
+        }
+        builder
+            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setContentTitle(title)
+            .setContentText(if (determinate) "$percent% · ${received / 1_000_000} / ${total / 1_000_000} MB" else "Preparando descarga…")
+            .setProgress(100, percent, !determinate)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setAutoCancel(false)
+        if (pendingIntent != null) builder.setContentIntent(pendingIntent)
+        manager.notify(modelDownloadNotificationId, builder.build())
+    }
+
+    private fun showModelDownloadResult(title: String, message: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED) return
+        val manager = modelDownloadNotificationManager()
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, modelDownloadNotificationChannelId)
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(this)
+        }
+        builder
+            .setSmallIcon(android.R.drawable.stat_sys_download_done)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setOngoing(false)
+            .setAutoCancel(true)
+            .setOnlyAlertOnce(true)
+        if (launchIntent != null) {
+            builder.setContentIntent(PendingIntent.getActivity(
+                this,
+                modelDownloadNotificationId,
+                launchIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            ))
+        }
+        manager.notify(modelDownloadNotificationId, builder.build())
     }
 
     /**

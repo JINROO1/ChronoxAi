@@ -103,6 +103,20 @@ class ModelTransferProgress {
       total <= 0 ? 0 : (received / total).clamp(0, 1).toDouble();
 }
 
+class LocalModelTransferState {
+  const LocalModelTransferState({
+    this.modelId,
+    this.progress,
+    this.active = false,
+    this.error,
+  });
+
+  final String? modelId;
+  final ModelTransferProgress? progress;
+  final bool active;
+  final String? error;
+}
+
 /// Private-storage catalog and verified model installer. Large GGUF files are
 /// streamed to a temporary sibling and become visible only after exact size and
 /// SHA-256 validation; weights are never bundled into the APK or repository.
@@ -123,6 +137,19 @@ class LocalModelStore {
   static http.Client? _activeClient;
   static bool _transferActive = false;
   static bool _cancelTransferRequested = false;
+  static final StreamController<LocalModelTransferState> _transferEvents =
+      StreamController<LocalModelTransferState>.broadcast();
+  static LocalModelTransferState _transferState =
+      const LocalModelTransferState();
+
+  static LocalModelTransferState get transferState => _transferState;
+  static Stream<LocalModelTransferState> get transferEvents =>
+      _transferEvents.stream;
+
+  static void _publishTransferState(LocalModelTransferState state) {
+    _transferState = state;
+    _transferEvents.add(state);
+  }
 
   Future<Directory> _modelsDirectory() async {
     final support = await _supportDirectory();
@@ -171,10 +198,44 @@ class LocalModelStore {
     }
     _transferActive = true;
     _cancelTransferRequested = false;
+    var latestProgress = ModelTransferProgress(received: 0, total: spec.bytes);
+    _publishTransferState(LocalModelTransferState(
+      modelId: spec.id,
+      progress: latestProgress,
+      active: true,
+    ));
     try {
-      return await _download(spec, onProgress: onProgress);
+      return await _download(
+        spec,
+        onProgress: (final progress) {
+          final previous = latestProgress;
+          latestProgress = progress;
+          if (progress.received == progress.total ||
+              progress.fraction - previous.fraction >= 0.01) {
+            _publishTransferState(LocalModelTransferState(
+              modelId: spec.id,
+              progress: progress,
+              active: true,
+            ));
+          }
+          onProgress?.call(progress);
+        },
+      );
+    } catch (error) {
+      _publishTransferState(LocalModelTransferState(
+        modelId: spec.id,
+        progress: latestProgress,
+        error: error.toString(),
+      ));
+      rethrow;
     } finally {
       _transferActive = false;
+      if (_transferState.modelId == spec.id && _transferState.active) {
+        _publishTransferState(LocalModelTransferState(
+          modelId: spec.id,
+          progress: latestProgress,
+        ));
+      }
     }
   }
 

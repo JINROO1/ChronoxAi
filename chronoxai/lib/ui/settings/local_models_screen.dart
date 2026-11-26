@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -9,6 +10,8 @@ import '../../data/llm/local_model_store.dart';
 import '../../platform/android_model_file_picker.dart';
 import '../../platform/android_local_inference_engine.dart';
 import '../../platform/android_local_storage_info.dart';
+import '../../platform/android_model_download_notifications.dart';
+import '../../platform/android_permissions.dart';
 import '../state/app_state.dart';
 
 class LocalModelsScreen extends ConsumerStatefulWidget {
@@ -42,12 +45,46 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
   int? _availableBytes;
   Map<String, Object?>? _deviceDiagnostics;
   String? _error;
+  StreamSubscription<LocalModelTransferState>? _transferSubscription;
+  final AndroidModelDownloadNotifications _downloadNotifications =
+      const AndroidModelDownloadNotifications();
 
   @override
   void initState() {
     super.initState();
     _store = widget.store ?? LocalModelStore();
+    _transferSubscription = LocalModelStore.transferEvents.listen(_onTransferState);
+    _onTransferState(LocalModelStore.transferState, notifySystem: false);
     _refresh();
+  }
+
+  @override
+  void dispose() {
+    _transferSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _onTransferState(
+    LocalModelTransferState transfer, {
+    bool notifySystem = true,
+  }) {
+    final modelId = transfer.modelId;
+    if (modelId == null) return;
+    if (mounted) {
+      setState(() {
+        _busy = transfer.active;
+        if (transfer.active && transfer.progress != null) {
+          _progress[modelId] = transfer.progress!;
+          _error = null;
+        } else {
+          _progress.remove(modelId);
+          if (transfer.error != null) _error = transfer.error;
+        }
+      });
+    }
+    if (notifySystem && !transfer.active && transfer.error == null && mounted) {
+      unawaited(_refresh());
+    }
   }
 
   Future<int?> _readAvailableBytes() =>
@@ -147,6 +184,10 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
 
   Future<void> _download(LocalModelSpec spec) async {
     if (!await _ensureSpace(spec) || !mounted) return;
+    // Optional permission: if declined, the persistent in-app transfer state
+    // still works and the download is never blocked.
+    await const AndroidPermissions().requestNotifications();
+    if (!mounted) return;
     setState(() {
       _busy = true;
       _error = null;
@@ -156,6 +197,9 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
       await _store.download(
         spec,
         onProgress: (final progress) {
+          // This callback belongs to the transfer, not the route. Keep updating
+          // the Android notification even after the user leaves this screen.
+          unawaited(_downloadNotifications.showProgress(spec.label, progress));
           if (!mounted) return;
           final previous = _progress[spec.id];
           if (previous == null ||
@@ -165,8 +209,10 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
           }
         },
       );
+      await _downloadNotifications.showFinished(spec.label);
       await _refresh();
     } catch (error) {
+      await _downloadNotifications.showFailed(spec.label, error.toString());
       if (mounted) setState(() => _error = error.toString());
     } finally {
       if (mounted) {

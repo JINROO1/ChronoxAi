@@ -121,6 +121,10 @@ void main() {
       ],
     );
 
+    final transferStates = <LocalModelTransferState>[];
+    final transferSubscription =
+        LocalModelStore.transferEvents.listen(transferStates.add);
+    addTearDown(transferSubscription.cancel);
     final installed = await store.download(
       LocalModelSpec(
         id: spec.id,
@@ -139,6 +143,12 @@ void main() {
     );
 
     expect(receivedRange, 'bytes=7-');
+    expect(
+      transferStates.any((final state) =>
+          state.active && state.modelId == spec.id && state.progress != null),
+      isTrue,
+    );
+    expect(LocalModelStore.transferState.active, isFalse);
     expect(await installed.file.readAsBytes(), bytes);
     expect(await partial.exists(), isFalse);
     expect((await store.installedModels()).single.spec.id, spec.id);

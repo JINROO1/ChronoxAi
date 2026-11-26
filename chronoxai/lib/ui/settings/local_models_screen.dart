@@ -201,7 +201,8 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
           const Text(
             'La descarga inicial requiere Internet; también puedes importar un GGUF desde el teléfono. '
             'El archivo se guarda en el almacenamiento privado de ChronoxAI y se verifica por tamaño '
-            'y SHA-256 antes de habilitarlo. La generación local no contacta Ollama ni a proveedores remotos.',
+            'y SHA-256 antes de habilitarlo. La generación local no contacta Ollama ni a proveedores remotos. '
+            'Los requisitos de RAM y la compatibilidad con teléfonos de 8 GB aún no están certificados; el tamaño del archivo no equivale a la memoria necesaria.',
             style: TextStyle(color: ChronoxColors.textMuted, height: 1.4),
           ),
           const SizedBox(height: 12),
@@ -253,8 +254,25 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
           children: <Widget>[
             Text(spec.label, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 4),
-            Text('${_formatBytes(spec.bytes)} · Apache-2.0 · GGUF Q4_K_M',
-                style: const TextStyle(color: ChronoxColors.textMuted)),
+            Text(
+              '${_formatBytes(spec.bytes)} · ${spec.format} ${spec.quantization} · ${spec.license}',
+              style: const TextStyle(color: ChronoxColors.textMuted),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Contexto configurado: ${spec.contextWindow} tokens · SHA-256 ${spec.sha256.substring(0, 12)}…${spec.sha256.substring(spec.sha256.length - 8)}',
+              style: const TextStyle(
+                color: ChronoxColors.textMuted,
+                fontSize: 11,
+              ),
+            ),
+            Text(
+              'Origen fijado: ${Uri.parse(spec.url).host} · revisión ${spec.revision.substring(0, 8)}',
+              style: const TextStyle(
+                color: ChronoxColors.textMuted,
+                fontSize: 11,
+              ),
+            ),
             if (progress != null) ...<Widget>[
               const SizedBox(height: 12),
               LinearProgressIndicator(

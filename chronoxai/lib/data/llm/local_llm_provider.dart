@@ -63,6 +63,7 @@ class LocalLlmProvider implements LlmProvider {
   }) {
     late final StreamController<LlmChunk> controller;
     var ownsGeneration = false;
+    var cancellationRequested = false;
     controller = StreamController<LlmChunk>(
       onListen: () async {
         if (_generating) {
@@ -78,6 +79,7 @@ class LocalLlmProvider implements LlmProvider {
         try {
           if (!engine.isLoaded) {
             final file = await modelFileResolver?.call();
+            if (cancellationRequested) return;
             if (file == null) {
               throw const LlmException(
                 LlmErrorKind.unknown,
@@ -85,7 +87,9 @@ class LocalLlmProvider implements LlmProvider {
               );
             }
             await engine.load(file);
+            if (cancellationRequested) return;
           }
+          if (cancellationRequested) return;
           final request = tools.isEmpty
               ? _PreparedLocalRequest(
                   messages: _normalizeLocalHistory(messages),
@@ -163,6 +167,7 @@ class LocalLlmProvider implements LlmProvider {
       },
       onCancel: () async {
         if (!ownsGeneration) return;
+        cancellationRequested = true;
         // Keep the provider busy until onListen's finally block runs. Native
         // cancellation is asynchronous; releasing the guard here could admit a
         // second request while the first JNI call still owns the context.

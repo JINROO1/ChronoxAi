@@ -13,6 +13,9 @@ class _FakeEngine implements LocalInferenceEngine {
   String response = 'Hola mundo';
   Completer<void>? generationGate;
   Completer<void>? generationSettled;
+  Completer<void>? loadGate;
+  Completer<void>? loadSettled;
+  int generateCalls = 0;
 
   @override
   String get model => 'Qwen3.5-0.8B-Q4_K_M';
@@ -24,7 +27,16 @@ class _FakeEngine implements LocalInferenceEngine {
   bool get isLoaded => loaded;
 
   @override
-  Future<void> load(File modelFile) async => loaded = true;
+  Future<void> load(File modelFile) async {
+    try {
+      await loadGate?.future;
+      loaded = true;
+    } finally {
+      if (loadSettled != null && !loadSettled!.isCompleted) {
+        loadSettled!.complete();
+      }
+    }
+  }
 
   @override
   Future<void> cancel() async => cancelled = true;
@@ -41,6 +53,7 @@ class _FakeEngine implements LocalInferenceEngine {
   }) async* {
     receivedMessages = messages;
     receivedTools = tools;
+    generateCalls++;
     try {
       await generationGate?.future;
       yield response.substring(0, response.length ~/ 2);
@@ -171,6 +184,32 @@ void main() {
         chunks.whereType<TextChunk>().map((final chunk) => chunk.text).join(),
         engine.response);
     expect(chunks.last, isA<DoneChunk>());
+  });
+
+  test('does not start generation if canceled while resolving/loading model',
+      () async {
+    final loadGate = Completer<void>();
+    final loadSettled = Completer<void>();
+    final engine = _FakeEngine()
+      ..loaded = false
+      ..loadGate = loadGate
+      ..loadSettled = loadSettled;
+    final provider = LocalLlmProvider(
+      engine,
+      modelFileResolver: () async => File('local-model.gguf'),
+    );
+    final subscription = provider
+        .stream(messages: const <LlmMessage>[], tools: const [])
+        .listen((final _) {});
+
+    await Future<void>.delayed(Duration.zero);
+    await subscription.cancel();
+    loadGate.complete();
+    await loadSettled.future;
+    await Future<void>.delayed(Duration.zero);
+
+    expect(engine.generateCalls, 0);
+    expect(engine.cancelled, isTrue);
   });
 
   test('holds the generation lock until native cancellation actually settles',

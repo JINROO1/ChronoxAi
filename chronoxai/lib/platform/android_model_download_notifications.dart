@@ -12,6 +12,20 @@ class AndroidModelDownloadNotifications {
   static const MethodChannel _channel =
       MethodChannel('app.chronoxai/model_download_notifications');
 
+  Future<bool> start(String modelName) async {
+    if (!Platform.isAndroid) return true;
+    try {
+      final started = await _channel.invokeMethod<bool>('start', <String, Object?>{
+        'title': 'Descargando $modelName',
+      });
+      return started ?? false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
   Future<void> showProgress(
     String modelName,
     ModelTransferProgress progress,

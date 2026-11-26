@@ -189,6 +189,14 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
     // still works and the download is never blocked.
     await const AndroidPermissions().requestNotifications();
     if (!mounted) return;
+    final foregroundStarted = await _downloadNotifications.start(spec.label);
+    if (!foregroundStarted) {
+      if (mounted) {
+        setState(() => _error =
+            'Android no pudo iniciar el servicio de descarga en segundo plano. No se inició la descarga.');
+      }
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;

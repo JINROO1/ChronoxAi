@@ -237,7 +237,6 @@ class LocalModelStore {
           throw const HttpException(
               'El servidor respondió un Content-Range inválido.');
         }
-        }
         append = received > 0;
         rangeEndExclusive = end + 1;
       } else if (response.statusCode == HttpStatus.ok) {

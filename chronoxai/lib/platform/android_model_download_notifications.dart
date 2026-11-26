@@ -15,7 +15,8 @@ class AndroidModelDownloadNotifications {
   Future<bool> start(String modelName) async {
     if (!Platform.isAndroid) return true;
     try {
-      final started = await _channel.invokeMethod<bool>('start', <String, Object?>{
+      final started =
+          await _channel.invokeMethod<bool>('start', <String, Object?>{
         'title': 'Descargando $modelName',
       });
       return started ?? false;

@@ -18,6 +18,12 @@ void main() {
     return root;
   }
 
+  Future<void> pumpScreen(WidgetTester tester) async {
+    for (var index = 0; index < 5; index++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+  }
+
   Widget buildScreen({
     required LocalModelStore store,
     required Future<int?> Function() availableBytes,
@@ -40,7 +46,10 @@ void main() {
       store: store,
       availableBytes: () async => 8 * 1024 * 1024 * 1024,
     ));
-    await tester.pumpAndSettle();
+    await pumpScreen(tester);
+    await tester.ensureVisible(find.text('Qwen3.5 0.8B · Q4_K_M'));
+    await tester.ensureVisible(find.text('Qwen3.5 2B · Q4_K_M'));
+    await pumpScreen(tester);
 
     expect(find.text('Qwen3.5 0.8B · Q4_K_M'), findsOneWidget);
     expect(find.text('Qwen3.5 2B · Q4_K_M'), findsOneWidget);
@@ -60,10 +69,10 @@ void main() {
       store: store,
       availableBytes: () async => 1024,
     ));
-    await tester.pumpAndSettle();
+    await pumpScreen(tester);
     await tester.ensureVisible(find.text('Descargar').first);
     await tester.tap(find.text('Descargar').first);
-    await tester.pumpAndSettle();
+    await pumpScreen(tester);
 
     expect(find.textContaining('Espacio insuficiente'), findsOneWidget);
     expect(await store.installedModels(), isEmpty);

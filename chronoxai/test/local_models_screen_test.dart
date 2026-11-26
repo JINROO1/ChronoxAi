@@ -95,6 +95,14 @@ void main() {
       );
 
   Future<void> pumpScreen(WidgetTester tester) async {
+    // The diagnostics card makes the page taller; keep the interactive controls
+    // inside the widget-test viewport rather than attempting taps below it.
+    if (tester.view.physicalSize != const Size(1000, 1800)) {
+      tester.view.physicalSize = const Size(1000, 1800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+    }
     for (var index = 0; index < 5; index++) {
       await tester.pump(const Duration(milliseconds: 20));
     }

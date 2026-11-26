@@ -160,7 +160,9 @@ class LocalLlmProvider implements LlmProvider {
             }
           }
         } catch (error, stackTrace) {
-          if (!controller.isClosed) controller.addError(error, stackTrace);
+          if (!controller.isClosed) {
+            controller.addError(_mapLocalInferenceError(error), stackTrace);
+          }
         } finally {
           _generating = false;
           if (!controller.isClosed) await controller.close();
@@ -177,6 +179,30 @@ class LocalLlmProvider implements LlmProvider {
     );
     return controller.stream;
   }
+}
+
+LlmException _mapLocalInferenceError(Object error) {
+  if (error is LlmException) return error;
+  final message = error.toString();
+  final normalized = message.toLowerCase();
+  if (normalized.contains('context') ||
+      normalized.contains('n_ctx') ||
+      normalized.contains('prompt excede')) {
+    return LlmException(LlmErrorKind.contextLength, message);
+  }
+  if (normalized.contains('out of memory') ||
+      normalized.contains('bad_alloc') ||
+      normalized.contains('memoria insuficiente')) {
+    return LlmException(
+      LlmErrorKind.unknown,
+      'No hay memoria suficiente para cargar o ejecutar el modelo local. '
+      'Cierra otras aplicaciones o prueba el modelo 0.8B. ($message)',
+    );
+  }
+  return LlmException(
+    LlmErrorKind.unknown,
+    'Falló la inferencia local; no se enviaron datos a un proveedor remoto. ($message)',
+  );
 }
 
 const _localToolCallStart = '<chronox-tool-call>';

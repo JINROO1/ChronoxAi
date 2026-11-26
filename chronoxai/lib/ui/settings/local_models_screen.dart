@@ -35,7 +35,9 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
       <String, ModelTransferProgress>{};
   bool _busy = false;
   bool _importing = false;
+  bool _importCopying = false;
   bool _importCancelled = false;
+  String? _checkingModelId;
   int? _availableBytes;
   String? _error;
 
@@ -72,7 +74,7 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
   }
 
   Future<void> _download(LocalModelSpec spec) async {
-    if (!await _ensureSpace(spec)) return;
+    if (!await _ensureSpace(spec) || !mounted) return;
     setState(() {
       _busy = true;
       _error = null;
@@ -114,7 +116,7 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
     File? picked;
     try {
       picked = await _pickModelFile();
-      if (picked == null || _importCancelled) return;
+      if (picked == null || _importCancelled || !mounted) return;
       final bytes = await picked.length();
       final spec = LocalModelSpec.catalog
           .where((final candidate) => candidate.bytes == bytes)
@@ -124,6 +126,7 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
             'El tamaño no coincide con un modelo Qwen admitido.');
       }
       if (!await _ensureSpace(spec) || _importCancelled) return;
+      setState(() => _importCopying = true);
       await _store.importFile(picked);
       await _refresh();
     } catch (error) {
@@ -139,6 +142,7 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
           setState(() {
             _busy = false;
             _importing = false;
+            _importCopying = false;
           });
         }
       }
@@ -182,21 +186,46 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
   }
 
   Future<void> _use(LocalModelSpec spec) async {
-    final settings = ref.read(providerSettingsProvider);
-    ref.read(providerSettingsProvider.notifier).state = settings.copyWith(
-      kind: ProviderKind.local,
-      model: spec.id,
-      baseUrl: '',
-    );
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('${spec.label} seleccionado como modelo local.')),
+    setState(() {
+      _busy = true;
+      _checkingModelId = spec.id;
+      _error = null;
+    });
+    try {
+      // Re-hash at the point of activation. The catalogue listing is cheap and
+      // checks the manifest/length; loading never trusts those alone.
+      final verifiedFile = await _store.fileForId(spec.id);
+      if (verifiedFile == null) {
+        throw const FileSystemException(
+            'El modelo ya no está instalado o no figura en el manifiesto.');
+      }
+      if (!mounted) return;
+      final settings = ref.read(providerSettingsProvider);
+      ref.read(providerSettingsProvider.notifier).state = settings.copyWith(
+        kind: ProviderKind.local,
+        model: spec.id,
+        baseUrl: '',
       );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('${spec.label} verificado y seleccionado localmente.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _checkingModelId = null;
+        });
+      }
     }
   }
 
   Future<void> _remove(LocalModelSpec spec) async {
+    if (_busy) return;
     final settings = ref.read(providerSettingsProvider);
     final activeProvider = ref.read(sessionProvider)?.provider;
     final modelInUse =
@@ -207,8 +236,18 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
           'Selecciona otro proveedor o modelo antes de eliminar el modelo activo.');
       return;
     }
-    await _store.remove(spec);
-    await _refresh();
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await _store.remove(spec);
+      await _refresh();
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
@@ -232,15 +271,19 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
             icon: const Icon(Icons.file_open_outlined),
             label: const Text('Importar GGUF desde el dispositivo'),
           ),
-          if (_importing)
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: _cancelImport,
-                icon: const Icon(Icons.close),
-                label: const Text('Cancelar importación'),
+          if (_importing) ...<Widget>[
+            const SizedBox(height: 10),
+            const LinearProgressIndicator(),
+            if (_importCopying)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: _cancelImport,
+                  icon: const Icon(Icons.close),
+                  label: const Text('Cancelar copia'),
+                ),
               ),
-            ),
+          ],
           if (_availableBytes != null) ...<Widget>[
             const SizedBox(height: 8),
             Text(
@@ -326,7 +369,13 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
                     icon: Icon(active
                         ? Icons.check_circle
                         : Icons.play_circle_outline),
-                    label: Text(active ? 'En uso' : 'Usar localmente'),
+                    label: Text(
+                      _checkingModelId == spec.id
+                          ? 'Verificando…'
+                          : active
+                              ? 'En uso'
+                              : 'Usar localmente',
+                    ),
                   ),
                   OutlinedButton.icon(
                     onPressed: _busy ? null : () => _remove(spec),

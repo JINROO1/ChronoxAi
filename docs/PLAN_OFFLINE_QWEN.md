@@ -115,7 +115,7 @@ Se adopta provisionalmente `Q4_K_M` para mantener el archivo en un rango viable 
 3. Permitir abrir una sesión sin proveedor remoto configurado; informar claramente si falta el modelo, sin ocultar el error ni sugerir una llamada de red.
 4. Guardar selección persistente como ID de artefacto, no solo el nombre comercial; reiniciar en el modelo elegido.
 
-**Gate:** pruebas de widget para todos los estados (sin modelos, instalando, listo, error, eliminar/en uso) y comprobación manual en Android con modo avión; no hay peticiones de proveedor remoto. Tests iniciales de widget ya cubren catálogo/procedencia visible y bloqueo por espacio insuficiente; siguen pendientes los estados de instalación/listo/error/eliminar/en uso y la verificación Android física.
+**Gate:** pruebas de widget para todos los estados (sin modelos, instalando, listo, error, eliminar/en uso) y comprobación manual en Android con modo avión; no hay peticiones de proveedor remoto. La suite cubre catálogo/procedencia, espacio insuficiente, progreso, cancelación y fallo/recuperación de descarga, activación, protección de borrado de modelo en uso y rechazo de instalación que no supera la reverificación SHA-256. La app vuelve a comprobar el hash completo al activar un modelo y da estado/veredicto explícito. La validación manual en Android y el escenario de importación por SAF siguen pendientes.
 
 ## Fase 5 — Herramientas y ciclo de agente con Qwen
 
@@ -125,6 +125,8 @@ Se adopta provisionalmente `Q4_K_M` para mantener el archivo en un rango viable 
 4. Medir fiabilidad de selección, argumentos y recuperación con tareas de prueba; comparar 0.8B frente a 2B.
 
 **Gate:** corpus de escenarios reproducible cubre lectura/escritura, shell con aprobación, rechazo, argumentos inválidos, llamada inventada, salida truncada y cancelación. Sin bypass de aprobación; tasa mínima de éxito acordada antes de dar por lista la función.
+
+**Estado de implementación:** el proveedor solo reconoce el envelope delimitado si comienza al byte cero de la respuesta; una cadena similar después de texto normal se conserva como texto. Un intento delimitado inválido/truncado se convierte en una llamada centinela no registrada para que `ToolRegistry` la rechace y el agente proporcione feedback dentro de `maxStepsPerTurn`; nunca se ejecuta contenido sin nombre/argumentos válidos. El registro valida propiedades anidadas, objetos cerrados, enums, tipos, restricciones básicas y elementos de arrays antes de ejecutar. Los resultados vuelven como historial del contexto local. CI cubre parsing estricto, nombres inventados/truncamiento, guardas de argumentos, loop genérico de rechazo/aprobación y límites de pasos; todavía falta un corpus de tareas ejecutado con Qwen en Android para medir si el modelo obedece el protocolo, así que no se certifica la calidad de tool-calling offline.`} болг
 
 ## Fase 6 — Comparación de candidatos ~2B y elección
 

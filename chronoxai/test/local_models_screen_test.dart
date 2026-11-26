@@ -13,11 +13,23 @@ class _FakeModelStore extends LocalModelStore {
   final List<LocalModelInstallation> installed = <LocalModelInstallation>[];
   Completer<LocalModelInstallation>? pendingDownload;
   bool failNextDownload = false;
+  bool failVerification = false;
   int removeCalls = 0;
   bool downloadCancelled = false;
 
   @override
   Future<List<LocalModelInstallation>> installedModels() async => installed;
+
+  @override
+  Future<File?> fileForId(String id) async {
+    if (failVerification) {
+      throw const FileSystemException('SHA-256 no coincide');
+    }
+    for (final item in installed) {
+      if (item.spec.id == id) return item.file;
+    }
+    return null;
+  }
 
   @override
   Future<LocalModelInstallation> download(
@@ -146,6 +158,26 @@ void main() {
     expect(find.textContaining('Selecciona otro proveedor o modelo'),
         findsOneWidget);
     expect(store.removeCalls, 0);
+  });
+
+  testWidgets('refuses to activate an installation that fails re-verification',
+      (final tester) async {
+    final store = _FakeModelStore()..failVerification = true;
+    store.installed.add(LocalModelInstallation(
+      spec: LocalModelSpec.catalog.first,
+      file: File('/unused/corrupt.gguf'),
+    ));
+    await tester.pumpWidget(buildScreen(
+      availableBytes: 8 * 1024 * 1024 * 1024,
+      store: store,
+    ));
+    await pumpScreen(tester);
+    await tester.ensureVisible(find.text('Usar localmente'));
+    await tester.tap(find.text('Usar localmente'));
+    await pumpScreen(tester);
+
+    expect(find.textContaining('SHA-256 no coincide'), findsOneWidget);
+    expect(find.text('Usar localmente'), findsOneWidget);
   });
 
   testWidgets('cancels an active download and restores retry action',

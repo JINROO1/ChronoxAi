@@ -16,6 +16,7 @@ class _FakeEngine implements LocalInferenceEngine {
   Completer<void>? loadGate;
   Completer<void>? loadSettled;
   int generateCalls = 0;
+  Object? generationError;
 
   @override
   String get model => 'Qwen3.5-0.8B-Q4_K_M';
@@ -54,6 +55,7 @@ class _FakeEngine implements LocalInferenceEngine {
     receivedMessages = messages;
     receivedTools = tools;
     generateCalls++;
+    if (generationError != null) throw generationError!;
     try {
       await generationGate?.future;
       yield response.substring(0, response.length ~/ 2);
@@ -281,6 +283,21 @@ void main() {
     final next = await provider
         .stream(messages: const <LlmMessage>[], tools: const []).toList();
     expect(next.last, isA<DoneChunk>());
+  });
+
+  test('maps native context failures to a non-retryable local error', () async {
+    final engine = _FakeEngine()
+      ..generationError = StateError('El prompt excede el contexto local.');
+    final provider = LocalLlmProvider(engine);
+
+    await expectLater(
+      provider.stream(messages: const <LlmMessage>[], tools: const []).toList(),
+      throwsA(
+        isA<LlmException>()
+            .having((final error) => error.kind, 'kind', LlmErrorKind.contextLength)
+            .having((final error) => error.message, 'message', contains('contexto')),
+      ),
+    );
   });
 
   test('does not start inference when no local model is loaded', () async {

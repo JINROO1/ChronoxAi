@@ -29,7 +29,7 @@ class AndroidLocalInferenceEngine implements LocalInferenceEngine {
         const MethodChannel('app.chronoxai/local_llm'),
     EventChannel eventChannel =
         const EventChannel('app.chronoxai/local_llm_events'),
-    this.contextSize = 2048,
+    this.contextSize = 4096,
     this.threads = 4,
   })  : _methodChannel = methodChannel,
         _eventChannel = eventChannel;

@@ -108,6 +108,20 @@ void main() {
     }
   }
 
+  testWidgets('exposes configurable local context sizes',
+      (final tester) async {
+    await tester.pumpWidget(buildScreen(availableBytes: 8 * 1024 * 1024 * 1024));
+    await pumpScreen(tester);
+    expect(find.text('Contexto del modelo local'), findsOneWidget);
+    await tester.tap(find.byType(DropdownButtonFormField<int>));
+    await tester.pumpAndSettle();
+    expect(find.text('8192 tokens'), findsOneWidget);
+    await tester.tap(find.text('8192 tokens'));
+    await pumpScreen(tester);
+    await tester.ensureVisible(find.textContaining('Contexto seleccionado: 8192'));
+    expect(find.textContaining('Contexto seleccionado: 8192'), findsOneWidget);
+  });
+
   testWidgets('shows pinned Qwen provenance and RAM caveat',
       (final tester) async {
     await tester

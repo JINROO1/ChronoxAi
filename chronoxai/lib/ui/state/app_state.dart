@@ -46,6 +46,7 @@ class ProviderSettings {
     this.model = 'deepseek-chat',
     this.apiKey = '',
     this.mcpServerUrl = '',
+    this.localContextTokens = 4096,
   });
 
   final ProviderKind kind;
@@ -53,6 +54,7 @@ class ProviderSettings {
   final String model;
   final String apiKey;
   final String mcpServerUrl;
+  final int localContextTokens;
 
   bool get isConfigured =>
       model.trim().isNotEmpty &&
@@ -70,6 +72,7 @@ class ProviderSettings {
     final String? model,
     final String? apiKey,
     final String? mcpServerUrl,
+    final int? localContextTokens,
   }) =>
       ProviderSettings(
         kind: kind ?? this.kind,
@@ -77,6 +80,7 @@ class ProviderSettings {
         model: model ?? this.model,
         apiKey: apiKey ?? this.apiKey,
         mcpServerUrl: mcpServerUrl ?? this.mcpServerUrl,
+        localContextTokens: localContextTokens ?? this.localContextTokens,
       );
 }
 
@@ -179,6 +183,7 @@ class ProviderSettingsNotifier extends StateNotifier<ProviderSettings> {
   static const String _kModel = 'provider.model';
   static const String _kApiKey = 'provider.apiKey';
   static const String _kMcpServerUrl = 'mcp.serverUrl';
+  static const String _kLocalContextTokens = 'provider.localContextTokens';
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -192,6 +197,8 @@ class ProviderSettingsNotifier extends StateNotifier<ProviderSettings> {
       model: prefs.getString(_kModel) ?? state.model,
       apiKey: prefs.getString(_kApiKey) ?? state.apiKey,
       mcpServerUrl: prefs.getString(_kMcpServerUrl) ?? state.mcpServerUrl,
+      localContextTokens:
+          prefs.getInt(_kLocalContextTokens) ?? state.localContextTokens,
     );
   }
 
@@ -208,6 +215,7 @@ class ProviderSettingsNotifier extends StateNotifier<ProviderSettings> {
     await prefs.setString(_kModel, settings.model);
     await prefs.setString(_kApiKey, settings.apiKey);
     await prefs.setString(_kMcpServerUrl, settings.mcpServerUrl);
+    await prefs.setInt(_kLocalContextTokens, settings.localContextTokens);
   }
 }
 
@@ -445,13 +453,22 @@ Future<SessionRuntime> startSession(
     shell: bootstrap.shell,
   );
 
+  final localContextWindow = bootstrap.provider.contextWindow;
+  final isLocalProvider = bootstrap.provider is LocalLlmProvider;
+  final contextBudget = isLocalProvider && localContextWindow != null
+      ? (localContextWindow - 512).clamp(512, localContextWindow).toInt()
+      : 96000;
+
   loop = AgentLoop(
     provider: bootstrap.provider,
     registry: registry,
     log: log,
     events: events,
     policy: policy,
-    config: const AgentConfig(),
+    config: AgentConfig(
+      contextBudget: contextBudget,
+      compactThreshold: isLocalProvider ? 0.7 : 0.8,
+    ),
     modeId: mode.id,
     // AGENTS.md / CLAUDE.md del workspace, cargados en cada turno.
     loadProjectInstructions: () =>
@@ -544,7 +561,10 @@ LlmProvider clientFromSettings(final ProviderSettings settings) =>
           name: 'Ollama local',
         ),
       ProviderKind.local => LocalLlmProvider(
-          AndroidLocalInferenceEngine(model: settings.model),
+          AndroidLocalInferenceEngine(
+            model: settings.model,
+            contextSize: settings.localContextTokens,
+          ),
           modelFileResolver: () => LocalModelStore().fileForId(settings.model),
         ),
     };

@@ -120,6 +120,57 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
     }
   }
 
+  Widget _contextConfigurationCard(ProviderSettings settings) {
+    const contextOptions = <int>[2048, 4096, 6144, 8192];
+    final selected = contextOptions.contains(settings.localContextTokens)
+        ? settings.localContextTokens
+        : 4096;
+    return Card(
+      color: ChronoxColors.backgroundElevated,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text('Contexto del modelo local',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<int>(
+              value: selected,
+              decoration: const InputDecoration(
+                labelText: 'Ventana de contexto',
+                border: OutlineInputBorder(),
+              ),
+              items: contextOptions
+                  .map((final tokens) => DropdownMenuItem<int>(
+                        value: tokens,
+                        child: Text('$tokens tokens'),
+                      ))
+                  .toList(),
+              onChanged: _busy
+                  ? null
+                  : (final tokens) {
+                      if (tokens == null) return;
+                      ref.read(providerSettingsProvider.notifier).state =
+                          settings.copyWith(localContextTokens: tokens);
+                    },
+            ),
+            const SizedBox(height: 8),
+            Text(
+              selected >= 6144
+                  ? 'Un contexto mayor acepta conversaciones más largas, pero reserva más RAM y puede causar cierres por memoria. Se aplicará al abrir una sesión nueva.'
+                  : 'El contexto mayor admite más historial y usa más RAM. Se aplicará al abrir una sesión nueva; el historial se compacta automáticamente al acercarse al límite.',
+              style: const TextStyle(
+                color: ChronoxColors.textMuted,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _diagnosticsCard() {
     final session = ref.watch(sessionProvider);
     final provider = session?.provider;
@@ -412,6 +463,8 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
                 ),
               ),
           ],
+          _contextConfigurationCard(settings),
+          const SizedBox(height: 8),
           _diagnosticsCard(),
           const SizedBox(height: 8),
           if (_availableBytes != null) ...<Widget>[
@@ -454,7 +507,7 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Contexto configurado: ${spec.contextWindow} tokens · SHA-256 ${spec.sha256.substring(0, 12)}…${spec.sha256.substring(spec.sha256.length - 8)}',
+              'Contexto seleccionado: ${settings.localContextTokens} tokens · SHA-256 ${spec.sha256.substring(0, 12)}…${spec.sha256.substring(spec.sha256.length - 8)}',
               style: const TextStyle(
                 color: ChronoxColors.textMuted,
                 fontSize: 11,

@@ -11,14 +11,23 @@ import '../../platform/android_local_storage_info.dart';
 import '../state/app_state.dart';
 
 class LocalModelsScreen extends ConsumerStatefulWidget {
-  const LocalModelsScreen({super.key});
+  const LocalModelsScreen({
+    super.key,
+    this.store,
+    this.availableStorageBytes,
+    this.pickModelFile,
+  });
+
+  final LocalModelStore? store;
+  final Future<int?> Function()? availableStorageBytes;
+  final Future<File?> Function()? pickModelFile;
 
   @override
   ConsumerState<LocalModelsScreen> createState() => _LocalModelsScreenState();
 }
 
 class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
-  final LocalModelStore _store = LocalModelStore();
+  late final LocalModelStore _store;
   List<LocalModelInstallation> _installed = const <LocalModelInstallation>[];
   final Map<String, ModelTransferProgress> _progress =
       <String, ModelTransferProgress>{};
@@ -31,14 +40,22 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
   @override
   void initState() {
     super.initState();
+    _store = widget.store ?? LocalModelStore();
     _refresh();
   }
+
+  Future<int?> _readAvailableBytes() =>
+      widget.availableStorageBytes?.call() ??
+      const AndroidLocalStorageInfo().availableBytes();
+
+  Future<File?> _pickModelFile() =>
+      widget.pickModelFile?.call() ??
+      const AndroidModelFilePicker().pickModel();
 
   Future<void> _refresh() async {
     try {
       final installed = await _store.installedModels();
-      final availableBytes =
-          await const AndroidLocalStorageInfo().availableBytes();
+      final availableBytes = await _readAvailableBytes();
       if (mounted) {
         setState(() {
           _installed = installed;
@@ -92,7 +109,7 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
     });
     File? picked;
     try {
-      picked = await const AndroidModelFilePicker().pickModel();
+      picked = await _pickModelFile();
       if (picked == null || _importCancelled) return;
       final bytes = await picked.length();
       final spec = LocalModelSpec.catalog
@@ -132,7 +149,7 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
   Future<bool> _ensureSpace(LocalModelSpec spec) async {
     final int available;
     try {
-      final result = await const AndroidLocalStorageInfo().availableBytes();
+      final result = await _readAvailableBytes();
       if (result == null) {
         throw const FileSystemException(
             'Android no informó el almacenamiento disponible.');

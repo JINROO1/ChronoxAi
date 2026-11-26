@@ -115,7 +115,7 @@ Se adopta provisionalmente `Q4_K_M` para mantener el archivo en un rango viable 
 3. Permitir abrir una sesión sin proveedor remoto configurado; informar claramente si falta el modelo, sin ocultar el error ni sugerir una llamada de red.
 4. Guardar selección persistente como ID de artefacto, no solo el nombre comercial; reiniciar en el modelo elegido.
 
-**Gate:** pruebas de widget para todos los estados (sin modelos, instalando, listo, error, eliminar/en uso) y comprobación manual en Android con modo avión; no hay peticiones de proveedor remoto.
+**Gate:** pruebas de widget para todos los estados (sin modelos, instalando, listo, error, eliminar/en uso) y comprobación manual en Android con modo avión; no hay peticiones de proveedor remoto. Tests iniciales de widget ya cubren catálogo/procedencia visible y bloqueo por espacio insuficiente; siguen pendientes los estados de instalación/listo/error/eliminar/en uso y la verificación Android física.
 
 ## Fase 5 — Herramientas y ciclo de agente con Qwen
 

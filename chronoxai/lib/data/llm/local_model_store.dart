@@ -233,7 +233,10 @@ class LocalModelStore {
           throw const HttpException(
               'El servidor respondió un Content-Range inválido.');
         }
-        if (start != received || total != spec.bytes || end < start || end >= total) {
+        if (start != received ||
+            total != spec.bytes ||
+            end < start ||
+            end >= total) {
           throw const HttpException(
               'El servidor respondió un Content-Range inválido.');
         }

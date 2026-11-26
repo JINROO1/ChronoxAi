@@ -143,7 +143,8 @@ void main() {
     await tester.ensureVisible(find.text('Eliminar'));
     await tester.tap(find.text('Eliminar'));
     await pumpScreen(tester);
-    expect(find.textContaining('Selecciona otro proveedor o modelo'), findsOneWidget);
+    expect(find.textContaining('Selecciona otro proveedor o modelo'),
+        findsOneWidget);
     expect(store.removeCalls, 0);
   });
 
@@ -181,5 +182,4 @@ void main() {
     expect(find.textContaining('fallo de red'), findsOneWidget);
     expect(find.text('Descargar'), findsNWidgets(2));
   });
-
 }

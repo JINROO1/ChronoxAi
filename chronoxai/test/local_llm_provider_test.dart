@@ -142,7 +142,8 @@ void main() {
     ).toList();
 
     expect(chunks.whereType<ToolCallChunk>(), isEmpty);
-    expect(chunks.whereType<TextChunk>().map((final chunk) => chunk.text).join(),
+    expect(
+        chunks.whereType<TextChunk>().map((final chunk) => chunk.text).join(),
         engine.response);
   });
 

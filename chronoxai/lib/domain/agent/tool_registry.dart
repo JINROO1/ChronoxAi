@@ -179,15 +179,16 @@ class ToolRegistry {
       for (final item in required) {
         if (item is! String) continue;
         if (!arguments.containsKey(item) || arguments[item] == null) {
-          problems.add('${path.isEmpty ? '' : '$path.'}falta el campo requerido "$item"');
+          problems.add(
+              '${path.isEmpty ? '' : '$path.'}falta el campo requerido "$item"');
         }
       }
     }
 
     final rawProperties = schema['properties'];
     final properties = rawProperties is Map
-        ? rawProperties.map((final key, final value) =>
-            MapEntry(key.toString(), value))
+        ? rawProperties
+            .map((final key, final value) => MapEntry(key.toString(), value))
         : const <String, Object?>{};
     for (final entry in arguments.entries) {
       final childPath = path.isEmpty ? entry.key : '$path.${entry.key}';
@@ -265,7 +266,8 @@ class ToolRegistry {
           (final key, final item) => MapEntry(key.toString(), item),
         );
         for (var index = 0; index < value.length; index++) {
-          problems.addAll(_validateValue('$path[$index]', itemSchema, value[index]));
+          problems.addAll(
+              _validateValue('$path[$index]', itemSchema, value[index]));
         }
       }
     }

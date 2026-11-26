@@ -117,8 +117,8 @@ void main() {
         () {
       const settings = ProviderSettings();
       expect(settings.localContextTokens, 262144);
-      expect(
-          settings.copyWith(localContextTokens: 262144).localContextTokens, 262144);
+      expect(settings.copyWith(localContextTokens: 262144).localContextTokens,
+          262144);
     });
 
     test('sin clave no está configurado', () {

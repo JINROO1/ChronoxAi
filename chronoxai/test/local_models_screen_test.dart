@@ -121,7 +121,8 @@ void main() {
     await pumpScreen(tester);
     await tester.ensureVisible(
         find.textContaining('Contexto seleccionado: 65536').first);
-    expect(find.textContaining('Contexto seleccionado: 65536'), findsNWidgets(2));
+    expect(
+        find.textContaining('Contexto seleccionado: 65536'), findsNWidgets(2));
   });
 
   testWidgets('shows pinned Qwen provenance and RAM caveat',

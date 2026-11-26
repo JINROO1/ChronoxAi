@@ -2,11 +2,13 @@ package app.chronoxai
 
 import android.Manifest
 import android.app.Activity
+import android.app.ActivityManager
 import android.content.Intent
 import android.speech.RecognizerIntent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.Debug
 import android.os.PowerManager
 import android.os.StatFs
 import android.provider.Settings
@@ -147,6 +149,38 @@ class MainActivity : FlutterActivity() {
                         result.error("storage_unavailable", error.message, null)
                     }
                 }
+                "deviceDiagnostics" -> {
+                    try {
+                        val memory = ActivityManager.MemoryInfo()
+                        (getSystemService(ACTIVITY_SERVICE) as ActivityManager)
+                            .getMemoryInfo(memory)
+                        val debugMemory = Debug.MemoryInfo()
+                        Debug.getMemoryInfo(debugMemory)
+                        fun statusKilobytes(label: String): Long? = try {
+                            File("/proc/self/status").useLines { lines ->
+                                lines.firstOrNull { it.startsWith("$label:") }
+                                    ?.substringAfter(':')
+                                    ?.trim()
+                                    ?.substringBefore(' ')
+                                    ?.toLongOrNull()
+                                    ?.times(1024L)
+                            }
+                        } catch (_: Exception) {
+                            null
+                        }
+                        result.success(mapOf(
+                            "rssBytes" to statusKilobytes("VmRSS"),
+                            "peakRssBytes" to statusKilobytes("VmHWM"),
+                            "pssBytes" to debugMemory.totalPss.toLong() * 1024L,
+                            "availableRamBytes" to memory.availMem,
+                            "totalRamBytes" to memory.totalMem,
+                            "apiLevel" to Build.VERSION.SDK_INT,
+                            "abi" to Build.SUPPORTED_ABIS.firstOrNull().orEmpty(),
+                        ))
+                    } catch (error: Exception) {
+                        result.error("diagnostics_unavailable", error.message, null)
+                    }
+                }
                 "pickModelFile" -> {
                     if (pendingLocalModelPickerResult != null) {
                         result.error("picker_busy", "Ya hay un selector de modelo abierto.", null)
@@ -260,13 +294,24 @@ class MainActivity : FlutterActivity() {
                                         contents.toTypedArray(),
                                         maxTokens,
                                         temperature,
-                                        LocalTokenSink { text ->
-                                            runOnUiThread {
-                                                localLlmEventSink?.success(
-                                                    mapOf("type" to "text", "text" to text),
-                                                )
-                                            }
-                                        },
+                                        LocalTokenSink(
+                                            send = { text ->
+                                                runOnUiThread {
+                                                    localLlmEventSink?.success(
+                                                        mapOf("type" to "text", "text" to text),
+                                                    )
+                                                }
+                                            },
+                                            sendMetrics = { tokens, elapsedMs ->
+                                                runOnUiThread {
+                                                    localLlmEventSink?.success(mapOf(
+                                                        "type" to "metrics",
+                                                        "tokens" to tokens,
+                                                        "elapsedMs" to elapsedMs,
+                                                    ))
+                                                }
+                                            },
+                                        ),
                                     )
                                     runOnUiThread {
                                         localLlmEventSink?.success(mapOf("type" to "done"))
@@ -906,6 +951,10 @@ class MainActivity : FlutterActivity() {
     }
 }
 
-internal class LocalTokenSink(private val send: (String) -> Unit) {
+internal class LocalTokenSink(
+    private val send: (String) -> Unit,
+    private val sendMetrics: (Int, Long) -> Unit,
+) {
     fun onToken(text: String) = send(text)
+    fun onMetrics(tokens: Int, elapsedMs: Long) = sendMetrics(tokens, elapsedMs)
 }

@@ -15,4 +15,11 @@ class AndroidLocalStorageInfo {
     if (!Platform.isAndroid) return null;
     return _channel.invokeMethod<int>('availableStorageBytes');
   }
+
+  /// Process/device memory facts for the on-device acceptance checklist.
+  /// Values are byte counts, except [apiLevel] and the ABI label.
+  Future<Map<String, Object?>?> diagnostics() async {
+    if (!Platform.isAndroid) return null;
+    return _channel.invokeMapMethod<String, Object?>('deviceDiagnostics');
+  }
 }

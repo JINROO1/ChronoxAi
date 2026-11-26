@@ -6,6 +6,20 @@ import 'package:flutter/services.dart';
 import '../data/llm/local_llm_provider.dart';
 import '../domain/llm/llm_types.dart';
 
+class LocalGenerationMetrics {
+  const LocalGenerationMetrics({
+    required this.generatedTokens,
+    required this.elapsedMilliseconds,
+  });
+
+  final int generatedTokens;
+  final int elapsedMilliseconds;
+
+  double get tokensPerSecond => elapsedMilliseconds <= 0
+      ? 0
+      : generatedTokens * 1000 / elapsedMilliseconds;
+}
+
 /// Android MethodChannel/EventChannel bridge to the embedded llama.cpp JNI
 /// implementation. It sends no HTTP requests and keeps one native context.
 class AndroidLocalInferenceEngine implements LocalInferenceEngine {
@@ -26,6 +40,11 @@ class AndroidLocalInferenceEngine implements LocalInferenceEngine {
   final int threads;
   bool _loaded = false;
   bool _generating = false;
+  Duration? _lastLoadDuration;
+  LocalGenerationMetrics? _lastGenerationMetrics;
+
+  Duration? get lastLoadDuration => _lastLoadDuration;
+  LocalGenerationMetrics? get lastGenerationMetrics => _lastGenerationMetrics;
 
   @override
   final String model;
@@ -47,11 +66,14 @@ class AndroidLocalInferenceEngine implements LocalInferenceEngine {
           'No se encontró el archivo GGUF.', modelFile.path);
     }
     if (_loaded) await unload();
+    final stopwatch = Stopwatch()..start();
     await _methodChannel.invokeMethod<void>('loadModel', <String, Object?>{
       'path': modelFile.path,
       'contextSize': contextSize,
       'threads': threads,
     });
+    stopwatch.stop();
+    _lastLoadDuration = stopwatch.elapsed;
     _loaded = true;
   }
 
@@ -96,6 +118,15 @@ class AndroidLocalInferenceEngine implements LocalInferenceEngine {
               case 'text':
                 final text = event['text'];
                 if (text is String && text.isNotEmpty) controller.add(text);
+              case 'metrics':
+                final tokens = event['tokens'];
+                final elapsedMs = event['elapsedMs'];
+                if (tokens is int && elapsedMs is int) {
+                  _lastGenerationMetrics = LocalGenerationMetrics(
+                    generatedTokens: tokens,
+                    elapsedMilliseconds: elapsedMs,
+                  );
+                }
               case 'done':
                 if (finished) return;
                 finished = true;

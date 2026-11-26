@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../data/llm/local_llm_provider.dart';
 import '../../data/llm/local_model_store.dart';
 import '../../platform/android_model_file_picker.dart';
+import '../../platform/android_local_inference_engine.dart';
 import '../../platform/android_local_storage_info.dart';
 import '../state/app_state.dart';
 
@@ -39,6 +40,7 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
   bool _importCancelled = false;
   String? _checkingModelId;
   int? _availableBytes;
+  Map<String, Object?>? _deviceDiagnostics;
   String? _error;
 
   @override
@@ -62,15 +64,83 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
           ? await widget.loadInstalledModels!.call()
           : await _store.installedModels();
       final availableBytes = await _readAvailableBytes();
+      Map<String, Object?>? diagnostics;
+      try {
+        diagnostics = await const AndroidLocalStorageInfo().diagnostics();
+      } catch (_) {
+        // Diagnostics are optional and must never block model management.
+      }
       if (mounted) {
         setState(() {
           _installed = installed;
           _availableBytes = availableBytes;
+          _deviceDiagnostics = diagnostics;
         });
       }
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     }
+  }
+
+  Widget _diagnosticsCard() {
+    final session = ref.watch(sessionProvider);
+    final provider = session?.provider;
+    final localEngine = provider is LocalLlmProvider &&
+            provider.engine is AndroidLocalInferenceEngine
+        ? provider.engine as AndroidLocalInferenceEngine
+        : null;
+    final data = _deviceDiagnostics;
+    int? value(String key) => data?[key] is int ? data![key] as int : null;
+    final rss = value('rssBytes');
+    final peakRss = value('peakRssBytes');
+    final pss = value('pssBytes');
+    final availableRam = value('availableRamBytes');
+    final totalRam = value('totalRamBytes');
+    final api = value('apiLevel');
+    final abi = data?['abi'];
+
+    return Card(
+      color: ChronoxColors.backgroundElevated,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text('Mediciones del dispositivo',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 6),
+            if (rss != null) Text('RSS actual: ${_formatBytes(rss)}'),
+            if (peakRss != null) Text('Pico RSS del proceso: ${_formatBytes(peakRss)}'),
+            if (pss != null) Text('PSS del proceso: ${_formatBytes(pss)}'),
+            if (availableRam != null && totalRam != null)
+              Text('RAM disponible: ${_formatBytes(availableRam)} / ${_formatBytes(totalRam)}'),
+            if (api != null && abi is String)
+              Text('Android API $api · ABI $abi'),
+            if (localEngine?.lastLoadDuration case final duration?)
+              Text('Última carga local: ${duration.inMilliseconds} ms'),
+            if (localEngine?.lastGenerationMetrics case final metrics?)
+              Text(
+                'Última generación: ${metrics.generatedTokens} tokens · '
+                '${metrics.elapsedMilliseconds} ms · '
+                '${metrics.tokensPerSecond.toStringAsFixed(2)} tokens/s',
+              ),
+            const SizedBox(height: 8),
+            const Text(
+              'Las métricas describen este dispositivo y este proceso; no certifican por sí solas el perfil objetivo de 8 GB.',
+              style: TextStyle(color: ChronoxColors.textMuted, fontSize: 12),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: _busy ? null : _refresh,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Actualizar mediciones'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _download(LocalModelSpec spec) async {
@@ -285,6 +355,8 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
                 ),
               ),
           ],
+          _diagnosticsCard(),
+          const SizedBox(height: 8),
           if (_availableBytes != null) ...<Widget>[
             const SizedBox(height: 8),
             Text(

@@ -184,27 +184,78 @@ class LocalModelStore {
   }) async {
     final directory = await _modelsDirectory();
     final temporary = File(p.join(directory.path, '${spec.fileName}.part'));
+    var received = await temporary.exists() ? await temporary.length() : 0;
+    if (received > spec.bytes) {
+      await temporary.delete();
+      received = 0;
+    } else if (received == spec.bytes) {
+      if (await _hashFile(temporary) == spec.sha256) {
+        if (_cancelTransferRequested) {
+          await temporary.delete();
+          _throwIfTransferCancelled();
+        }
+        await _publishVerified(spec, temporary, received, spec.sha256, directory);
+        return LocalModelInstallation(
+          spec: spec,
+          file: File(p.join(directory.path, spec.fileName)),
+        );
+      }
+      await temporary.delete();
+      received = 0;
+    }
+
     final client = http.Client();
     _activeClient = client;
     final digestResult = _DigestCollector();
     final digestInput = sha256.startChunkedConversion(digestResult);
-    var received = 0;
+    var digestClosed = false;
+    var rangeEndExclusive = spec.bytes;
     IOSink? output;
     try {
       _throwIfTransferCancelled();
       final request = http.Request('GET', Uri.parse(spec.url));
+      if (received > 0) {
+        request.headers.set(HttpHeaders.rangeHeader, 'bytes=$received-');
+      }
       final response = await client.send(request);
       _throwIfTransferCancelled();
-      if (response.statusCode != HttpStatus.ok) {
+      var append = false;
+      if (response.statusCode == HttpStatus.partialContent) {
+        final contentRange = response.headers['content-range'];
+        final match = contentRange == null
+            ? null
+            : RegExp(r'^bytes (\d+)-(\d+)/(\d+)$').firstMatch(contentRange);
+        final start = int.tryParse(match?.group(1) ?? '');
+        final end = int.tryParse(match?.group(2) ?? '');
+        final total = int.tryParse(match?.group(3) ?? '');
+        if (match == null || start != received || total != spec.bytes ||
+            end == null || end < start || end >= total) {
+          throw const HttpException('El servidor respondió un Content-Range inválido.');
+        }
+        append = received > 0;
+        rangeEndExclusive = end + 1;
+      } else if (response.statusCode == HttpStatus.ok) {
+        // Some CDNs ignore Range; restart that response safely from byte zero.
+        received = 0;
+        rangeEndExclusive = spec.bytes;
+      } else {
         throw HttpException(
             'Descarga del modelo respondió HTTP ${response.statusCode}.');
       }
-      output = temporary.openWrite();
+
+      if (append) {
+        await for (final chunk in temporary.openRead()) {
+          digestInput.add(chunk);
+        }
+      }
+      onProgress?.call(
+          ModelTransferProgress(received: received, total: spec.bytes));
+      output = temporary.openWrite(mode: append ? FileMode.append : FileMode.write);
       await for (final chunk in response.stream) {
         _throwIfTransferCancelled();
         received += chunk.length;
-        if (received > spec.bytes) {
-          throw const FileSystemException('El modelo supera el tamaño fijado.');
+        if (received > spec.bytes || received > rangeEndExclusive) {
+          throw const FileSystemException('La respuesta excede el rango/tamaño fijado.');
         }
         output.add(chunk);
         digestInput.add(chunk);
@@ -216,6 +267,15 @@ class LocalModelStore {
       await output.close();
       output = null;
       digestInput.close();
+      digestClosed = true;
+      if (received != rangeEndExclusive) {
+        throw const FileSystemException(
+            'La descarga quedó incompleta; vuelve a intentarlo para continuar.');
+      }
+      if (received != spec.bytes) {
+        throw const FileSystemException(
+            'La descarga parcial se conservó; vuelve a intentarlo para continuar.');
+      }
       final actualHash = digestResult.digest.toString();
       await _publishVerified(spec, temporary, received, actualHash, directory);
       onProgress
@@ -226,7 +286,16 @@ class LocalModelStore {
       );
     } catch (_) {
       await output?.close();
-      if (await temporary.exists()) await temporary.delete();
+      if (digestClosed == false) {
+        try {
+          digestInput.close();
+        } catch (_) {
+          // Preserve the original transfer failure.
+        }
+      }
+      if (_cancelTransferRequested && await temporary.exists()) {
+        await temporary.delete();
+      }
       rethrow;
     } finally {
       client.close();
@@ -332,9 +401,18 @@ class LocalModelStore {
       } else if (!await destination.exists() && await backup.exists()) {
         await backup.rename(destination.path);
       }
-      for (final suffix in <String>['.part', '.importing']) {
-        final temporary = File('${destination.path}$suffix');
-        if (await temporary.exists()) await temporary.delete();
+      final partialDownload = File('${destination.path}.part');
+      final interruptedImport = File('${destination.path}.importing');
+      final now = DateTime.now();
+      if (await partialDownload.exists() &&
+          now.difference(await partialDownload.lastModified()) >
+              const Duration(days: 30)) {
+        await partialDownload.delete();
+      }
+      if (await interruptedImport.exists() &&
+          now.difference(await interruptedImport.lastModified()) >
+              const Duration(days: 1)) {
+        await interruptedImport.delete();
       }
     }
     final manifestTemporary = File('${manifest.path}.tmp');

@@ -2,6 +2,7 @@
 #include <llama.h>
 
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <mutex>
 #include <random>
@@ -184,6 +185,8 @@ Java_app_chronoxai_MainActivity_nativeGenerate(JNIEnv *env, jobject, jlong handl
 
     jclass sink_class = env->GetObjectClass(sink);
     jmethodID on_token = env->GetMethodID(sink_class, "onToken", "(Ljava/lang/String;)V");
+    jmethodID on_metrics = env->GetMethodID(sink_class, "onMetrics", "(IJ)V");
+    if (on_token == nullptr || on_metrics == nullptr) return;
     auto *sampler = llama_sampler_chain_init(llama_sampler_chain_default_params());
     if (temperature <= 0.0f) {
         // A zero-temperature run is genuinely deterministic (greedy), which is
@@ -199,9 +202,12 @@ Java_app_chronoxai_MainActivity_nativeGenerate(JNIEnv *env, jobject, jlong handl
 
     std::string pending_utf8;
     std::vector<char> piece(256);
+    jint generated_tokens = 0;
+    const auto generation_started = std::chrono::steady_clock::now();
     for (jint index = 0; index < max_tokens && !session->cancelled.load(); ++index) {
         const llama_token token = llama_sampler_sample(sampler, session->context, -1);
         if (llama_vocab_is_eog(session->vocab, token)) break;
+        ++generated_tokens;
         int32_t written = llama_token_to_piece(session->vocab, token, piece.data(),
                                                static_cast<int32_t>(piece.size()), 0, true);
         if (written < 0) {
@@ -217,6 +223,10 @@ Java_app_chronoxai_MainActivity_nativeGenerate(JNIEnv *env, jobject, jlong handl
         if (llama_decode(session->context, next_batch) != 0) break;
     }
     emit_utf8(env, sink, on_token, pending_utf8, true);
+    const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - generation_started).count();
+    env->CallVoidMethod(sink, on_metrics, generated_tokens,
+                        static_cast<jlong>(elapsed));
     llama_sampler_free(sampler);
 }
 

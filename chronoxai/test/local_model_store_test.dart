@@ -75,6 +75,74 @@ void main() {
         await Directory('${root.path}/local_models').list().toList(), isEmpty);
   });
 
+  test('resumes a partial download with a validated HTTP Range response', () async {
+    final root = await Directory.systemTemp.createTemp('chronox-local-model-');
+    addTearDown(() => root.delete(recursive: true));
+    final bytes = 'offline model payload'.codeUnits;
+    final spec = _testSpec(bytes);
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    String? receivedRange;
+    server.listen((final request) async {
+      receivedRange = request.headers.value(HttpHeaders.rangeHeader);
+      const resumedAt = 7;
+      request.response.statusCode = HttpStatus.partialContent;
+      request.response.headers.set(
+        HttpHeaders.contentRangeHeader,
+        'bytes $resumedAt-${bytes.length - 1}/${bytes.length}',
+      );
+      request.response.contentLength = bytes.length - resumedAt;
+      request.response.add(bytes.sublist(resumedAt));
+      await request.response.close();
+    });
+
+    final modelDirectory = Directory('${root.path}/local_models')
+      ..createSync(recursive: true);
+    final partial = File('${modelDirectory.path}/${spec.fileName}.part')
+      ..writeAsBytesSync(bytes.sublist(0, 7));
+    final store = LocalModelStore(
+      supportDirectory: () async => root,
+      catalog: <LocalModelSpec>[
+        LocalModelSpec(
+          id: spec.id,
+          label: spec.label,
+          fileName: spec.fileName,
+          bytes: spec.bytes,
+          sha256: spec.sha256,
+          url: 'http://${server.address.address}:${server.port}/model',
+          revision: spec.revision,
+          format: spec.format,
+          runtime: spec.runtime,
+          quantization: spec.quantization,
+          license: spec.license,
+          contextWindow: spec.contextWindow,
+        ),
+      ],
+    );
+
+    final installed = await store.download(
+      LocalModelSpec(
+        id: spec.id,
+        label: spec.label,
+        fileName: spec.fileName,
+        bytes: spec.bytes,
+        sha256: spec.sha256,
+        url: 'http://${server.address.address}:${server.port}/model',
+        revision: spec.revision,
+        format: spec.format,
+        runtime: spec.runtime,
+        quantization: spec.quantization,
+        license: spec.license,
+        contextWindow: spec.contextWindow,
+      ),
+    );
+
+    expect(receivedRange, 'bytes=7-');
+    expect(await installed.file.readAsBytes(), bytes);
+    expect(await partial.exists(), isFalse);
+    expect((await store.installedModels()).single.spec.id, spec.id);
+  });
+
   test('publishes a valid imported model and its versioned manifest', () async {
     final root = await Directory.systemTemp.createTemp('chronox-local-model-');
     addTearDown(() => root.delete(recursive: true));

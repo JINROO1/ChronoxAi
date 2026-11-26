@@ -209,7 +209,8 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('${spec.label} verificado y seleccionado localmente.')),
+              content:
+                  Text('${spec.label} verificado y seleccionado localmente.')),
         );
       }
     } catch (error) {

@@ -294,8 +294,10 @@ void main() {
       provider.stream(messages: const <LlmMessage>[], tools: const []).toList(),
       throwsA(
         isA<LlmException>()
-            .having((final error) => error.kind, 'kind', LlmErrorKind.contextLength)
-            .having((final error) => error.message, 'message', contains('contexto')),
+            .having(
+                (final error) => error.kind, 'kind', LlmErrorKind.contextLength)
+            .having((final error) => error.message, 'message',
+                contains('contexto')),
       ),
     );
   });

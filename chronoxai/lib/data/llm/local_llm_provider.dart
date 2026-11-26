@@ -61,17 +61,20 @@ class LocalLlmProvider implements LlmProvider {
     double? temperature,
     int? maxTokens,
   }) {
-    if (_generating) {
-      return Stream<LlmChunk>.error(const LlmException(
-        LlmErrorKind.unknown,
-        'Ya hay una generación local en curso.',
-      ));
-    }
-
-    _generating = true;
     late final StreamController<LlmChunk> controller;
+    var ownsGeneration = false;
     controller = StreamController<LlmChunk>(
       onListen: () async {
+        if (_generating) {
+          controller.addError(const LlmException(
+            LlmErrorKind.unknown,
+            'Ya hay una generación local en curso.',
+          ));
+          await controller.close();
+          return;
+        }
+        _generating = true;
+        ownsGeneration = true;
         try {
           if (!engine.isLoaded) {
             final file = await modelFileResolver?.call();
@@ -159,6 +162,7 @@ class LocalLlmProvider implements LlmProvider {
         }
       },
       onCancel: () async {
+        if (!ownsGeneration) return;
         // Keep the provider busy until onListen's finally block runs. Native
         // cancellation is asynchronous; releasing the guard here could admit a
         // second request while the first JNI call still owns the context.

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:chronoxai/data/llm/local_llm_provider.dart';
@@ -10,6 +11,8 @@ class _FakeEngine implements LocalInferenceEngine {
   List<LlmMessage>? receivedMessages;
   List<Map<String, Object?>>? receivedTools;
   String response = 'Hola mundo';
+  Completer<void>? generationGate;
+  Completer<void>? generationSettled;
 
   @override
   String get model => 'Qwen3.5-0.8B-Q4_K_M';
@@ -38,8 +41,15 @@ class _FakeEngine implements LocalInferenceEngine {
   }) async* {
     receivedMessages = messages;
     receivedTools = tools;
-    yield response.substring(0, response.length ~/ 2);
-    yield response.substring(response.length ~/ 2);
+    try {
+      await generationGate?.future;
+      yield response.substring(0, response.length ~/ 2);
+      yield response.substring(response.length ~/ 2);
+    } finally {
+      if (generationSettled != null && !generationSettled!.isCompleted) {
+        generationSettled!.complete();
+      }
+    }
   }
 }
 
@@ -101,6 +111,38 @@ void main() {
     expect(chunks.whereType<TextChunk>(), isEmpty);
   });
 
+  test('normalizes earlier tool calls and results into local model history',
+      () async {
+    final engine = _FakeEngine();
+    final provider = LocalLlmProvider(engine);
+    const tools = <Map<String, Object?>>[
+      <String, Object?>{
+        'function': <String, Object?>{'name': 'read_file'},
+      },
+    ];
+    const messages = <LlmMessage>[
+      LlmMessage.user('Lee el archivo'),
+      LlmMessage.assistant('', toolCalls: <LlmToolCall>[
+        LlmToolCall(
+          id: 'call_1',
+          name: 'read_file',
+          arguments: <String, Object?>{'path': 'README.md'},
+        ),
+      ]),
+      LlmMessage.toolResult(toolCallId: 'call_1', content: 'contenido'),
+    ];
+
+    await provider.stream(messages: messages, tools: tools).toList();
+
+    final history = engine.receivedMessages!;
+    expect(history[1].content, contains('tool-call-history'));
+    expect(history[1].content, contains('README.md'));
+    expect(history[1].toolCalls, isEmpty);
+    expect(history[2].role, MessageRole.user);
+    expect(history[2].content, contains('call_1'));
+    expect(history[2].content, contains('contenido'));
+  });
+
   test('does not convert malformed or unadvertised local tool requests',
       () async {
     final engine = _FakeEngine()
@@ -125,6 +167,35 @@ void main() {
     expect(chunks.last, isA<DoneChunk>());
   });
 
+  test('holds the generation lock until native cancellation actually settles',
+      () async {
+    final gate = Completer<void>();
+    final settled = Completer<void>();
+    final engine = _FakeEngine()
+      ..generationGate = gate
+      ..generationSettled = settled;
+    final provider = LocalLlmProvider(engine);
+    final subscription = provider
+        .stream(messages: const <LlmMessage>[], tools: const [])
+        .listen((final _) {});
+
+    await Future<void>.delayed(Duration.zero);
+    await subscription.cancel();
+    expect(engine.cancelled, isTrue);
+
+    await expectLater(
+      provider.stream(messages: const <LlmMessage>[], tools: const []).toList(),
+      throwsA(isA<LlmException>()),
+    );
+
+    gate.complete();
+    await settled.future;
+    final next = await provider
+        .stream(messages: const <LlmMessage>[], tools: const [])
+        .toList();
+    expect(next.last, isA<DoneChunk>());
+  });
+
   test('does not start inference when no local model is loaded', () async {
     final engine = _FakeEngine()..loaded = false;
     final provider = LocalLlmProvider(engine);
@@ -140,6 +211,8 @@ void main() {
       () async {
     final engine = _FakeEngine();
     final provider = LocalLlmProvider(engine);
+    // Constructing a lazy stream without listening must not reserve the JNI context.
+    provider.stream(messages: const <LlmMessage>[], tools: const []);
     final first = provider.stream(
       messages: const <LlmMessage>[],
       tools: const <Map<String, Object?>>[],

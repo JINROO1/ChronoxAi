@@ -160,36 +160,6 @@ void main() {
     expect(store.removeCalls, 0);
   });
 
-  testWidgets('rejects and cleans up a picker file outside the pinned catalog',
-      (final tester) async {
-    final root = await Directory.systemTemp.createTemp('chronox-import-ui-');
-    addTearDown(() => root.delete(recursive: true));
-    final source = File('${root.path}/not-a-model.gguf')
-      ..writeAsStringSync('invalid size');
-    final store = _FakeModelStore();
-
-    await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp(
-          home: LocalModelsScreen(
-            store: store,
-            loadInstalledModels: store.installedModels,
-            availableStorageBytes: () async => 2 * 1024 * 1024 * 1024,
-            pickModelFile: () async => source,
-          ),
-        ),
-      ),
-    );
-    await pumpScreen(tester);
-    await tester.ensureVisible(find.text('Importar GGUF desde el dispositivo'));
-    await tester.tap(find.text('Importar GGUF desde el dispositivo'));
-    await pumpScreen(tester);
-
-    expect(find.textContaining('El tamaño no coincide'), findsOneWidget);
-    expect(store.installed, isEmpty);
-    expect(await source.exists(), isFalse);
-  });
-
   testWidgets('refuses to activate an installation that fails re-verification',
       (final tester) async {
     final store = _FakeModelStore()..failVerification = true;

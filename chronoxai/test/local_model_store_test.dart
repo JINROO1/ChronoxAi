@@ -42,9 +42,11 @@ void main() {
     final root = await Directory.systemTemp.createTemp('chronox-local-model-');
     addTearDown(() => root.delete(recursive: true));
     final directoryGate = Completer<Directory>();
-    final firstStore = LocalModelStore(supportDirectory: () => directoryGate.future);
+    final firstStore =
+        LocalModelStore(supportDirectory: () => directoryGate.future);
     final secondStore = LocalModelStore(supportDirectory: () async => root);
-    final pendingImport = firstStore.importFile(File('${root.path}/missing.gguf'));
+    final pendingImport =
+        firstStore.importFile(File('${root.path}/missing.gguf'));
 
     await expectLater(
       secondStore.download(LocalModelSpec.catalog.first),
@@ -52,7 +54,8 @@ void main() {
     );
     directoryGate.complete(root);
     await expectLater(pendingImport, throwsA(isA<FileSystemException>()));
-    expect(await Directory('${root.path}/local_models').list().toList(), isEmpty);
+    expect(
+        await Directory('${root.path}/local_models').list().toList(), isEmpty);
   });
 
   test('does not publish an imported file with an unknown size', () async {

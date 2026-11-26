@@ -53,7 +53,8 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
   void initState() {
     super.initState();
     _store = widget.store ?? LocalModelStore();
-    _transferSubscription = LocalModelStore.transferEvents.listen(_onTransferState);
+    _transferSubscription =
+        LocalModelStore.transferEvents.listen(_onTransferState);
     _onTransferState(LocalModelStore.transferState, notifySystem: false);
     _refresh();
   }

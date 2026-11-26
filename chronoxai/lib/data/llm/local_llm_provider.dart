@@ -114,9 +114,12 @@ class LocalLlmProvider implements LlmProvider {
             pendingProtocol.write(token);
             final candidate = pendingProtocol.toString();
             final marker = _localToolCallStart;
-            if (!candidate.startsWith(marker) &&
-                !(candidate.length < marker.length &&
-                    marker.startsWith(candidate))) {
+            final candidateWithoutLeadingSpace = candidate.trimLeft();
+            final couldBeToolEnvelope = candidateWithoutLeadingSpace.isEmpty ||
+                candidateWithoutLeadingSpace.startsWith(marker) ||
+                (candidateWithoutLeadingSpace.length < marker.length &&
+                    marker.startsWith(candidateWithoutLeadingSpace));
+            if (!couldBeToolEnvelope) {
               // A tool envelope is recognized only at byte zero of the whole
               // assistant response. Once ordinary text is emitted, later
               // marker-looking content is never reinterpreted as executable.

@@ -126,6 +126,27 @@ void main() {
     expect(chunks.whereType<TextChunk>(), isEmpty);
   });
 
+  test('recognizes local tool envelopes after leading whitespace', () async {
+    final engine = _FakeEngine()
+      ..response =
+          '  <chronox-tool-call>{"name":"project_check","arguments":{}}</chronox-tool-tool-call>';
+    final provider = LocalLlmProvider(engine);
+    const tools = <Map<String, Object?>>[
+      <String, Object?>{
+        'function': <String, Object?>{'name': 'project_check'},
+      },
+    ];
+
+    final chunks = await provider.stream(
+      messages: const <LlmMessage>[LlmMessage.user('Revisa el proyecto')],
+      tools: tools,
+    ).toList();
+
+    expect(chunks.whereType<TextChunk>(), isEmpty);
+    expect(chunks.whereType<ToolCallChunk>().single.name,
+        '__chronox_invalid_local_tool_call__');
+  });
+
   test('never promotes marker text after ordinary assistant prose into a tool',
       () async {
     final engine = _FakeEngine()

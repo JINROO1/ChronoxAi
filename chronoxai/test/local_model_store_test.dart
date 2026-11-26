@@ -50,7 +50,8 @@ void main() {
     expect(installed, isEmpty);
   });
 
-  test('rejects model specs outside the pinned catalog before filesystem access',
+  test(
+      'rejects model specs outside the pinned catalog before filesystem access',
       () async {
     final root = await Directory.systemTemp.createTemp('chronox-local-model-');
     addTearDown(() => root.delete(recursive: true));

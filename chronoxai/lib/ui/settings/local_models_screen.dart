@@ -111,7 +111,8 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
       try {
         if (picked != null && await picked.exists()) await picked.delete();
       } catch (error) {
-        if (mounted) setState(() => _error = 'No se pudo limpiar la importación: $error');
+        if (mounted)
+          setState(() => _error = 'No se pudo limpiar la importación: $error');
       } finally {
         if (mounted) {
           setState(() {

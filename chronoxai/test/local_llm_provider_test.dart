@@ -126,7 +126,8 @@ void main() {
     expect(chunks.whereType<TextChunk>(), isEmpty);
   });
 
-  test('recognizes local tool envelopes after leading whitespace', () async {
+  test('recovers local tool envelope with duplicated tool in closing tag',
+      () async {
     final engine = _FakeEngine()
       ..response =
           '  <chronox-tool-call>{"name":"project_check","arguments":{}}</chronox-tool-tool-call>';
@@ -143,8 +144,7 @@ void main() {
     ).toList();
 
     expect(chunks.whereType<TextChunk>(), isEmpty);
-    expect(chunks.whereType<ToolCallChunk>().single.name,
-        '__chronox_invalid_local_tool_call__');
+    expect(chunks.whereType<ToolCallChunk>().single.name, 'project_check');
   });
 
   test('never promotes marker text after ordinary assistant prose into a tool',

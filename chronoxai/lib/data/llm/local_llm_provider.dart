@@ -309,13 +309,20 @@ _DecodedLocalToolCall? _decodeLocalToolCall(
   Set<String> allowedNames,
 ) {
   final response = raw.trim();
-  if (!response.startsWith(_localToolCallStart) ||
-      !response.endsWith(_localToolCallEnd)) {
+  // Some instruction-following models duplicate "tool-" in the closing tag.
+  // Accept only this one known typo; arbitrary trailing text remains invalid.
+  const duplicatedToolEnd = '</chronox-tool-tool-call>';
+  final closingTag = response.endsWith(_localToolCallEnd)
+      ? _localToolCallEnd
+      : response.endsWith(duplicatedToolEnd)
+          ? duplicatedToolEnd
+          : null;
+  if (!response.startsWith(_localToolCallStart) || closingTag == null) {
     return null;
   }
   final json = response.substring(
     _localToolCallStart.length,
-    response.length - _localToolCallEnd.length,
+    response.length - closingTag.length,
   );
   try {
     final decoded = jsonDecode(json);

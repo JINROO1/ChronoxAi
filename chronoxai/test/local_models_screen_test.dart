@@ -115,13 +115,12 @@ void main() {
     expect(find.text('Contexto del modelo local'), findsOneWidget);
     await tester.tap(find.byType(DropdownButtonFormField<int>));
     await tester.pumpAndSettle();
-    expect(find.text('8192 tokens'), findsOneWidget);
-    await tester.tap(find.text('8192 tokens'));
+    expect(find.text('262144 tokens · máximo del modelo'), findsOneWidget);
+    await tester.tap(find.text('262144 tokens · máximo del modelo'));
     await pumpScreen(tester);
     await tester.ensureVisible(
-        find.textContaining('Contexto seleccionado: 8192').first);
-    expect(
-        find.textContaining('Contexto seleccionado: 8192'), findsNWidgets(2));
+        find.textContaining('Contexto seleccionado: 262144').first);
+    expect(find.textContaining('Contexto seleccionado: 262144'), findsNWidgets(2));
   });
 
   testWidgets('shows pinned Qwen provenance and RAM caveat',

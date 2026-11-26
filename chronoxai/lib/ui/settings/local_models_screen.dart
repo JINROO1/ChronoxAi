@@ -121,7 +121,15 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
   }
 
   Widget _contextConfigurationCard(ProviderSettings settings) {
-    const contextOptions = <int>[2048, 4096, 6144, 8192];
+    const contextOptions = <int>[
+      4096,
+      8192,
+      16384,
+      32768,
+      65536,
+      131072,
+      262144,
+    ];
     final selected = contextOptions.contains(settings.localContextTokens)
         ? settings.localContextTokens
         : 4096;
@@ -144,7 +152,9 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
               items: contextOptions
                   .map((final tokens) => DropdownMenuItem<int>(
                         value: tokens,
-                        child: Text('$tokens tokens'),
+                        child: Text(tokens == 262144
+                            ? '$tokens tokens · máximo del modelo'
+                            : '$tokens tokens'),
                       ))
                   .toList(),
               onChanged: _busy
@@ -157,9 +167,11 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              selected >= 6144
-                  ? 'Un contexto mayor acepta conversaciones más largas, pero reserva más RAM y puede causar cierres por memoria. Se aplicará al abrir una sesión nueva.'
-                  : 'El contexto mayor admite más historial y usa más RAM. Se aplicará al abrir una sesión nueva; el historial se compacta automáticamente al acercarse al límite.',
+              selected == 262144
+                  ? '262144 es el máximo de contexto anunciado por Qwen, no una garantía de que este teléfono pueda reservar tanta memoria. El máximo puede causar cierre por falta de RAM; se aplicará al abrir una sesión nueva.'
+                  : selected >= 65536
+                      ? 'Un contexto grande admite más historial, pero reserva mucha más RAM y puede causar cierres. Se aplicará al abrir una sesión nueva.'
+                      : 'El contexto mayor admite más historial y usa más RAM. Se aplicará al abrir una sesión nueva; el historial se compacta automáticamente al acercarse al límite.',
               style: const TextStyle(
                 color: ChronoxColors.textMuted,
                 fontSize: 12,

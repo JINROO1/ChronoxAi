@@ -46,7 +46,7 @@ class ProviderSettings {
     this.model = 'deepseek-chat',
     this.apiKey = '',
     this.mcpServerUrl = '',
-    this.localContextTokens = 4096,
+    this.localContextTokens = 262144,
   });
 
   final ProviderKind kind;
@@ -183,7 +183,7 @@ class ProviderSettingsNotifier extends StateNotifier<ProviderSettings> {
   static const String _kModel = 'provider.model';
   static const String _kApiKey = 'provider.apiKey';
   static const String _kMcpServerUrl = 'mcp.serverUrl';
-  static const String _kLocalContextTokens = 'provider.localContextTokens';
+  static const String _kLocalContextTokens = 'provider.localContextTokens.v2';
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -453,9 +453,9 @@ Future<SessionRuntime> startSession(
     shell: bootstrap.shell,
   );
 
-  final localContextWindow = bootstrap.provider.contextWindow;
+  final localContextWindow = bootstrap.provider.contextWindow ?? 262144;
   final isLocalProvider = bootstrap.provider is LocalLlmProvider;
-  final contextBudget = isLocalProvider && localContextWindow != null
+  final contextBudget = isLocalProvider
       ? (localContextWindow - 512).clamp(512, localContextWindow).toInt()
       : 96000;
 

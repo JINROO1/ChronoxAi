@@ -250,7 +250,7 @@ class MainActivity : FlutterActivity() {
                     } else {
                         val contextSize = call.argument<Int>("contextSize") ?: 2048
                         val threads = call.argument<Int>("threads") ?: 4
-                        if (contextSize !in 128..8192 || threads !in 1..8) {
+                        if (contextSize !in 128..262144 || threads !in 1..8) {
                             result.error(
                                 "invalid_model_options",
                                 "Contexto o número de hilos fuera de los límites admitidos.",

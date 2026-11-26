@@ -116,9 +116,9 @@ void main() {
     test('el contexto local tiene un valor inicial seguro y se puede cambiar',
         () {
       const settings = ProviderSettings();
-      expect(settings.localContextTokens, 4096);
+      expect(settings.localContextTokens, 262144);
       expect(
-          settings.copyWith(localContextTokens: 8192).localContextTokens, 8192);
+          settings.copyWith(localContextTokens: 262144).localContextTokens, 262144);
     });
 
     test('sin clave no está configurado', () {

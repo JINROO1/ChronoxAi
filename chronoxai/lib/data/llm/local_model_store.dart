@@ -66,7 +66,7 @@ class LocalModelSpec {
       runtime: 'llama.cpp@3ba1ce0e28d991800e1585b7d3533f77213939d6',
       quantization: 'Q4_K_M',
       license: 'Apache-2.0',
-      contextWindow: 2048,
+      contextWindow: 262144,
     ),
     LocalModelSpec(
       id: 'qwen35-2b-q4km',
@@ -82,7 +82,7 @@ class LocalModelSpec {
       runtime: 'llama.cpp@3ba1ce0e28d991800e1585b7d3533f77213939d6',
       quantization: 'Q4_K_M',
       license: 'Apache-2.0',
-      contextWindow: 2048,
+      contextWindow: 262144,
     ),
   ];
 }

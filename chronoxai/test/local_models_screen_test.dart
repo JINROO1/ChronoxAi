@@ -1,9 +1,65 @@
 import 'package:chronoxai/data/llm/local_model_store.dart';
 import 'package:chronoxai/ui/settings/local_models_screen.dart';
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class _FakeModelStore extends LocalModelStore {
+  _FakeModelStore() : super(supportDirectory: () async => Directory('/unused'));
+
+  final List<LocalModelInstallation> installed = <LocalModelInstallation>[];
+  Completer<LocalModelInstallation>? pendingDownload;
+  bool failNextDownload = false;
+  int removeCalls = 0;
+  bool downloadCancelled = false;
+
+  @override
+  Future<List<LocalModelInstallation>> installedModels() async => installed;
+
+  @override
+  Future<LocalModelInstallation> download(
+    LocalModelSpec spec, {
+    void Function(ModelTransferProgress progress)? onProgress,
+  }) {
+    onProgress?.call(
+      ModelTransferProgress(received: spec.bytes ~/ 3, total: spec.bytes),
+    );
+    final completer = Completer<LocalModelInstallation>();
+    pendingDownload = completer;
+    if (failNextDownload) {
+      failNextDownload = false;
+      completer.completeError(const FileSystemException('fallo de red'));
+    }
+    return completer.future;
+  }
+
+  void completeDownload(LocalModelSpec spec) {
+    final installation = LocalModelInstallation(
+      spec: spec,
+      file: File('/unused/${spec.fileName}'),
+    );
+    installed.add(installation);
+    pendingDownload!.complete(installation);
+  }
+
+  @override
+  void cancelDownload() {
+    downloadCancelled = true;
+    final pending = pendingDownload;
+    if (pending != null && !pending.isCompleted) {
+      pending.completeError(const FileSystemException('descarga cancelada'));
+    }
+  }
+
+  @override
+  Future<void> remove(LocalModelSpec spec) async {
+    removeCalls++;
+    installed.removeWhere((final item) => item.spec.id == spec.id);
+  }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -12,12 +68,15 @@ void main() {
 
   Widget buildScreen({
     required int availableBytes,
+    LocalModelStore? store,
   }) =>
       ProviderScope(
         child: MaterialApp(
           home: LocalModelsScreen(
-            store: LocalModelStore(),
-            loadInstalledModels: () async => const <LocalModelInstallation>[],
+            store: store ?? LocalModelStore(),
+            loadInstalledModels: store == null
+                ? () async => const <LocalModelInstallation>[]
+                : store.installedModels,
             availableStorageBytes: () async => availableBytes,
           ),
         ),
@@ -56,4 +115,71 @@ void main() {
 
     expect(find.textContaining('Espacio insuficiente'), findsOneWidget);
   });
+  testWidgets('shows installing, ready, selected, and protected-in-use states',
+      (final tester) async {
+    final store = _FakeModelStore();
+    await tester.pumpWidget(buildScreen(
+      availableBytes: 8 * 1024 * 1024 * 1024,
+      store: store,
+    ));
+    await pumpScreen(tester);
+    await tester.ensureVisible(find.text('Descargar').first);
+    await tester.tap(find.text('Descargar').first);
+    await pumpScreen(tester);
+
+    expect(store.pendingDownload, isNotNull);
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(find.text('Cancelar descarga'), findsOneWidget);
+
+    store.completeDownload(LocalModelSpec.catalog.first);
+    await pumpScreen(tester);
+    await tester.ensureVisible(find.text('Usar localmente'));
+    expect(find.text('Usar localmente'), findsOneWidget);
+
+    await tester.tap(find.text('Usar localmente'));
+    await pumpScreen(tester);
+    expect(find.text('En uso'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Eliminar'));
+    await tester.tap(find.text('Eliminar'));
+    await pumpScreen(tester);
+    expect(find.textContaining('Selecciona otro proveedor o modelo'), findsOneWidget);
+    expect(store.removeCalls, 0);
+  });
+
+  testWidgets('cancels an active download and restores retry action',
+      (final tester) async {
+    final store = _FakeModelStore();
+    await tester.pumpWidget(buildScreen(
+      availableBytes: 8 * 1024 * 1024 * 1024,
+      store: store,
+    ));
+    await pumpScreen(tester);
+    await tester.ensureVisible(find.text('Descargar').first);
+    await tester.tap(find.text('Descargar').first);
+    await pumpScreen(tester);
+    await tester.tap(find.text('Cancelar descarga'));
+    await pumpScreen(tester);
+
+    expect(store.downloadCancelled, isTrue);
+    expect(find.text('Descargar'), findsNWidgets(2));
+    expect(find.textContaining('descarga cancelada'), findsOneWidget);
+  });
+
+  testWidgets('renders a failed-download error and restores retry action',
+      (final tester) async {
+    final store = _FakeModelStore()..failNextDownload = true;
+    await tester.pumpWidget(buildScreen(
+      availableBytes: 8 * 1024 * 1024 * 1024,
+      store: store,
+    ));
+    await pumpScreen(tester);
+    await tester.ensureVisible(find.text('Descargar').first);
+    await tester.tap(find.text('Descargar').first);
+    await pumpScreen(tester);
+
+    expect(find.textContaining('fallo de red'), findsOneWidget);
+    expect(find.text('Descargar'), findsNWidgets(2));
+  });
+
 }

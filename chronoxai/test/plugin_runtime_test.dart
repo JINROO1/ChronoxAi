@@ -184,6 +184,50 @@ void main() {
         expect(problems, isEmpty);
       });
 
+      test('rejects undeclared fields when schema closes the object', () {
+        final problems = ToolRegistry.validateArguments(
+          const <String, Object?>{
+            'type': 'object',
+            'additionalProperties': false,
+            'properties': <String, Object?>{
+              'path': <String, Object?>{'type': 'string'},
+            },
+          },
+          <String, Object?>{'path': '/a', 'shell': 'rm -rf /'},
+        );
+        expect(problems.single, contains('shell'));
+      });
+
+      test('validates nested object requirements and array item types', () {
+        final problems = ToolRegistry.validateArguments(
+          const <String, Object?>{
+            'type': 'object',
+            'properties': <String, Object?>{
+              'options': <String, Object?>{
+                'type': 'object',
+                'required': <String>['mode'],
+                'properties': <String, Object?>{
+                  'mode': <String, Object?>{'type': 'string'},
+                },
+                'additionalProperties': false,
+              },
+              'paths': <String, Object?>{
+                'type': 'array',
+                'items': <String, Object?>{'type': 'string'},
+              },
+            },
+          },
+          <String, Object?>{
+            'options': <String, Object?>{'extra': true},
+            'paths': <Object?>['ok', 7],
+          },
+        );
+        expect(problems, hasLength(3));
+        expect(problems.join(' '), contains('mode'));
+        expect(problems.join(' '), contains('extra'));
+        expect(problems.join(' '), contains('paths[1]'));
+      });
+
       test('una herramienta inexistente devuelve error legible', () async {
         final outcome = await ToolRegistry().execute('no_existe', {});
         expect(outcome.isError, isTrue);

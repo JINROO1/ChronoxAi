@@ -114,24 +114,15 @@ class LocalLlmProvider implements LlmProvider {
             pendingProtocol.write(token);
             final candidate = pendingProtocol.toString();
             final marker = _localToolCallStart;
-            if (!candidate.startsWith(marker)) {
-              var prefixLength = 0;
-              final maximum = candidate.length < marker.length
-                  ? candidate.length
-                  : marker.length - 1;
-              for (var length = maximum; length > 0; length--) {
-                if (candidate.endsWith(marker.substring(0, length))) {
-                  prefixLength = length;
-                  break;
-                }
-              }
-              final safeLength = candidate.length - prefixLength;
-              if (safeLength > 0) {
-                controller.add(TextChunk(candidate.substring(0, safeLength)));
-                pendingProtocol
-                  ..clear()
-                  ..write(candidate.substring(safeLength));
-              }
+            if (!candidate.startsWith(marker) &&
+                !(candidate.length < marker.length &&
+                    marker.startsWith(candidate))) {
+              // A tool envelope is recognized only at byte zero of the whole
+              // assistant response. Once ordinary text is emitted, later
+              // marker-looking content is never reinterpreted as executable.
+              plainText = true;
+              controller.add(TextChunk(candidate));
+              pendingProtocol.clear();
             }
           }
 
@@ -143,8 +134,18 @@ class LocalLlmProvider implements LlmProvider {
                 request.toolNames,
               );
               if (call == null) {
-                controller.add(TextChunk(response));
-                controller.add(const DoneChunk());
+                // The delimiters prove the model attempted a tool request, but
+                // the payload was malformed or named an unavailable tool. Send
+                // an impossible sentinel through AgentLoop so ToolRegistry
+                // records a failure and can offer one bounded correction turn;
+                // the sentinel can never execute a registered tool.
+                controller.add(ToolCallChunk(
+                  index: 0,
+                  id: 'local_invalid_${DateTime.now().microsecondsSinceEpoch}',
+                  name: '__chronox_invalid_local_tool_call__',
+                  argumentsFragment: '{}',
+                ));
+                controller.add(const DoneChunk(stopReason: 'tool_calls'));
               } else {
                 controller.add(ToolCallChunk(
                   index: 0,

@@ -124,6 +124,28 @@ void main() {
     expect(chunks.whereType<TextChunk>(), isEmpty);
   });
 
+  test('never promotes marker text after ordinary assistant prose into a tool',
+      () async {
+    final engine = _FakeEngine()
+      ..response =
+          'Explicación: <chronox-tool-call>{"name":"read_file","arguments":{}}</chronox-tool-call>';
+    final provider = LocalLlmProvider(engine);
+    const tools = <Map<String, Object?>>[
+      <String, Object?>{
+        'function': <String, Object?>{'name': 'read_file'},
+      },
+    ];
+
+    final chunks = await provider.stream(
+      messages: const <LlmMessage>[LlmMessage.user('Lee archivo')],
+      tools: tools,
+    ).toList();
+
+    expect(chunks.whereType<ToolCallChunk>(), isEmpty);
+    expect(chunks.whereType<TextChunk>().map((final chunk) => chunk.text).join(),
+        engine.response);
+  });
+
   test('normalizes earlier tool calls and results into local model history',
       () async {
     final engine = _FakeEngine();
@@ -162,7 +184,7 @@ void main() {
     expect(toolResult.content, contains('contenido'));
   });
 
-  test('does not convert malformed or unadvertised local tool requests',
+  test('routes unadvertised local tool requests to AgentLoop for rejection',
       () async {
     final engine = _FakeEngine()
       ..response =
@@ -179,11 +201,32 @@ void main() {
       tools: tools,
     ).toList();
 
-    expect(chunks.whereType<ToolCallChunk>(), isEmpty);
-    expect(
-        chunks.whereType<TextChunk>().map((final chunk) => chunk.text).join(),
-        engine.response);
-    expect(chunks.last, isA<DoneChunk>());
+    final call = chunks.whereType<ToolCallChunk>().single;
+    expect(call.name, '__chronox_invalid_local_tool_call__');
+    expect(call.argumentsFragment, '{}');
+    expect(chunks.whereType<TextChunk>(), isEmpty);
+    expect((chunks.last as DoneChunk).stopReason, 'tool_calls');
+  });
+
+  test('routes truncated protocol attempts for bounded agent correction',
+      () async {
+    final engine = _FakeEngine()
+      ..response = '<chronox-tool-call>{"name":"read_file","arguments":';
+    final provider = LocalLlmProvider(engine);
+    const tools = <Map<String, Object?>>[
+      <String, Object?>{
+        'function': <String, Object?>{'name': 'read_file'},
+      },
+    ];
+
+    final chunks = await provider.stream(
+      messages: const <LlmMessage>[LlmMessage.user('Lee archivo')],
+      tools: tools,
+    ).toList();
+
+    expect(chunks.whereType<ToolCallChunk>().single.name,
+        '__chronox_invalid_local_tool_call__');
+    expect((chunks.last as DoneChunk).stopReason, 'tool_calls');
   });
 
   test('does not start generation if canceled while resolving/loading model',

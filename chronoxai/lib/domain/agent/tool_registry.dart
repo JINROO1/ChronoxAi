@@ -165,55 +165,110 @@ class ToolRegistry {
   static List<String> validateArguments(
     final Map<String, Object?> schema,
     final Map<String, Object?> arguments,
+  ) =>
+      _validateObject(schema, arguments, '');
+
+  static List<String> _validateObject(
+    Map<String, Object?> schema,
+    Map<String, Object?> arguments,
+    String path,
   ) {
     final problems = <String>[];
-
-    final required =
-        (schema['required'] as List<Object?>?) ?? const <Object?>[];
-    for (final key in required.cast<String>()) {
-      if (!arguments.containsKey(key) || arguments[key] == null) {
-        problems.add('falta el campo requerido "$key"');
+    final required = schema['required'];
+    if (required is List) {
+      for (final item in required) {
+        if (item is! String) continue;
+        if (!arguments.containsKey(item) || arguments[item] == null) {
+          problems.add('${path.isEmpty ? '' : '$path.'}falta el campo requerido "$item"');
+        }
       }
     }
 
-    final properties = (schema['properties'] as Map<String, Object?>?) ??
-        const <String, Object?>{};
-
+    final rawProperties = schema['properties'];
+    final properties = rawProperties is Map
+        ? rawProperties.map((final key, final value) =>
+            MapEntry(key.toString(), value))
+        : const <String, Object?>{};
     for (final entry in arguments.entries) {
-      final spec = properties[entry.key];
-      if (spec == null) {
-        // Campo no declarado: se ignora en lugar de fallar, porque los modelos
-        // a veces añaden metadatos inofensivos.
+      final childPath = path.isEmpty ? entry.key : '$path.${entry.key}';
+      final rawSpec = properties[entry.key];
+      if (rawSpec == null) {
+        if (schema['additionalProperties'] == false) {
+          problems.add('$childPath no está permitido');
+        }
         continue;
       }
-      if (spec is! Map<String, Object?>) continue;
+      if (rawSpec is! Map) continue;
+      final spec = rawSpec.map(
+        (final key, final value) => MapEntry(key.toString(), value),
+      );
+      problems.addAll(_validateValue(childPath, spec, entry.value));
+    }
+    return problems;
+  }
 
-      final type = spec['type'] as String?;
-      final value = entry.value;
-      if (value == null) continue;
+  static List<String> _validateValue(
+    String path,
+    Map<String, Object?> schema,
+    Object? value,
+  ) {
+    if (value == null) return const <String>[];
+    final type = schema['type'] as String?;
+    final typeProblem = _checkType(path, type, value);
+    if (typeProblem != null) return <String>[typeProblem];
 
-      final typeProblem = _checkType(entry.key, type, value);
-      if (typeProblem != null) {
-        problems.add(typeProblem);
-        continue;
-      }
-
-      final allowed = (spec['enum'] as List<Object?>?)?.cast<Object?>();
-      if (allowed != null && !allowed.contains(value)) {
-        problems.add(
-          '"${entry.key}" debe ser uno de: '
-          '${allowed.map((final a) => jsonEncode(a)).join(', ')}',
-        );
-      }
-
-      if (type == 'object' && value is Map<String, Object?>) {
-        final nested = spec;
-        problems.addAll(
-          validateArguments(nested, value).map((final p) => '${entry.key}.$p'),
-        );
-      }
+    final problems = <String>[];
+    final allowed = schema['enum'];
+    if (allowed is List && !allowed.contains(value)) {
+      problems.add(
+        '"$path" debe ser uno de: '
+        '${allowed.map((final item) => jsonEncode(item)).join(', ')}',
+      );
     }
 
+    if (value is String) {
+      final minLength = schema['minLength'];
+      final maxLength = schema['maxLength'];
+      if (minLength is int && value.length < minLength) {
+        problems.add('"$path" debe tener al menos $minLength caracteres');
+      }
+      if (maxLength is int && value.length > maxLength) {
+        problems.add('"$path" debe tener como máximo $maxLength caracteres');
+      }
+    } else if (value is num) {
+      final minimum = schema['minimum'];
+      final maximum = schema['maximum'];
+      if (minimum is num && value < minimum) {
+        problems.add('"$path" debe ser mayor o igual que $minimum');
+      }
+      if (maximum is num && value > maximum) {
+        problems.add('"$path" debe ser menor o igual que $maximum');
+      }
+    } else if (value is Map) {
+      problems.addAll(_validateObject(
+        schema,
+        value.map((final key, final item) => MapEntry(key.toString(), item)),
+        path,
+      ));
+    } else if (value is List) {
+      final minItems = schema['minItems'];
+      final maxItems = schema['maxItems'];
+      if (minItems is int && value.length < minItems) {
+        problems.add('"$path" debe contener al menos $minItems elementos');
+      }
+      if (maxItems is int && value.length > maxItems) {
+        problems.add('"$path" debe contener como máximo $maxItems elementos');
+      }
+      final rawItems = schema['items'];
+      if (rawItems is Map) {
+        final itemSchema = rawItems.map(
+          (final key, final item) => MapEntry(key.toString(), item),
+        );
+        for (var index = 0; index < value.length; index++) {
+          problems.addAll(_validateValue('$path[$index]', itemSchema, value[index]));
+        }
+      }
+    }
     return problems;
   }
 
@@ -227,9 +282,9 @@ class ToolRegistry {
       'integer' => value is int,
       'number' => value is num,
       'boolean' => value is bool,
-      'array' => value is List<Object?>,
-      'object' => value is Map<String, Object?>,
-      null => true, // sin tipo declarado: se acepta
+      'array' => value is List,
+      'object' => value is Map,
+      null => true,
       _ => true,
     };
     if (ok) return null;

@@ -156,7 +156,6 @@ Java_app_chronoxai_MainActivity_nativeGenerate(JNIEnv *env, jobject, jlong handl
         return;
     }
     std::lock_guard<std::mutex> lock(session->generation_mutex);
-    session->cancelled.store(false);
     const auto prompt = format_chat(env, session->model, roles, contents);
     if (env->ExceptionCheck()) return;
 
@@ -219,6 +218,12 @@ extern "C" JNIEXPORT void JNICALL
 Java_app_chronoxai_MainActivity_nativeCancel(JNIEnv *, jobject, jlong handle) {
     auto *session = reinterpret_cast<LocalSession *>(handle);
     if (session != nullptr) session->cancelled.store(true);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_app_chronoxai_MainActivity_nativeResetCancellation(JNIEnv *, jobject, jlong handle) {
+    auto *session = reinterpret_cast<LocalSession *>(handle);
+    if (session != nullptr) session->cancelled.store(false);
 }
 
 extern "C" JNIEXPORT void JNICALL

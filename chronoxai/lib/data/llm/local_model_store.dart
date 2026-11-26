@@ -111,9 +111,13 @@ class LocalModelStore {
       : _supportDirectory = supportDirectory ?? getApplicationSupportDirectory;
 
   final Future<Directory> Function() _supportDirectory;
-  http.Client? _activeClient;
-  bool _transferActive = false;
-  bool _cancelTransferRequested = false;
+
+  // Transfer state is process-wide, not per LocalModelStore instance. Settings,
+  // session bootstrap, and model validation can each create a store; without a
+  // shared guard their temporary files/manifests could race one another.
+  static http.Client? _activeClient;
+  static bool _transferActive = false;
+  static bool _cancelTransferRequested = false;
 
   Future<Directory> _modelsDirectory() async {
     final support = await _supportDirectory();
@@ -141,7 +145,7 @@ class LocalModelStore {
 
   Future<List<LocalModelInstallation>> installedModels() async {
     final directory = await _modelsDirectory();
-    await _recoverInterruptedWrites(directory);
+    if (!_transferActive) await _recoverInterruptedWrites(directory);
     final manifest = await _readManifest(directory);
     final installed = <LocalModelInstallation>[];
     for (final spec in LocalModelSpec.catalog) {

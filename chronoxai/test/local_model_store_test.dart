@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:chronoxai/data/llm/local_model_store.dart';
@@ -35,6 +36,23 @@ void main() {
               .every((final spec) => spec.sha256.length == 64),
           isTrue);
     });
+  });
+
+  test('serializes transfers across distinct store instances', () async {
+    final root = await Directory.systemTemp.createTemp('chronox-local-model-');
+    addTearDown(() => root.delete(recursive: true));
+    final directoryGate = Completer<Directory>();
+    final firstStore = LocalModelStore(supportDirectory: () => directoryGate.future);
+    final secondStore = LocalModelStore(supportDirectory: () async => root);
+    final pendingImport = firstStore.importFile(File('${root.path}/missing.gguf'));
+
+    await expectLater(
+      secondStore.download(LocalModelSpec.catalog.first),
+      throwsA(isA<StateError>()),
+    );
+    directoryGate.complete(root);
+    await expectLater(pendingImport, throwsA(isA<FileSystemException>()));
+    expect(await Directory('${root.path}/local_models').list().toList(), isEmpty);
   });
 
   test('does not publish an imported file with an unknown size', () async {

@@ -471,16 +471,28 @@ jobs:
           required = {
               f'lib/{abi}/{name}'
               for abi in ('arm64-v8a', 'x86_64')
-              for name in ('libproot.so', 'libproot_loader.so', 'libtalloc.so', 'libandroid-shmem.so')
+              for name in (
+                  'libproot.so', 'libproot_loader.so', 'libtalloc.so',
+                  'libandroid-shmem.so', 'libchronox_local_llm.so', 'libllama.so',
+              )
           }
           for apk in apks:
               with zipfile.ZipFile(apk) as bundle:
-                  missing = sorted(required - set(bundle.namelist()))
+                  entries = set(bundle.namelist())
+                  missing = sorted(required - entries)
+                  bundled_weights = sorted(
+                      item for item in entries
+                      if item.lower().endswith(('.gguf', '.litertlm'))
+                  )
               if missing:
                   for entry in missing:
                       print(f'::error file={apk}::Falta {entry} en el APK')
                   sys.exit(1)
-              print(f'::notice::Runtime PRoot completo en {apk}')
+              if bundled_weights:
+                  for entry in bundled_weights:
+                      print(f'::error file={apk}::El peso no debe incluirse en el APK: {entry}')
+                  sys.exit(1)
+              print(f'::notice::Runtime PRoot y backend local presentes; sin pesos en {apk}')
 
       - name: Comprobar que la clave restaurada es válida
         if: steps.signing.outputs.signed == 'true'
@@ -501,10 +513,35 @@ jobs:
             "$APKSIGNER" verify --print-certs "$apk" | grep -E "SHA-256|Verifies" || true
           done
 
+      - name: Sellar APK y registrar metadatos
+        working-directory: ${{ env.PROJECT_DIR }}
+        env:
+          SIGNED_WITH_RELEASE_KEY: ${{ steps.signing.outputs.signed }}
+        run: |
+          set -euo pipefail
+          cd build/app/outputs/flutter-apk
+          shopt -s nullglob
+          apks=(*-release.apk)
+          test "${#apks[@]}" -gt 0
+          sha256sum "${apks[@]}" > SHA256SUMS
+          {
+            echo "commit=${GITHUB_SHA}"
+            echo "workflow_run=${GITHUB_RUN_ID}"
+            echo "flutter=${FLUTTER_VERSION}"
+            echo "release_key=${SIGNED_WITH_RELEASE_KEY}"
+            echo "abi=arm64-v8a,x86_64"
+            echo "models_bundled=false"
+          } > BUILD-METADATA.txt
+          cat SHA256SUMS
+          cat BUILD-METADATA.txt
+
       - uses: actions/upload-artifact@v4
         with:
           name: chronoxai-apk-${{ github.sha }}
-          path: ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/*-release.apk
+          path: |
+            ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/*-release.apk
+            ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/SHA256SUMS
+            ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/BUILD-METADATA.txt
           retention-days: 30
 
       - name: Publicar en la release

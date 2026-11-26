@@ -20,6 +20,7 @@ import io.flutter.plugin.common.MethodChannel
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.io.File
+import java.io.FileOutputStream
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -44,8 +45,10 @@ class MainActivity : FlutterActivity() {
     private val localLlmChannelName = "app.chronoxai/local_llm"
     private val localLlmEventsChannelName = "app.chronoxai/local_llm_events"
     private val localLlmExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+    private val localLlmLifecycleLock = Any()
     @Volatile private var localLlmHandle: Long = 0L
     @Volatile private var localLlmGenerating = false
+    @Volatile private var localLlmShuttingDown = false
     @Volatile private var localLlmEventSink: EventChannel.EventSink? = null
     private val projectExportRequestCode = 4004
     private val localModelPickerRequestCode = 4005
@@ -59,6 +62,24 @@ class MainActivity : FlutterActivity() {
     private val voiceRequestCode = 4002
     private val voiceActivityRequestCode = 4003
     private var pendingVoiceResult: MethodChannel.Result? = null
+
+    override fun onDestroy() {
+        val handle = synchronized(localLlmLifecycleLock) {
+            localLlmShuttingDown = true
+            localLlmEventSink = null
+            val active = localLlmHandle
+            localLlmHandle = 0L
+            active
+        }
+        if (handle != 0L) nativeCancel(handle)
+        // The single-thread executor serializes teardown behind any active load
+        // or generation, preventing use-after-free of the native context.
+        localLlmExecutor.execute {
+            if (handle != 0L) nativeUnloadModel(handle)
+            localLlmExecutor.shutdown()
+        }
+        super.onDestroy()
+    }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -154,14 +175,38 @@ class MainActivity : FlutterActivity() {
                     } else {
                         val contextSize = call.argument<Int>("contextSize") ?: 2048
                         val threads = call.argument<Int>("threads") ?: 4
+                        if (contextSize !in 128..8192 || threads !in 1..8) {
+                            result.error(
+                                "invalid_model_options",
+                                "Contexto o número de hilos fuera de los límites admitidos.",
+                                null,
+                            )
+                            return@setMethodCallHandler
+                        }
                         localLlmExecutor.execute {
                             try {
-                                val oldHandle = localLlmHandle
-                                localLlmHandle = 0L
+                                val oldHandle = synchronized(localLlmLifecycleLock) {
+                                    val active = localLlmHandle
+                                    localLlmHandle = 0L
+                                    active
+                                }
                                 if (oldHandle != 0L) nativeUnloadModel(oldHandle)
                                 val loaded = nativeLoadModel(path, contextSize, threads)
-                                localLlmHandle = loaded
-                                runOnUiThread { result.success(null) }
+                                val rejectedDuringShutdown = synchronized(localLlmLifecycleLock) {
+                                    if (localLlmShuttingDown) {
+                                        true
+                                    } else {
+                                        localLlmHandle = loaded
+                                        false
+                                    }
+                                }
+                                if (rejectedDuringShutdown) {
+                                    nativeUnloadModel(loaded)
+                                } else {
+                                    runOnUiThread {
+                                        if (!localLlmShuttingDown) result.success(null)
+                                    }
+                                }
                             } catch (error: Exception) {
                                 runOnUiThread {
                                     result.error("model_load_failed", error.message, null)
@@ -174,31 +219,56 @@ class MainActivity : FlutterActivity() {
                     val roles = call.argument<List<String>>("roles")
                     val contents = call.argument<List<String>>("contents")
                     val handle = localLlmHandle
-                    if (handle == 0L || roles == null || contents == null || roles.size != contents.size) {
+                    val maxTokens = call.argument<Int>("maxTokens") ?: 256
+                    val temperature = call.argument<Double>("temperature")?.toFloat() ?: 0.7f
+                    val allowedRoles = setOf("system", "user", "assistant", "tool")
+                    val contentBytes = contents?.sumOf { it.toByteArray(Charsets.UTF_8).size } ?: 0
+                    if (maxTokens !in 1..2048 || !temperature.isFinite() || temperature !in 0f..2f) {
+                        result.error("invalid_generation_options", "Límites de generación local inválidos.", null)
+                    } else if (handle == 0L || roles == null || contents == null || roles.isEmpty() ||
+                        roles.size != contents.size || roles.size > 128 || roles.any { it !in allowedRoles } ||
+                        contentBytes > 2 * 1024 * 1024) {
                         result.error("model_not_ready", "Modelo o mensajes no válidos.", null)
                     } else if (localLlmGenerating) {
                         result.error("generation_busy", "Ya hay una generación en curso.", null)
                     } else {
                         localLlmGenerating = true
                         result.success(null)
-                        val maxTokens = call.argument<Int>("maxTokens") ?: 256
-                        val temperature = call.argument<Double>("temperature")?.toFloat() ?: 0.7f
                         localLlmExecutor.execute {
                             try {
-                                nativeGenerate(
-                                    handle,
-                                    roles.toTypedArray(),
-                                    contents.toTypedArray(),
-                                    maxTokens,
-                                    temperature,
-                                    LocalTokenSink { text ->
-                                        runOnUiThread {
-                                            localLlmEventSink?.success(mapOf("type" to "text", "text" to text))
-                                        }
-                                    },
-                                )
-                                runOnUiThread {
-                                    localLlmEventSink?.success(mapOf("type" to "done"))
+                                val canStart = synchronized(localLlmLifecycleLock) {
+                                    if (localLlmShuttingDown || localLlmHandle != handle) {
+                                        false
+                                    } else {
+                                        nativeResetCancellation(handle)
+                                        true
+                                    }
+                                }
+                                if (!canStart) {
+                                    runOnUiThread {
+                                        localLlmEventSink?.success(mapOf(
+                                            "type" to "error",
+                                            "message" to "La sesión local se cerró antes de iniciar la generación.",
+                                        ))
+                                    }
+                                } else {
+                                    nativeGenerate(
+                                        handle,
+                                        roles.toTypedArray(),
+                                        contents.toTypedArray(),
+                                        maxTokens,
+                                        temperature,
+                                        LocalTokenSink { text ->
+                                            runOnUiThread {
+                                                localLlmEventSink?.success(
+                                                    mapOf("type" to "text", "text" to text),
+                                                )
+                                            }
+                                        },
+                                    )
+                                    runOnUiThread {
+                                        localLlmEventSink?.success(mapOf("type" to "done"))
+                                    }
                                 }
                             } catch (error: Exception) {
                                 runOnUiThread {
@@ -219,8 +289,11 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 }
                 "unloadModel" -> {
-                    val handle = localLlmHandle
-                    localLlmHandle = 0L
+                    val handle = synchronized(localLlmLifecycleLock) {
+                        val active = localLlmHandle
+                        localLlmHandle = 0L
+                        active
+                    }
                     localLlmExecutor.execute {
                         if (handle != 0L) nativeUnloadModel(handle)
                         runOnUiThread { result.success(null) }
@@ -455,6 +528,79 @@ class MainActivity : FlutterActivity() {
     }
 
     @Deprecated("SpeechRecognizer result returned through the platform channel")
+    /**
+     * Copies the SAF document to a unique private-cache file for Dart to hash and
+     * atomically install. Do not read arbitrary-size documents into cache: the
+     * catalog's largest pinned Qwen GGUF is 1,280,835,840 bytes. Check available
+     * space before and during copying, preserve a reserve for app/system work,
+     * and remove partials after any exception or process-retry.
+     */
+    private fun copyPickedModelToCache(uri: Uri): File {
+        val maximumBytes = 1_280_835_840L
+        val reserveBytes = 128L * 1024L * 1024L
+        val importDirectory = File(cacheDir, "model-imports").apply { mkdirs() }
+        val staleBefore = System.currentTimeMillis() - 24L * 60L * 60L * 1000L
+        importDirectory.listFiles()?.forEach { file ->
+            if (file.lastModified() < staleBefore) file.delete()
+        }
+
+        val expectedBytes = contentResolver.openAssetFileDescriptor(uri, "r")?.use {
+            it.length.takeIf { length -> length > 0L }
+        }
+        if (expectedBytes != null && expectedBytes > maximumBytes) {
+            throw IllegalArgumentException("El archivo supera el tamaño máximo admitido para Qwen.")
+        }
+        // SAF providers sometimes report UNKNOWN_LENGTH (for example a cloud
+        // document). In that case reserve a small floor and enforce the byte
+        // cap plus free-space reserve as the stream advances.
+        val requiredBeforeCopy = (expectedBytes ?: 0L) + reserveBytes
+        if (StatFs(cacheDir.absolutePath).availableBytes < requiredBeforeCopy) {
+            throw IllegalStateException("No hay espacio suficiente para preparar la importación del modelo.")
+        }
+
+        val temporary = File.createTempFile("picked-model-", ".part", importDirectory)
+        val destination = File(importDirectory, "${temporary.name.removeSuffix(".part")}.gguf")
+        try {
+            val input = contentResolver.openInputStream(uri)
+                ?: throw IllegalStateException("No se pudo leer el archivo elegido.")
+            input.use { source ->
+                FileOutputStream(temporary).use { output ->
+                    val buffer = ByteArray(1024 * 1024)
+                    var copied = 0L
+                    var sinceSpaceCheck = 0L
+                    while (true) {
+                        val count = source.read(buffer)
+                        if (count < 0) break
+                        copied += count
+                        sinceSpaceCheck += count
+                        if (copied > maximumBytes) {
+                            throw IllegalArgumentException("El archivo supera el tamaño máximo admitido para Qwen.")
+                        }
+                        if (sinceSpaceCheck >= 8L * 1024L * 1024L) {
+                            if (StatFs(cacheDir.absolutePath).availableBytes < reserveBytes) {
+                                throw IllegalStateException("Se agotó el espacio reservado durante la importación.")
+                            }
+                            sinceSpaceCheck = 0L
+                        }
+                        output.write(buffer, 0, count)
+                    }
+                    if (expectedBytes != null && copied != expectedBytes) {
+                        throw IllegalStateException("El archivo cambió de tamaño durante la importación SAF.")
+                    }
+                    output.fd.sync()
+                }
+            }
+            if (!temporary.renameTo(destination)) {
+                throw IllegalStateException("No se pudo publicar el archivo temporal de importación.")
+            }
+            return destination
+        } catch (error: Exception) {
+            temporary.delete()
+            destination.delete()
+            throw error
+        }
+    }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == localModelPickerRequestCode) {
@@ -466,11 +612,7 @@ class MainActivity : FlutterActivity() {
             } else {
                 Thread({
                     try {
-                        val importDirectory = File(cacheDir, "model-imports").apply { mkdirs() }
-                        val copied = File(importDirectory, "selected-model.gguf")
-                        contentResolver.openInputStream(uri)?.use { input ->
-                            copied.outputStream().use { output -> input.copyTo(output) }
-                        } ?: throw IllegalStateException("No se pudo leer el archivo elegido.")
+                        val copied = copyPickedModelToCache(uri)
                         runOnUiThread { result?.success(copied.absolutePath) }
                     } catch (error: Exception) {
                         runOnUiThread { result?.error("model_import_failed", error.message, null) }
@@ -729,6 +871,7 @@ class MainActivity : FlutterActivity() {
         sink: LocalTokenSink,
     )
     private external fun nativeCancel(handle: Long)
+    private external fun nativeResetCancellation(handle: Long)
     private external fun nativeUnloadModel(handle: Long)
 
     companion object {

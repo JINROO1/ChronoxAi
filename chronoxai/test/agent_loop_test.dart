@@ -295,6 +295,28 @@ void main() {
       await sub.cancel();
     });
 
+    test('mueve los tags think inline a razonamiento plegable', () async {
+      final provider = FakeProvider(<LlmResponse>[
+        const LlmResponse(
+          content: '<think>pasos internos</think><think></think>respuesta final',
+        ),
+      ]);
+      final loop = makeLoop(provider);
+      final reasoningDeltas = <String>[];
+      final subscription = events
+          .of<ReasoningDeltaEvent>()
+          .listen((final event) => reasoningDeltas.add(event.text));
+
+      await loop.runTurn('hola');
+      await Future<void>.delayed(Duration.zero);
+
+      final assistant = log.events.whereType<AssistantMessageEvent>().single;
+      expect(assistant.text, 'respuesta final');
+      expect(assistant.reasoning, 'pasos internos');
+      expect(reasoningDeltas.join(), 'pasos internos');
+      await subscription.cancel();
+    });
+
     test('registra tokens y tiempo hasta el primer token', () async {
       final provider = FakeProvider(<LlmResponse>[
         const LlmResponse(

@@ -578,6 +578,7 @@ class TranscriptEntry {
     required this.kind,
     required this.text,
     this.title,
+    this.reasoning,
     this.isError = false,
     this.isPending = false,
   });
@@ -585,6 +586,7 @@ class TranscriptEntry {
   final TranscriptKind kind;
   final String text;
   final String? title;
+  final String? reasoning;
   final bool isError;
   final bool isPending;
 }
@@ -600,9 +602,15 @@ List<TranscriptEntry> transcriptOf(final List<SessionEvent> events) {
     switch (event) {
       case UserMessageEvent(:final text):
         entries.add(TranscriptEntry(kind: TranscriptKind.user, text: text));
-      case AssistantMessageEvent(:final text) when text.trim().isNotEmpty:
+      case AssistantMessageEvent(:final text, :final reasoning)
+          when text.trim().isNotEmpty ||
+              (reasoning?.trim().isNotEmpty ?? false):
         entries.add(
-          TranscriptEntry(kind: TranscriptKind.assistant, text: text.trim()),
+          TranscriptEntry(
+            kind: TranscriptKind.assistant,
+            text: text.trim(),
+            reasoning: reasoning?.trim(),
+          ),
         );
       case ToolCallEvent(:final callId, :final name, :final arguments):
         entries.add(

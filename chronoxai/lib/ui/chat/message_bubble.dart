@@ -18,7 +18,10 @@ class MessageBubble extends StatelessWidget {
   Widget build(final BuildContext context) {
     return switch (entry.kind) {
       TranscriptKind.user => _UserMessage(text: entry.text),
-      TranscriptKind.assistant => _AssistantMessage(text: entry.text),
+      TranscriptKind.assistant => _AssistantMessage(
+          text: entry.text,
+          reasoning: entry.reasoning,
+        ),
       TranscriptKind.tool => _ToolCallBlock(entry: entry),
       TranscriptKind.notice => _Notice(entry: entry),
     };
@@ -63,39 +66,98 @@ class _UserMessage extends StatelessWidget {
 }
 
 class _AssistantMessage extends StatelessWidget {
-  const _AssistantMessage({required this.text});
+  const _AssistantMessage({required this.text, this.reasoning});
 
   final String text;
+  final String? reasoning;
 
   @override
   Widget build(final BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 18, right: 12),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Container(
-            width: 3,
-            margin: const EdgeInsets.only(top: 3, bottom: 3, right: 12),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: <Color>[ChronoxColors.primary, ChronoxColors.accent],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+          if (reasoning?.isNotEmpty ?? false)
+            _ArchivedReasoning(text: reasoning!),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Container(
+                width: 3,
+                margin: const EdgeInsets.only(top: 3, bottom: 3, right: 12),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: <Color>[ChronoxColors.primary, ChronoxColors.accent],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-              borderRadius: BorderRadius.circular(2),
+              Expanded(
+                child: SelectableText(
+                  text,
+                  style: const TextStyle(
+                    color: ChronoxColors.textPrimary,
+                    fontSize: 14.5,
+                    height: 1.55,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ArchivedReasoning extends StatefulWidget {
+  const _ArchivedReasoning({required this.text});
+
+  final String text;
+
+  @override
+  State<_ArchivedReasoning> createState() => _ArchivedReasoningState();
+}
+
+class _ArchivedReasoningState extends State<_ArchivedReasoning> {
+  bool _expanded = false;
+
+  @override
+  Widget build(final BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 9),
+      decoration: BoxDecoration(
+        color: ChronoxColors.codeBackground,
+        borderRadius: ChronoxRadius.card,
+        border: Border.all(color: ChronoxColors.primary.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            borderRadius: ChronoxRadius.card,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+              child: Row(
+                children: <Widget>[
+                  const Icon(Icons.psychology_alt_outlined, size: 15,
+                      color: ChronoxColors.primary),
+                  const SizedBox(width: 8),
+                  const Expanded(child: Text('Razonamiento')),
+                  Icon(_expanded ? Icons.expand_less : Icons.expand_more),
+                ],
+              ),
             ),
           ),
-          Expanded(
-            child: SelectableText(
-              text,
-              style: const TextStyle(
-                color: ChronoxColors.textPrimary,
-                fontSize: 14.5,
-                height: 1.55,
-              ),
+          if (_expanded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(11, 0, 11, 10),
+              child: SelectableText(widget.text),
             ),
-          ),
         ],
       ),
     );

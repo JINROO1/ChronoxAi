@@ -112,6 +112,8 @@ class LocalModelStore {
 
   final Future<Directory> Function() _supportDirectory;
   http.Client? _activeClient;
+  bool _transferActive = false;
+  bool _cancelTransferRequested = false;
 
   Future<Directory> _modelsDirectory() async {
     final support = await _supportDirectory();
@@ -139,6 +141,7 @@ class LocalModelStore {
 
   Future<List<LocalModelInstallation>> installedModels() async {
     final directory = await _modelsDirectory();
+    await _recoverInterruptedWrites(directory);
     final manifest = await _readManifest(directory);
     final installed = <LocalModelInstallation>[];
     for (final spec in LocalModelSpec.catalog) {
@@ -154,6 +157,23 @@ class LocalModelStore {
     LocalModelSpec spec, {
     void Function(ModelTransferProgress progress)? onProgress,
   }) async {
+    _requireCatalogSpec(spec);
+    if (_transferActive) {
+      throw StateError('Ya hay una transferencia de modelo en curso.');
+    }
+    _transferActive = true;
+    _cancelTransferRequested = false;
+    try {
+      return await _download(spec, onProgress: onProgress);
+    } finally {
+      _transferActive = false;
+    }
+  }
+
+  Future<LocalModelInstallation> _download(
+    LocalModelSpec spec, {
+    void Function(ModelTransferProgress progress)? onProgress,
+  }) async {
     final directory = await _modelsDirectory();
     final temporary = File(p.join(directory.path, '${spec.fileName}.part'));
     final client = http.Client();
@@ -163,14 +183,17 @@ class LocalModelStore {
     var received = 0;
     IOSink? output;
     try {
+      _throwIfTransferCancelled();
       final request = http.Request('GET', Uri.parse(spec.url));
       final response = await client.send(request);
+      _throwIfTransferCancelled();
       if (response.statusCode != HttpStatus.ok) {
         throw HttpException(
             'Descarga del modelo respondió HTTP ${response.statusCode}.');
       }
       output = temporary.openWrite();
       await for (final chunk in response.stream) {
+        _throwIfTransferCancelled();
         received += chunk.length;
         if (received > spec.bytes) {
           throw const FileSystemException('El modelo supera el tamaño fijado.');
@@ -180,6 +203,7 @@ class LocalModelStore {
         onProgress?.call(
             ModelTransferProgress(received: received, total: spec.bytes));
       }
+      _throwIfTransferCancelled();
       await output.flush();
       await output.close();
       output = null;
@@ -202,10 +226,44 @@ class LocalModelStore {
     }
   }
 
-  /// Stops an active HTTP transfer. The incomplete `.part` file is discarded.
-  void cancelDownload() => _activeClient?.close();
+  /// Stops an active download or import. Partial files are discarded.
+  void cancelDownload() {
+    if (!_transferActive) return;
+    _cancelTransferRequested = true;
+    _activeClient?.close();
+  }
+
+  void _throwIfTransferCancelled() {
+    if (_cancelTransferRequested) {
+      throw const FileSystemException('Transferencia cancelada.');
+    }
+  }
+
+  void _requireCatalogSpec(LocalModelSpec spec) {
+    if (!LocalModelSpec.catalog.any((final item) =>
+        item.id == spec.id &&
+        item.fileName == spec.fileName &&
+        item.bytes == spec.bytes &&
+        item.sha256 == spec.sha256 &&
+        item.url == spec.url)) {
+      throw ArgumentError.value(spec.id, 'spec', 'Modelo fuera del catálogo.');
+    }
+  }
 
   Future<LocalModelInstallation> importFile(File source) async {
+    if (_transferActive) {
+      throw StateError('Ya hay una transferencia o importación en curso.');
+    }
+    _transferActive = true;
+    _cancelTransferRequested = false;
+    try {
+      return await _importFile(source);
+    } finally {
+      _transferActive = false;
+    }
+  }
+
+  Future<LocalModelInstallation> _importFile(File source) async {
     final directory = await _modelsDirectory();
     final length = await source.length();
     final spec = LocalModelSpec.catalog
@@ -217,16 +275,19 @@ class LocalModelStore {
     }
     final temporary =
         File(p.join(directory.path, '${spec.fileName}.importing'));
-    final output = temporary.openWrite();
+    IOSink? output = temporary.openWrite();
     final digestResult = _DigestCollector();
     final digestInput = sha256.startChunkedConversion(digestResult);
     try {
       await for (final chunk in source.openRead()) {
+        _throwIfTransferCancelled();
         output.add(chunk);
         digestInput.add(chunk);
       }
+      _throwIfTransferCancelled();
       await output.flush();
       await output.close();
+      output = null;
       digestInput.close();
       final actualHash = digestResult.digest.toString();
       await _publishVerified(spec, temporary, length, actualHash, directory);
@@ -235,19 +296,63 @@ class LocalModelStore {
         file: File(p.join(directory.path, spec.fileName)),
       );
     } catch (_) {
-      await output.close();
+      await output?.close();
       if (await temporary.exists()) await temporary.delete();
       rethrow;
     }
   }
 
+  Future<void> _recoverInterruptedWrites(Directory directory) async {
+    final manifest = File(p.join(directory.path, 'models.json'));
+    final manifestBackup = File('${manifest.path}.backup');
+    if (!await manifest.exists() && await manifestBackup.exists()) {
+      await manifestBackup.rename(manifest.path);
+    }
+
+    final indexedModels = await _readManifest(directory);
+    for (final spec in LocalModelSpec.catalog) {
+      final destination = File(p.join(directory.path, spec.fileName));
+      final backup = File('${destination.path}.backup');
+      if (await backup.exists() && indexedModels[spec.id] == null) {
+        await backup.delete();
+      } else if (!await destination.exists() && await backup.exists()) {
+        await backup.rename(destination.path);
+      }
+      for (final suffix in <String>['.part', '.importing']) {
+        final temporary = File('${destination.path}$suffix');
+        if (await temporary.exists()) await temporary.delete();
+      }
+    }
+    final manifestTemporary = File('${manifest.path}.tmp');
+    if (await manifestTemporary.exists()) await manifestTemporary.delete();
+  }
+
   Future<void> remove(LocalModelSpec spec) async {
+    _requireCatalogSpec(spec);
+    if (_transferActive) {
+      throw StateError('Espera a que termine la transferencia del modelo.');
+    }
     final directory = await _modelsDirectory();
     final file = File(p.join(directory.path, spec.fileName));
-    if (await file.exists()) await file.delete();
-    final manifest = await _readManifest(directory);
-    manifest.remove(spec.id);
-    await _writeManifest(directory, manifest);
+    final backup = File('${file.path}.backup');
+    if (await backup.exists()) await backup.delete();
+    final hadFile = await file.exists();
+    if (hadFile) await file.rename(backup.path);
+    try {
+      final manifest = await _readManifest(directory);
+      manifest.remove(spec.id);
+      await _writeManifest(directory, manifest);
+      if (await backup.exists()) {
+        try {
+          await backup.delete();
+        } on FileSystemException {
+          // Removal is committed; stale backup cleanup can be retried later.
+        }
+      }
+    } catch (_) {
+      if (hadFile && await backup.exists()) await backup.rename(file.path);
+      rethrow;
+    }
   }
 
   Future<String> _hashFile(File file) async {
@@ -272,10 +377,46 @@ class LocalModelStore {
           'Tamaño o SHA-256 del GGUF no coincide con el catálogo.');
     }
     final destination = File(p.join(directory.path, spec.fileName));
-    await temporary.rename(destination.path);
     final manifest = await _readManifest(directory);
-    manifest[spec.id] = spec.toManifestEntry();
-    await _writeManifest(directory, manifest);
+
+    // A valid installation is immutable: failed/repeated transfers can never
+    // replace the bytes currently used by the runtime.
+    if (await destination.exists() &&
+        await destination.length() == spec.bytes &&
+        manifest[spec.id]?['sha256'] == spec.sha256 &&
+        await _hashFile(destination) == spec.sha256) {
+      if (await temporary.exists()) await temporary.delete();
+      return;
+    }
+
+    final backup = File('${destination.path}.backup');
+    if (await backup.exists()) {
+      if (await destination.exists()) {
+        await backup.delete();
+      } else {
+        await backup.rename(destination.path);
+      }
+    }
+    final hadDestination = await destination.exists();
+    if (hadDestination) await destination.rename(backup.path);
+    try {
+      await temporary.rename(destination.path);
+      manifest[spec.id] = spec.toManifestEntry();
+      await _writeManifest(directory, manifest);
+      if (await backup.exists()) {
+        try {
+          await backup.delete();
+        } on FileSystemException {
+          // The committed install is valid; stale backup cleanup is recoverable.
+        }
+      }
+    } catch (_) {
+      if (await destination.exists()) await destination.delete();
+      if (hadDestination && await backup.exists()) {
+        await backup.rename(destination.path);
+      }
+      rethrow;
+    }
   }
 
   Future<Map<String, Map<String, Object?>>> _readManifest(
@@ -323,8 +464,38 @@ class LocalModelStore {
       'schemaVersion': 1,
       'models': manifest,
     };
-    await temporary.writeAsString(jsonEncode(document), flush: true);
-    await temporary.rename(file.path);
+    try {
+      await temporary.writeAsString(jsonEncode(document), flush: true);
+    } catch (_) {
+      if (await temporary.exists()) await temporary.delete();
+      rethrow;
+    }
+    final backup = File('${file.path}.backup');
+    if (await backup.exists()) {
+      if (await file.exists()) {
+        await backup.delete();
+      } else {
+        await backup.rename(file.path);
+      }
+    }
+    final hadManifest = await file.exists();
+    if (hadManifest) await file.rename(backup.path);
+    try {
+      await temporary.rename(file.path);
+      if (await backup.exists()) {
+        try {
+          await backup.delete();
+        } on FileSystemException {
+          // The manifest is committed; stale backup cleanup is recoverable.
+        }
+      }
+    } catch (_) {
+      if (hadManifest && await backup.exists()) {
+        await backup.rename(file.path);
+      }
+      if (await temporary.exists()) await temporary.delete();
+      rethrow;
+    }
   }
 }
 

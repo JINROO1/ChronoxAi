@@ -50,6 +50,32 @@ void main() {
     expect(installed, isEmpty);
   });
 
+  test('rejects model specs outside the pinned catalog before filesystem access',
+      () async {
+    final root = await Directory.systemTemp.createTemp('chronox-local-model-');
+    addTearDown(() => root.delete(recursive: true));
+    final store = LocalModelStore(supportDirectory: () async => root);
+    const forged = LocalModelSpec(
+      id: '../escape',
+      label: 'forged',
+      fileName: '../escape.gguf',
+      bytes: 1,
+      sha256:
+          '0000000000000000000000000000000000000000000000000000000000000000',
+      url: 'https://example.invalid/forged',
+      revision: 'forged',
+      format: 'GGUF',
+      runtime: 'forged',
+      quantization: 'Q4_K_M',
+      license: 'Apache-2.0',
+      contextWindow: 2048,
+    );
+
+    await expectLater(store.download(forged), throwsArgumentError);
+    await expectLater(store.remove(forged), throwsArgumentError);
+    expect(await root.list().toList(), isEmpty);
+  });
+
   test('does not treat an unindexed file as an installed model', () async {
     final root = await Directory.systemTemp.createTemp('chronox-local-model-');
     addTearDown(() => root.delete(recursive: true));

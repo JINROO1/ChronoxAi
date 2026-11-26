@@ -23,6 +23,8 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
   final Map<String, ModelTransferProgress> _progress =
       <String, ModelTransferProgress>{};
   bool _busy = false;
+  bool _importing = false;
+  bool _importCancelled = false;
   int? _availableBytes;
   String? _error;
 
@@ -82,14 +84,16 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
   }
 
   Future<void> _import() async {
+    _importCancelled = false;
     setState(() {
       _busy = true;
+      _importing = true;
       _error = null;
     });
     File? picked;
     try {
       picked = await const AndroidModelFilePicker().pickModel();
-      if (picked == null) return;
+      if (picked == null || _importCancelled) return;
       final bytes = await picked.length();
       final spec = LocalModelSpec.catalog
           .where((final candidate) => candidate.bytes == bytes)
@@ -98,15 +102,30 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
         throw const FileSystemException(
             'El tamaño no coincide con un modelo Qwen admitido.');
       }
-      if (!await _ensureSpace(spec)) return;
+      if (!await _ensureSpace(spec) || _importCancelled) return;
       await _store.importFile(picked);
       await _refresh();
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
-      if (picked != null && await picked.exists()) await picked.delete();
-      if (mounted) setState(() => _busy = false);
+      try {
+        if (picked != null && await picked.exists()) await picked.delete();
+      } catch (error) {
+        if (mounted) setState(() => _error = 'No se pudo limpiar la importación: $error');
+      } finally {
+        if (mounted) {
+          setState(() {
+            _busy = false;
+            _importing = false;
+          });
+        }
+      }
     }
+  }
+
+  void _cancelImport() {
+    _importCancelled = true;
+    _store.cancelDownload();
   }
 
   Future<bool> _ensureSpace(LocalModelSpec spec) async {
@@ -190,6 +209,15 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
             icon: const Icon(Icons.file_open_outlined),
             label: const Text('Importar GGUF desde el dispositivo'),
           ),
+          if (_importing)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: _cancelImport,
+                icon: const Icon(Icons.close),
+                label: const Text('Cancelar importación'),
+              ),
+            ),
           if (_availableBytes != null) ...<Widget>[
             const SizedBox(height: 8),
             Text(

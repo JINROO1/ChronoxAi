@@ -90,8 +90,8 @@ Se adopta provisionalmente `Q4_K_M` para mantener el archivo en un rango viable 
 ## Fase 2 — Gestor local de modelos y almacenamiento
 
 1. Definir el directorio privado de modelos y manifiesto versionado con ID, alias visible, archivo, formato (`GGUF`/`.litertlm`), runtime requerido, tamaño, checksum, cuantización, licencia y metadatos de contexto. El catálogo Qwen ya escribe el manifiesto schema v1 y migra la forma plana anterior; la verificación de espacio libre se presenta en el gestor antes de descargar/importar.
-2. Permitir descargar el archivo desde una fuente explícita o importarlo con el selector de almacenamiento de Android; soportar reintento, cancelación, progreso y falta de espacio.
-3. Descargar a temporal, validar longitud/checksum y publicar con rename atómico; no cargar pesos parciales ni sobrescribir un modelo válido antes de validar el nuevo.
+2. Permitir descargar el archivo desde una fuente explícita o importarlo con el selector de almacenamiento de Android; soportar reintento, cancelación, progreso y falta de espacio. El almacén serializa transferencia/importación por instancia, rechaza modelos fuera del catálogo fijado y cancela tanto descargas como importaciones descartando temporales.
+3. Descargar a temporal, validar longitud/checksum y publicar con reemplazo recuperable mediante copia de seguridad; nunca reemplazar una instalación íntegra con otra transferencia. El manifiesto también se escribe con temporal/backup y recuperación si el proceso falla entre renombres.
 4. Añadir eliminar modelo, espacio requerido/libre y protección contra rutas externas al directorio autorizado.
 5. No persistir claves de proveedor ni introducir telemetría. Tras completar la descarga, el modo local debe ser usable sin red.
 

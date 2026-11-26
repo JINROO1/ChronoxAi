@@ -31,7 +31,8 @@ void main() {
 
   testWidgets('shows pinned Qwen provenance and RAM caveat',
       (final tester) async {
-    await tester.pumpWidget(buildScreen(availableBytes: 8 * 1024 * 1024 * 1024));
+    await tester
+        .pumpWidget(buildScreen(availableBytes: 8 * 1024 * 1024 * 1024));
     await pumpScreen(tester);
     await tester.ensureVisible(find.text('Qwen3.5 2B · Q4_K_M'));
     await pumpScreen(tester);

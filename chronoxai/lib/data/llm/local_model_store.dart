@@ -216,7 +216,7 @@ class LocalModelStore {
       _throwIfTransferCancelled();
       final request = http.Request('GET', Uri.parse(spec.url));
       if (received > 0) {
-        request.headers.set(HttpHeaders.rangeHeader, 'bytes=$received-');
+        request.headers[HttpHeaders.rangeHeader] = 'bytes=$received-';
       }
       final response = await client.send(request);
       _throwIfTransferCancelled();
@@ -229,14 +229,14 @@ class LocalModelStore {
         final start = int.tryParse(match?.group(1) ?? '');
         final end = int.tryParse(match?.group(2) ?? '');
         final total = int.tryParse(match?.group(3) ?? '');
-        if (match == null ||
-            start != received ||
-            total != spec.bytes ||
-            end == null ||
-            end < start ||
-            end >= total) {
+        if (match == null || start == null || end == null || total == null) {
           throw const HttpException(
               'El servidor respondió un Content-Range inválido.');
+        }
+        if (start != received || total != spec.bytes || end < start || end >= total) {
+          throw const HttpException(
+              'El servidor respondió un Content-Range inválido.');
+        }
         }
         append = received > 0;
         rangeEndExclusive = end + 1;

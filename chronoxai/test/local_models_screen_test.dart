@@ -118,9 +118,9 @@ void main() {
     expect(find.text('8192 tokens'), findsOneWidget);
     await tester.tap(find.text('8192 tokens'));
     await pumpScreen(tester);
-    await tester
-        .ensureVisible(find.textContaining('Contexto seleccionado: 8192'));
-    expect(find.textContaining('Contexto seleccionado: 8192'), findsOneWidget);
+    await tester.ensureVisible(
+        find.textContaining('Contexto seleccionado: 8192').first);
+    expect(find.textContaining('Contexto seleccionado: 8192'), findsNWidgets(2));
   });
 
   testWidgets('shows pinned Qwen provenance and RAM caveat',

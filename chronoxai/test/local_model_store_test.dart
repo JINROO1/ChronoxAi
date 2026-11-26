@@ -89,7 +89,7 @@ void main() {
     final installed = await store.importFile(source);
     expect(installed.spec.id, spec.id);
     expect(await installed.file.readAsBytes(), bytes);
-    expect(await store.fileForId(spec.id), installed.file);
+    expect((await store.fileForId(spec.id))?.path, installed.file.path);
     final manifest =
         await File('${root.path}/local_models/models.json').readAsString();
     expect(manifest, contains('"schemaVersion":1'));

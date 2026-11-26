@@ -14,7 +14,6 @@ class _FakeModelStore extends LocalModelStore {
   Completer<LocalModelInstallation>? pendingDownload;
   bool failNextDownload = false;
   bool failVerification = false;
-  int importCalls = 0;
   int removeCalls = 0;
   bool downloadCancelled = false;
 
@@ -65,19 +64,6 @@ class _FakeModelStore extends LocalModelStore {
     if (pending != null && !pending.isCompleted) {
       pending.completeError(const FileSystemException('descarga cancelada'));
     }
-  }
-
-  @override
-  Future<LocalModelInstallation> importFile(File source) async {
-    importCalls++;
-    final spec = LocalModelSpec.catalog
-        .firstWhere((final item) => item.bytes == source.lengthSync());
-    final installation = LocalModelInstallation(
-      spec: spec,
-      file: File('/unused/${spec.fileName}'),
-    );
-    installed.add(installation);
-    return installation;
   }
 
   @override
@@ -174,14 +160,12 @@ void main() {
     expect(store.removeCalls, 0);
   });
 
-  testWidgets('imports an SAF-picked catalog-sized GGUF into ready state',
+  testWidgets('rejects and cleans up a picker file outside the pinned catalog',
       (final tester) async {
     final root = await Directory.systemTemp.createTemp('chronox-import-ui-');
     addTearDown(() => root.delete(recursive: true));
-    final source = File('${root.path}/picked.gguf');
-    final handle = await source.open(mode: FileMode.write);
-    await handle.truncate(LocalModelSpec.catalog.first.bytes);
-    await handle.close();
+    final source = File('${root.path}/not-a-model.gguf')
+      ..writeAsStringSync('invalid size');
     final store = _FakeModelStore();
 
     await tester.pumpWidget(
@@ -201,11 +185,9 @@ void main() {
     await tester.tap(find.text('Importar GGUF desde el dispositivo'));
     await pumpScreen(tester);
 
-    expect(store.importCalls, 1);
-    expect(store.installed.map((final item) => item.spec.id),
-        contains(LocalModelSpec.catalog.first.id));
+    expect(find.textContaining('El tamaño no coincide'), findsOneWidget);
+    expect(store.installed, isEmpty);
     expect(await source.exists(), isFalse);
-    expect(find.text('Usar localmente'), findsOneWidget);
   });
 
   testWidgets('refuses to activate an installation that fails re-verification',

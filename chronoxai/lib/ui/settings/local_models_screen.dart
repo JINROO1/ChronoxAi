@@ -14,11 +14,13 @@ class LocalModelsScreen extends ConsumerStatefulWidget {
   const LocalModelsScreen({
     super.key,
     this.store,
+    this.loadInstalledModels,
     this.availableStorageBytes,
     this.pickModelFile,
   });
 
   final LocalModelStore? store;
+  final Future<List<LocalModelInstallation>> Function()? loadInstalledModels;
   final Future<int?> Function()? availableStorageBytes;
   final Future<File?> Function()? pickModelFile;
 
@@ -54,7 +56,9 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
 
   Future<void> _refresh() async {
     try {
-      final installed = await _store.installedModels();
+      final installed = widget.loadInstalledModels != null
+          ? await widget.loadInstalledModels!.call()
+          : await _store.installedModels();
       final availableBytes = await _readAvailableBytes();
       if (mounted) {
         setState(() {

@@ -175,9 +175,8 @@ void main() {
       ..generationGate = gate
       ..generationSettled = settled;
     final provider = LocalLlmProvider(engine);
-    final subscription = provider
-        .stream(messages: const <LlmMessage>[], tools: const [])
-        .listen((final _) {});
+    final subscription = provider.stream(
+        messages: const <LlmMessage>[], tools: const []).listen((final _) {});
 
     await Future<void>.delayed(Duration.zero);
     await subscription.cancel();
@@ -191,8 +190,7 @@ void main() {
     gate.complete();
     await settled.future;
     final next = await provider
-        .stream(messages: const <LlmMessage>[], tools: const [])
-        .toList();
+        .stream(messages: const <LlmMessage>[], tools: const []).toList();
     expect(next.last, isA<DoneChunk>());
   });
 

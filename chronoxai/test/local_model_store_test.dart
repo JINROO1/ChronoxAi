@@ -5,7 +5,8 @@ import 'package:crypto/crypto.dart';
 import 'package:chronoxai/data/llm/local_model_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-LocalModelSpec _testSpec(List<int> bytes, {String? shaOverride}) => LocalModelSpec(
+LocalModelSpec _testSpec(List<int> bytes, {String? shaOverride}) =>
+    LocalModelSpec(
       id: 'tiny-test-model',
       label: 'Tiny test model',
       fileName: 'tiny-test.gguf',
@@ -89,7 +90,8 @@ void main() {
     expect(installed.spec.id, spec.id);
     expect(await installed.file.readAsBytes(), bytes);
     expect(await store.fileForId(spec.id), installed.file);
-    final manifest = await File('${root.path}/local_models/models.json').readAsString();
+    final manifest =
+        await File('${root.path}/local_models/models.json').readAsString();
     expect(manifest, contains('"schemaVersion":1'));
     expect(manifest, contains(spec.sha256));
   });
@@ -113,7 +115,8 @@ void main() {
       throwsA(isA<FileSystemException>()),
     );
     expect(await store.installedModels(), isEmpty);
-    expect(await Directory('${root.path}/local_models').list().toList(), isEmpty);
+    expect(
+        await Directory('${root.path}/local_models').list().toList(), isEmpty);
   });
 
   test('cancels a model import before it publishes any bytes', () async {
@@ -130,7 +133,8 @@ void main() {
     store.cancelDownload();
     await expectLater(pending, throwsA(isA<FileSystemException>()));
     expect(await store.installedModels(), isEmpty);
-    expect(await Directory('${root.path}/local_models').list().toList(), isEmpty);
+    expect(
+        await Directory('${root.path}/local_models').list().toList(), isEmpty);
   });
 
   test('does not publish an imported file with an unknown size', () async {

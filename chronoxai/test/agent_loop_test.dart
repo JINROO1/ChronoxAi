@@ -378,7 +378,8 @@ void main() {
           ),
       ]);
 
-      final reason = await makeLoop(provider).runTurn('prueba de solicitud inválida');
+      final reason =
+          await makeLoop(provider).runTurn('prueba de solicitud inválida');
 
       expect(reason, 'rejected');
       expect(provider.calls, 2);

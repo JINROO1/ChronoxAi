@@ -132,8 +132,7 @@ class LocalModelStore {
   }
 
   Future<File?> fileForId(String id) async {
-    final spec =
-        _catalog.where((final item) => item.id == id).firstOrNull;
+    final spec = _catalog.where((final item) => item.id == id).firstOrNull;
     if (spec == null) return null;
     for (final installation in await installedModels()) {
       if (installation.spec.id == id) {
@@ -282,8 +281,8 @@ class LocalModelStore {
   Future<LocalModelInstallation> _importFile(File source) async {
     final directory = await _modelsDirectory();
     final length = await source.length();
-    final spec = _catalog.where((final item) => item.bytes == length)
-        .firstOrNull;
+    final spec =
+        _catalog.where((final item) => item.bytes == length).firstOrNull;
     if (spec == null) {
       throw const FileSystemException(
           'El tamaño no coincide con un modelo Qwen admitido.');

@@ -214,7 +214,11 @@ class ToolRegistry {
     Object? value,
   ) {
     if (value == null) return const <String>[];
-    final type = schema['type'] as String?;
+    final rawType = schema['type'];
+    if (rawType != null && rawType is! String) {
+      return <String>['El esquema de "$path" contiene un tipo inválido.'];
+    }
+    final type = rawType as String?;
     final typeProblem = _checkType(path, type, value);
     if (typeProblem != null) return <String>[typeProblem];
 
@@ -287,7 +291,7 @@ class ToolRegistry {
       'array' => value is List,
       'object' => value is Map,
       null => true,
-      _ => true,
+      _ => false,
     };
     if (ok) return null;
     return '"$key" debe ser de tipo $type (recibido ${value.runtimeType})';

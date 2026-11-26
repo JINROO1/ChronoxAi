@@ -184,6 +184,7 @@ class AgentLoop {
   Completer<void>? _cancelSignal;
   bool _cancelled = false;
   final Map<String, int> _failedToolSignatures = <String, int>{};
+  int _invalidToolCallCount = 0;
 
   /// Cierra la petición en curso con lo recibido hasta el momento.
   ///
@@ -206,6 +207,7 @@ class AgentLoop {
 
     _cancelled = false;
     _failedToolSignatures.clear();
+    _invalidToolCallCount = 0;
     events.emit(const ReasoningResetEvent());
     _cancelSignal = Completer<void>();
     _status = const AgentStatus(isRunning: true, activity: 'Pensando…');
@@ -565,14 +567,22 @@ class AgentLoop {
 
     final tool = registry[call.name];
     if (tool == null) {
+      _invalidToolCallCount++;
+      final stopped = _invalidToolCallCount >= 2;
       await _recordResult(
         call,
-        'La herramienta "${call.name}" no existe.',
+        stopped
+            ? 'Se detuvo el turno tras dos llamadas a herramientas inexistentes.'
+            : 'La herramienta "${call.name}" no existe.',
         isError: true,
         errorCategory: ToolFailureKind.toolError.jsonName,
-        recoveryHint: 'Usa una herramienta presente en el catálogo disponible.',
+        recoveryHint: stopped
+            ? 'No se ejecutó ninguna de las llamadas inventadas. Pide al usuario que reformule la tarea o corrige el nombre una sola vez en un nuevo turno.'
+            : 'Usa una herramienta presente en el catálogo disponible. Esta es la única oportunidad de corrección automática para nombres inválidos.',
       );
-      return _ToolExecutionOutcome.failed;
+      return stopped
+          ? _ToolExecutionOutcome.rejected
+          : _ToolExecutionOutcome.failed;
     }
 
     // Si el modelo mandó argumentos ilegibles, se le pide corregir en lugar de

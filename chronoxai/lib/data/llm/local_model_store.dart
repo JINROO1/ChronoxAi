@@ -107,10 +107,15 @@ class ModelTransferProgress {
 /// streamed to a temporary sibling and become visible only after exact size and
 /// SHA-256 validation; weights are never bundled into the APK or repository.
 class LocalModelStore {
-  LocalModelStore({Future<Directory> Function()? supportDirectory})
-      : _supportDirectory = supportDirectory ?? getApplicationSupportDirectory;
+  LocalModelStore({
+    Future<Directory> Function()? supportDirectory,
+    List<LocalModelSpec>? catalog,
+  })  : _supportDirectory = supportDirectory ?? getApplicationSupportDirectory,
+        _catalog = List<LocalModelSpec>.unmodifiable(
+            catalog ?? LocalModelSpec.catalog);
 
   final Future<Directory> Function() _supportDirectory;
+  final List<LocalModelSpec> _catalog;
 
   // Transfer state is process-wide, not per LocalModelStore instance. Settings,
   // session bootstrap, and model validation can each create a store; without a
@@ -128,7 +133,7 @@ class LocalModelStore {
 
   Future<File?> fileForId(String id) async {
     final spec =
-        LocalModelSpec.catalog.where((final item) => item.id == id).firstOrNull;
+        _catalog.where((final item) => item.id == id).firstOrNull;
     if (spec == null) return null;
     for (final installation in await installedModels()) {
       if (installation.spec.id == id) {
@@ -148,7 +153,7 @@ class LocalModelStore {
     if (!_transferActive) await _recoverInterruptedWrites(directory);
     final manifest = await _readManifest(directory);
     final installed = <LocalModelInstallation>[];
-    for (final spec in LocalModelSpec.catalog) {
+    for (final spec in _catalog) {
       final file = File(p.join(directory.path, spec.fileName));
       if (!await file.exists() || await file.length() != spec.bytes) continue;
       if (manifest[spec.id]?['sha256'] != spec.sha256) continue;
@@ -244,12 +249,19 @@ class LocalModelStore {
   }
 
   void _requireCatalogSpec(LocalModelSpec spec) {
-    if (!LocalModelSpec.catalog.any((final item) =>
+    if (!_catalog.any((final item) =>
         item.id == spec.id &&
         item.fileName == spec.fileName &&
+        item.label == spec.label &&
         item.bytes == spec.bytes &&
         item.sha256 == spec.sha256 &&
-        item.url == spec.url)) {
+        item.url == spec.url &&
+        item.revision == spec.revision &&
+        item.format == spec.format &&
+        item.runtime == spec.runtime &&
+        item.quantization == spec.quantization &&
+        item.license == spec.license &&
+        item.contextWindow == spec.contextWindow)) {
       throw ArgumentError.value(spec.id, 'spec', 'Modelo fuera del catálogo.');
     }
   }
@@ -270,8 +282,7 @@ class LocalModelStore {
   Future<LocalModelInstallation> _importFile(File source) async {
     final directory = await _modelsDirectory();
     final length = await source.length();
-    final spec = LocalModelSpec.catalog
-        .where((final item) => item.bytes == length)
+    final spec = _catalog.where((final item) => item.bytes == length)
         .firstOrNull;
     if (spec == null) {
       throw const FileSystemException(
@@ -314,7 +325,7 @@ class LocalModelStore {
     }
 
     final indexedModels = await _readManifest(directory);
-    for (final spec in LocalModelSpec.catalog) {
+    for (final spec in _catalog) {
       final destination = File(p.join(directory.path, spec.fileName));
       final backup = File('${destination.path}.backup');
       if (await backup.exists() && indexedModels[spec.id] == null) {
@@ -447,7 +458,7 @@ class LocalModelStore {
       // the next successful store/remove rewrites it as schema version 1.
       final legacy = <String, Map<String, Object?>>{};
       for (final entry in decoded.entries) {
-        final spec = LocalModelSpec.catalog
+        final spec = _catalog
             .where((final candidate) => candidate.id == entry.key)
             .firstOrNull;
         if (spec != null && entry.value == spec.sha256) {

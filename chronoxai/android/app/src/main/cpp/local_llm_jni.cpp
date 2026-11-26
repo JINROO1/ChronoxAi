@@ -185,11 +185,17 @@ Java_app_chronoxai_MainActivity_nativeGenerate(JNIEnv *env, jobject, jlong handl
     jclass sink_class = env->GetObjectClass(sink);
     jmethodID on_token = env->GetMethodID(sink_class, "onToken", "(Ljava/lang/String;)V");
     auto *sampler = llama_sampler_chain_init(llama_sampler_chain_default_params());
-    llama_sampler_chain_add(sampler, llama_sampler_init_top_k(40));
-    llama_sampler_chain_add(sampler, llama_sampler_init_top_p(0.9f, 1));
-    llama_sampler_chain_add(sampler, llama_sampler_init_temp(temperature > 0 ? temperature : 0.7f));
-    std::random_device random_device;
-    llama_sampler_chain_add(sampler, llama_sampler_init_dist(random_device()));
+    if (temperature <= 0.0f) {
+        // A zero-temperature run is genuinely deterministic (greedy), which is
+        // needed for reproducible diagnostics and offline acceptance evidence.
+        llama_sampler_chain_add(sampler, llama_sampler_init_greedy());
+    } else {
+        llama_sampler_chain_add(sampler, llama_sampler_init_top_k(40));
+        llama_sampler_chain_add(sampler, llama_sampler_init_top_p(0.9f, 1));
+        llama_sampler_chain_add(sampler, llama_sampler_init_temp(temperature));
+        std::random_device random_device;
+        llama_sampler_chain_add(sampler, llama_sampler_init_dist(random_device()));
+    }
 
     std::string pending_utf8;
     std::vector<char> piece(256);

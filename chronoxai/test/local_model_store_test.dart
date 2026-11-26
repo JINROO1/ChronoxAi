@@ -1,8 +1,24 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:chronoxai/data/llm/local_model_store.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+LocalModelSpec _testSpec(List<int> bytes, {String? shaOverride}) => LocalModelSpec(
+      id: 'tiny-test-model',
+      label: 'Tiny test model',
+      fileName: 'tiny-test.gguf',
+      bytes: bytes.length,
+      sha256: shaOverride ?? sha256.convert(bytes).toString(),
+      url: 'https://models.invalid/tiny-test.gguf',
+      revision: 'test-revision',
+      format: 'GGUF',
+      runtime: 'test-runtime',
+      quantization: 'test',
+      license: 'test',
+      contextWindow: 128,
+    );
 
 void main() {
   group('LocalModelSpec.catalog', () {
@@ -56,6 +72,65 @@ void main() {
     await expectLater(pendingImport, throwsA(isA<FileSystemException>()));
     expect(
         await Directory('${root.path}/local_models').list().toList(), isEmpty);
+  });
+
+  test('publishes a valid imported model and its versioned manifest', () async {
+    final root = await Directory.systemTemp.createTemp('chronox-local-model-');
+    addTearDown(() => root.delete(recursive: true));
+    final bytes = 'small deterministic model fixture'.codeUnits;
+    final spec = _testSpec(bytes);
+    final source = File('${root.path}/source.gguf')..writeAsBytesSync(bytes);
+    final store = LocalModelStore(
+      supportDirectory: () async => root,
+      catalog: <LocalModelSpec>[spec],
+    );
+
+    final installed = await store.importFile(source);
+    expect(installed.spec.id, spec.id);
+    expect(await installed.file.readAsBytes(), bytes);
+    expect(await store.fileForId(spec.id), installed.file);
+    final manifest = await File('${root.path}/local_models/models.json').readAsString();
+    expect(manifest, contains('"schemaVersion":1'));
+    expect(manifest, contains(spec.sha256));
+  });
+
+  test('removes temporary import and refuses a bad digest', () async {
+    final root = await Directory.systemTemp.createTemp('chronox-local-model-');
+    addTearDown(() => root.delete(recursive: true));
+    final bytes = 'corrupt fixture'.codeUnits;
+    final wrongSpec = _testSpec(
+      bytes,
+      shaOverride: sha256.convert('expected bytes'.codeUnits).toString(),
+    );
+    final source = File('${root.path}/source.gguf')..writeAsBytesSync(bytes);
+    final store = LocalModelStore(
+      supportDirectory: () async => root,
+      catalog: <LocalModelSpec>[wrongSpec],
+    );
+
+    await expectLater(
+      store.importFile(source),
+      throwsA(isA<FileSystemException>()),
+    );
+    expect(await store.installedModels(), isEmpty);
+    expect(await Directory('${root.path}/local_models').list().toList(), isEmpty);
+  });
+
+  test('cancels a model import before it publishes any bytes', () async {
+    final root = await Directory.systemTemp.createTemp('chronox-local-model-');
+    addTearDown(() => root.delete(recursive: true));
+    final bytes = 'cancel this import'.codeUnits;
+    final source = File('${root.path}/source.gguf')..writeAsBytesSync(bytes);
+    final store = LocalModelStore(
+      supportDirectory: () async => root,
+      catalog: <LocalModelSpec>[_testSpec(bytes)],
+    );
+
+    final pending = store.importFile(source);
+    store.cancelDownload();
+    await expectLater(pending, throwsA(isA<FileSystemException>()));
+    expect(await store.installedModels(), isEmpty);
+    expect(await Directory('${root.path}/local_models').list().toList(), isEmpty);
   });
 
   test('does not publish an imported file with an unknown size', () async {

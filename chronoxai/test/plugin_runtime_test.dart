@@ -174,6 +174,32 @@ void main() {
         expect(problems.single, contains('fast'));
       });
 
+      test('fails closed for unsupported and malformed schema types', () {
+        expect(
+          ToolRegistry.validateArguments(
+            const <String, Object?>{
+              'type': 'object',
+              'properties': <String, Object?>{
+                'command': <String, Object?>{'type': 'shell'},
+              },
+            },
+            <String, Object?>{'command': 'echo unsafe'},
+          ),
+          isNotEmpty,
+        );
+        expect(
+          ToolRegistry.validateArguments(
+            const <String, Object?>{
+              'properties': <String, Object?>{
+                'value': <String, Object?>{'type': 42},
+              },
+            },
+            <String, Object?>{'value': 'anything'},
+          ),
+          isNotEmpty,
+        );
+      });
+
       test('ignora campos no declarados en lugar de fallar', () {
         // Los modelos a veces añaden metadatos inofensivos; rechazarlos
         // provocaría bucles de reintento innecesarios.

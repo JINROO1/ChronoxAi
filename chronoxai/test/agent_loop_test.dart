@@ -363,6 +363,30 @@ void main() {
       expect(result.content, contains('no existe'));
     });
 
+    test('detiene la segunda llamada a una herramienta inventada', () async {
+      final provider = FakeProvider(<LlmResponse>[
+        for (var index = 1; index <= 3; index++)
+          LlmResponse(
+            content: '',
+            toolCalls: <LlmToolCall>[
+              LlmToolCall(
+                id: 'inventada-$index',
+                name: '__chronox_invalid_local_tool_call__',
+                arguments: const <String, Object?>{},
+              ),
+            ],
+          ),
+      ]);
+
+      final reason = await makeLoop(provider).runTurn('prueba de solicitud inválida');
+
+      expect(reason, 'rejected');
+      expect(provider.calls, 2);
+      expect(log.events.whereType<ToolCallEvent>().length, 2);
+      expect(log.events.whereType<ToolResultEvent>().last.content,
+          contains('Se detuvo el turno'));
+    });
+
     test('argumentos ilegibles no se ejecutan: se pide corrección', () async {
       var executed = false;
       registry.add(

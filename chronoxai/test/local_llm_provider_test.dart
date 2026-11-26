@@ -198,9 +198,8 @@ void main() {
       engine,
       modelFileResolver: () async => File('local-model.gguf'),
     );
-    final subscription = provider
-        .stream(messages: const <LlmMessage>[], tools: const [])
-        .listen((final _) {});
+    final subscription = provider.stream(
+        messages: const <LlmMessage>[], tools: const []).listen((final _) {});
 
     await Future<void>.delayed(Duration.zero);
     await subscription.cancel();

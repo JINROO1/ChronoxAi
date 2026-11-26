@@ -75,7 +75,8 @@ void main() {
         await Directory('${root.path}/local_models').list().toList(), isEmpty);
   });
 
-  test('resumes a partial download with a validated HTTP Range response', () async {
+  test('resumes a partial download with a validated HTTP Range response',
+      () async {
     final root = await Directory.systemTemp.createTemp('chronox-local-model-');
     addTearDown(() => root.delete(recursive: true));
     final bytes = 'offline model payload'.codeUnits;

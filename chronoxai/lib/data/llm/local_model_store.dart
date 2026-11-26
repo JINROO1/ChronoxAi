@@ -194,7 +194,8 @@ class LocalModelStore {
           await temporary.delete();
           _throwIfTransferCancelled();
         }
-        await _publishVerified(spec, temporary, received, spec.sha256, directory);
+        await _publishVerified(
+            spec, temporary, received, spec.sha256, directory);
         return LocalModelInstallation(
           spec: spec,
           file: File(p.join(directory.path, spec.fileName)),
@@ -228,9 +229,14 @@ class LocalModelStore {
         final start = int.tryParse(match?.group(1) ?? '');
         final end = int.tryParse(match?.group(2) ?? '');
         final total = int.tryParse(match?.group(3) ?? '');
-        if (match == null || start != received || total != spec.bytes ||
-            end == null || end < start || end >= total) {
-          throw const HttpException('El servidor respondió un Content-Range inválido.');
+        if (match == null ||
+            start != received ||
+            total != spec.bytes ||
+            end == null ||
+            end < start ||
+            end >= total) {
+          throw const HttpException(
+              'El servidor respondió un Content-Range inválido.');
         }
         append = received > 0;
         rangeEndExclusive = end + 1;
@@ -248,14 +254,16 @@ class LocalModelStore {
           digestInput.add(chunk);
         }
       }
-      onProgress?.call(
-          ModelTransferProgress(received: received, total: spec.bytes));
-      output = temporary.openWrite(mode: append ? FileMode.append : FileMode.write);
+      onProgress
+          ?.call(ModelTransferProgress(received: received, total: spec.bytes));
+      output =
+          temporary.openWrite(mode: append ? FileMode.append : FileMode.write);
       await for (final chunk in response.stream) {
         _throwIfTransferCancelled();
         received += chunk.length;
         if (received > spec.bytes || received > rangeEndExclusive) {
-          throw const FileSystemException('La respuesta excede el rango/tamaño fijado.');
+          throw const FileSystemException(
+              'La respuesta excede el rango/tamaño fijado.');
         }
         output.add(chunk);
         digestInput.add(chunk);

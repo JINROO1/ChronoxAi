@@ -110,10 +110,12 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 6),
             if (rss != null) Text('RSS actual: ${_formatBytes(rss)}'),
-            if (peakRss != null) Text('Pico RSS del proceso: ${_formatBytes(peakRss)}'),
+            if (peakRss != null)
+              Text('Pico RSS del proceso: ${_formatBytes(peakRss)}'),
             if (pss != null) Text('PSS del proceso: ${_formatBytes(pss)}'),
             if (availableRam != null && totalRam != null)
-              Text('RAM disponible: ${_formatBytes(availableRam)} / ${_formatBytes(totalRam)}'),
+              Text(
+                  'RAM disponible: ${_formatBytes(availableRam)} / ${_formatBytes(totalRam)}'),
             if (api != null && abi is String)
               Text('Android API $api · ABI $abi'),
             if (localEngine?.lastLoadDuration case final duration?)

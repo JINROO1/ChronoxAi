@@ -222,12 +222,14 @@ class MainActivity : FlutterActivity() {
                     val maxTokens = call.argument<Int>("maxTokens") ?: 256
                     val temperature = call.argument<Double>("temperature")?.toFloat() ?: 0.7f
                     val allowedRoles = setOf("system", "user", "assistant", "tool")
-                    val contentBytes = contents?.sumOf { it.toByteArray(Charsets.UTF_8).size } ?: 0
+                    val contentBytes = contents?.sumOf {
+                        it.toByteArray(Charsets.UTF_8).size.toLong()
+                    } ?: 0L
                     if (maxTokens !in 1..2048 || !temperature.isFinite() || temperature !in 0f..2f) {
                         result.error("invalid_generation_options", "Límites de generación local inválidos.", null)
                     } else if (handle == 0L || roles == null || contents == null || roles.isEmpty() ||
                         roles.size != contents.size || roles.size > 128 || roles.any { it !in allowedRoles } ||
-                        contentBytes > 2 * 1024 * 1024) {
+                        contentBytes > 2L * 1024L * 1024L) {
                         result.error("model_not_ready", "Modelo o mensajes no válidos.", null)
                     } else if (localLlmGenerating) {
                         result.error("generation_busy", "Ya hay una generación en curso.", null)

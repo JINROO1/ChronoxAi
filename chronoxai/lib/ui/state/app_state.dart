@@ -84,8 +84,7 @@ class ProviderSettings {
         apiKey: apiKey ?? this.apiKey,
         mcpServerUrl: mcpServerUrl ?? this.mcpServerUrl,
         localContextTokens: localContextTokens ?? this.localContextTokens,
-        localMaxOutputTokens:
-            localMaxOutputTokens ?? this.localMaxOutputTokens,
+        localMaxOutputTokens: localMaxOutputTokens ?? this.localMaxOutputTokens,
       );
 }
 
@@ -225,8 +224,7 @@ class ProviderSettingsNotifier extends StateNotifier<ProviderSettings> {
     await prefs.setString(_kApiKey, settings.apiKey);
     await prefs.setString(_kMcpServerUrl, settings.mcpServerUrl);
     await prefs.setInt(_kLocalContextTokens, settings.localContextTokens);
-    await prefs.setInt(
-        _kLocalMaxOutputTokens, settings.localMaxOutputTokens);
+    await prefs.setInt(_kLocalMaxOutputTokens, settings.localMaxOutputTokens);
   }
 }
 

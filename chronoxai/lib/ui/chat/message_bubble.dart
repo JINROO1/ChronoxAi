@@ -88,7 +88,10 @@ class _AssistantMessage extends StatelessWidget {
                 margin: const EdgeInsets.only(top: 3, bottom: 3, right: 12),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: <Color>[ChronoxColors.primary, ChronoxColors.accent],
+                    colors: <Color>[
+                      ChronoxColors.primary,
+                      ChronoxColors.accent
+                    ],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                   ),
@@ -144,8 +147,8 @@ class _ArchivedReasoningState extends State<_ArchivedReasoning> {
               padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
               child: Row(
                 children: <Widget>[
-                  const Icon(Icons.psychology_alt_outlined, size: 15,
-                      color: ChronoxColors.primary),
+                  const Icon(Icons.psychology_alt_outlined,
+                      size: 15, color: ChronoxColors.primary),
                   const SizedBox(width: 8),
                   const Expanded(child: Text('Razonamiento')),
                   Icon(_expanded ? Icons.expand_less : Icons.expand_more),

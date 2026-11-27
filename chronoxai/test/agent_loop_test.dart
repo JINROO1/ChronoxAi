@@ -298,7 +298,8 @@ void main() {
     test('mueve los tags think inline a razonamiento plegable', () async {
       final provider = FakeProvider(<LlmResponse>[
         const LlmResponse(
-          content: '<think>pasos internos</think><think></think>respuesta final',
+          content:
+              '<think>pasos internos</think><think></think>respuesta final',
         ),
       ]);
       final loop = makeLoop(provider);

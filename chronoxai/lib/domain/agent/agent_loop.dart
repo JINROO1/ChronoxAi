@@ -1324,9 +1324,8 @@ class _InlineReasoningParser {
 
       var possibleTagSuffix = 0;
       for (final tag in tags) {
-        final limit = _carry.length < tag.length - 1
-            ? _carry.length
-            : tag.length - 1;
+        final limit =
+            _carry.length < tag.length - 1 ? _carry.length : tag.length - 1;
         for (var length = 1; length <= limit; length++) {
           if (length > possibleTagSuffix &&
               _carry.endsWith(tag.substring(0, length))) {

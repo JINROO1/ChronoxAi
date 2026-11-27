@@ -99,6 +99,23 @@ void main() {
     expect(engine.receivedMaxTokens, 32768);
   });
 
+  test('never leaks a tool envelope when the tool catalog is empty', () async {
+    final engine = _FakeEngine()
+      ..response =
+          '<chronox-tool-call>{"name":"list_dir","arguments":{}}</chronox-tool-tool-call>';
+    final provider = LocalLlmProvider(engine);
+
+    final chunks = await provider.stream(
+      messages: const <LlmMessage>[LlmMessage.user('Enumera herramientas')],
+      tools: const <Map<String, Object?>>[],
+    ).toList();
+
+    expect(chunks.whereType<TextChunk>(), isEmpty);
+    expect(chunks.whereType<ToolCallChunk>().single.name,
+        '__chronox_invalid_local_tool_call__');
+    expect((chunks.last as DoneChunk).stopReason, 'tool_calls');
+  });
+
   test('converts a strict local tool envelope into a ToolCallChunk', () async {
     final engine = _FakeEngine()
       ..response =

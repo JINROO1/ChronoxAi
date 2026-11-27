@@ -101,9 +101,11 @@ class LocalLlmProvider implements LlmProvider {
                   toolNames: const <String>{},
                 )
               : _prepareLocalToolRequest(messages, tools);
-          final toolAware = tools.isNotEmpty;
+          // Always scan for the private protocol envelope, even if this turn
+          // has no registered tools. Otherwise marker-shaped model output can
+          // leak verbatim into the user-visible assistant message.
           final pendingProtocol = StringBuffer();
-          var plainText = !toolAware;
+          var plainText = false;
           await for (final token in engine.generate(
             messages: request.messages,
             tools: const <Map<String, Object?>>[],

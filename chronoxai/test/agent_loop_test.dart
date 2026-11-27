@@ -242,6 +242,32 @@ void main() {
   }
 
   group('AgentLoop — turno simple', () {
+    test('interpreta llamadas textuales globalmente y no filtra sus marcadores',
+        () async {
+      registry.add(tool('list_dir', requiresApproval: false));
+      final provider = FakeProvider(<LlmResponse>[
+        const LlmResponse(
+          content: '<chronox-tool-call>{"name":"list_dir","arguments":{}}</chronox-tool-tool-call>',
+        ),
+        const LlmResponse(content: 'Listo.'),
+      ]);
+      final visibleDeltas = <String>[];
+      final subscription = events
+          .of<AssistantDeltaEvent>()
+          .listen((final event) => visibleDeltas.add(event.text));
+
+      await makeLoop(provider).runTurn('Enumera el directorio');
+
+      expect(provider.calls, 2);
+      expect(log.events.whereType<ToolCallEvent>().single.name, 'list_dir');
+      expect(
+        visibleDeltas.join(),
+        isNot(contains('chronox-tool-call')),
+      );
+      expect(log.events.whereType<AssistantMessageEvent>().last.text, 'Listo.');
+      await subscription.cancel();
+    });
+
     test('una respuesta sin herramientas cierra el turno', () async {
       final provider = FakeProvider(<LlmResponse>[
         const LlmResponse(

@@ -43,6 +43,7 @@ abstract class SessionEvent extends AgentEvent {
       'compaction' => CompactionEvent.fromJson(data),
       'session/created' => SessionCreatedEvent.fromJson(data),
       'session/title' => SessionTitleEvent.fromJson(data),
+      'plugin/state' => PluginStateEvent.fromJson(data),
       _ => null,
     };
   }
@@ -101,6 +102,29 @@ class SessionTitleEvent extends SessionEvent {
 
   static SessionTitleEvent fromJson(final Map<String, Object?> j) =>
       SessionTitleEvent(title: (j['title'] as String?) ?? '');
+}
+
+/// Desired mounted state for one plugin in this session.
+class PluginStateEvent extends SessionEvent {
+  const PluginStateEvent({required this.pluginId, required this.enabled});
+
+  final String pluginId;
+  final bool enabled;
+
+  @override
+  String get eventType => 'plugin/state';
+
+  @override
+  Map<String, Object?> toJson() => <String, Object?>{
+        'pluginId': pluginId,
+        'enabled': enabled,
+      };
+
+  static PluginStateEvent fromJson(final Map<String, Object?> json) =>
+      PluginStateEvent(
+        pluginId: (json['pluginId'] as String?) ?? '',
+        enabled: json['enabled'] as bool? ?? false,
+      );
 }
 
 /// Apertura de turno. Un turno es la respuesta completa a un input del usuario.

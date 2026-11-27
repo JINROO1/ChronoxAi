@@ -38,6 +38,26 @@ void main() {
       await reopened.close();
     });
 
+    test('persiste el estado activo de plugins propio de la sesión', () async {
+      final log = await SessionLog.open(tempDir, 's1', modeId: WorkModes.standard);
+      await log.append(
+        const PluginStateEvent(pluginId: 'core-search', enabled: false),
+      );
+      await log.append(
+        const PluginStateEvent(pluginId: 'core-fs', enabled: true),
+      );
+      await log.close();
+
+      final reopened = await SessionLog.open(tempDir, 's1');
+      final states = reopened.events.whereType<PluginStateEvent>().toList();
+      expect(states, hasLength(2));
+      expect(states.lastWhere((final state) => state.pluginId == 'core-search').enabled,
+          isFalse);
+      expect(states.lastWhere((final state) => state.pluginId == 'core-fs').enabled,
+          isTrue);
+      await reopened.close();
+    });
+
     test('descarta líneas corruptas sin abortar la sesión', () async {
       final log = await SessionLog.open(tempDir, 's1');
       await log.close();

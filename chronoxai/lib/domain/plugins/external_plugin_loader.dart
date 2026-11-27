@@ -17,6 +17,7 @@ abstract final class ExternalPluginLoader {
     required final Directory pluginDirectory,
     required final PluginHost host,
     required final Future<Process> Function(String guestScript) startProcess,
+    final bool Function(PluginManifest manifest)? shouldMount,
   }) async {
     if (!await pluginDirectory.exists()) return const <String>[];
     final mounted = <String>[];
@@ -48,7 +49,9 @@ abstract final class ExternalPluginLoader {
           guestScript: '/workspace/.chronox/plugins/$id/plugin.py',
         );
         host.register(manifest, plugin, source: 'user');
-        if (await host.mount(id)) mounted.add(id);
+        if ((shouldMount?.call(manifest) ?? true) && await host.mount(id)) {
+          mounted.add(id);
+        }
       } catch (_) {
         // Plugin mal formado o proceso que no inicia: el resto del runtime sigue.
       }

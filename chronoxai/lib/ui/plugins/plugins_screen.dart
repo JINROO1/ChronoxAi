@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
+import '../../domain/agent/agent_events.dart';
 import '../../domain/plugins/plugin_api.dart';
 import '../../domain/plugins/plugin_runtime.dart';
 import '../state/app_state.dart';
@@ -135,6 +136,9 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
                   } else {
                     await session.host.unmount(pluginId);
                   }
+                  await session.log.append(
+                    PluginStateEvent(pluginId: pluginId, enabled: enabled),
+                  );
                   await ref
                       .read(disabledPluginIdsProvider.notifier)
                       .setEnabled(pluginId, enabled);

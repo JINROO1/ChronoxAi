@@ -295,8 +295,8 @@ class ApprovalLevelNotifier extends StateNotifier<ApprovalLevel> {
 /// Sesión viva. `null` hasta que la UI llama a `startSession`.
 final sessionProvider = StateProvider<SessionRuntime?>((final ref) => null);
 
-/// Identificadores deshabilitados por el usuario, conservados entre sesiones y
-/// reinicios. Los plugins nuevos permanecen habilitados por defecto.
+/// Preferencia global por defecto para sesiones nuevas, conservada entre
+/// reinicios. Cada sesión puede tener excepciones propias persistidas en su log.
 final disabledPluginIdsProvider =
     StateNotifierProvider<DisabledPluginIdsNotifier, Set<String>>(
   (final ref) => DisabledPluginIdsNotifier(),
@@ -387,6 +387,17 @@ Future<SessionRuntime> startSession(
     modeId: mode.id,
     model: bootstrap.provider.model,
   );
+  var sessionMode = mode;
+  for (final event in log.events) {
+    if (event is SessionCreatedEvent) {
+      sessionMode = WorkModes.byId(event.modeId);
+      break;
+    }
+  }
+  final savedPluginStates = <String, bool>{};
+  for (final event in log.events.whereType<PluginStateEvent>()) {
+    savedPluginStates[event.pluginId] = event.enabled;
+  }
   final events = AgentEventBus();
   final registry = ToolRegistry();
   final policy = ApprovalPolicy(level: approvalLevel);
@@ -428,7 +439,7 @@ Future<SessionRuntime> startSession(
     inspectProvider: () => <String, Object?>{
       'modelo': bootstrap.provider.model,
       'proveedor': bootstrap.provider.name,
-      'modo': mode.id,
+      'modo': sessionMode.id,
       'herramientas': registry.names.toList(),
       'plugins': host.plugins
           .map((final p) => <String, Object?>{
@@ -478,7 +489,7 @@ Future<SessionRuntime> startSession(
       contextBudget: contextBudget,
       compactThreshold: isLocalProvider ? 0.7 : 0.8,
     ),
-    modeId: mode.id,
+    modeId: sessionMode.id,
     // AGENTS.md / CLAUDE.md del workspace, cargados en cada turno.
     loadProjectInstructions: () =>
         ProjectInstructions.load(bootstrap.workspaceDir),
@@ -489,9 +500,19 @@ Future<SessionRuntime> startSession(
     fileSystem: bootstrap.fileSystem,
   );
 
-  for (final pluginId in mode.pluginIds) {
-    if (!disabledPluginIds.contains(pluginId)) {
-      await host.mount(pluginId);
+  bool shouldEnablePlugin(final LoadedPlugin plugin) {
+    final saved = savedPluginStates[plugin.manifest.id];
+    if (saved != null) return saved;
+    final isInMode = sessionMode.pluginIds.contains(plugin.manifest.id);
+    final isExternalDefault =
+        plugin.source == 'user' && plugin.manifest.enabledByDefault;
+    return (isInMode || isExternalDefault) &&
+        !disabledPluginIds.contains(plugin.manifest.id);
+  }
+
+  for (final plugin in host.plugins) {
+    if (shouldEnablePlugin(plugin)) {
+      await host.mount(plugin.manifest.id);
     }
   }
 
@@ -504,7 +525,24 @@ Future<SessionRuntime> startSession(
       pluginDirectory: pluginDirectory,
       host: host,
       startProcess: startPluginProcess,
+      shouldMount: (final manifest) {
+        final saved = savedPluginStates[manifest.id];
+        if (saved != null) return saved;
+        return manifest.enabledByDefault &&
+            !disabledPluginIds.contains(manifest.id);
+      },
     );
+  }
+
+  for (final plugin in host.plugins) {
+    if (!savedPluginStates.containsKey(plugin.manifest.id)) {
+      await log.append(
+        PluginStateEvent(
+          pluginId: plugin.manifest.id,
+          enabled: plugin.isMounted,
+        ),
+      );
+    }
   }
 
   return SessionRuntime(
@@ -514,7 +552,7 @@ Future<SessionRuntime> startSession(
     policy: policy,
     loop: loop,
     host: host,
-    mode: mode,
+    mode: sessionMode,
     llm: _ProviderAsSeam(bootstrap.provider),
     provider: bootstrap.provider,
     workspaceDir: bootstrap.workspaceDir,

@@ -294,7 +294,7 @@ class MainActivity : FlutterActivity() {
                     val roles = call.argument<List<String>>("roles")
                     val contents = call.argument<List<String>>("contents")
                     val handle = localLlmHandle
-                    val maxTokens = call.argument<Int>("maxTokens") ?: 256
+                    val maxTokens = call.argument<Int>("maxTokens") ?: 2048
                     val temperature = call.argument<Double>("temperature")?.toFloat() ?: 0.7f
                     val allowedRoles = setOf("system", "user", "assistant", "tool")
                     val contentBytes = contents?.sumOf {

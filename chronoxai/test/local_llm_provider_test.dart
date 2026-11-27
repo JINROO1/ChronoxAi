@@ -10,6 +10,7 @@ class _FakeEngine implements LocalInferenceEngine {
   bool cancelled = false;
   List<LlmMessage>? receivedMessages;
   List<Map<String, Object?>>? receivedTools;
+  int? receivedMaxTokens;
   String response = 'Hola mundo';
   Completer<void>? generationGate;
   Completer<void>? generationSettled;
@@ -54,6 +55,7 @@ class _FakeEngine implements LocalInferenceEngine {
   }) async* {
     receivedMessages = messages;
     receivedTools = tools;
+    receivedMaxTokens = maxTokens;
     generateCalls++;
     if (generationError != null) throw generationError!;
     try {
@@ -82,6 +84,19 @@ void main() {
     expect(chunks.last, isA<DoneChunk>());
     expect(engine.receivedMessages, messages);
     expect(engine.receivedTools, isEmpty);
+    expect(engine.receivedMaxTokens, 2048);
+  });
+
+  test('allows configuring the local output token limit', () async {
+    final engine = _FakeEngine();
+    final provider = LocalLlmProvider(engine, maxOutputTokens: 1024);
+
+    await provider.stream(
+      messages: const <LlmMessage>[LlmMessage.user('Responde')],
+      tools: const <Map<String, Object?>>[],
+    ).toList();
+
+    expect(engine.receivedMaxTokens, 1024);
   });
 
   test('converts a strict local tool envelope into a ToolCallChunk', () async {

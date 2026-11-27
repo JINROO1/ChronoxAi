@@ -176,7 +176,7 @@ class AndroidLocalInferenceEngine implements LocalInferenceEngine {
       'roles': roles,
       'contents': contents,
       'temperature': temperature ?? 0.7,
-      'maxTokens': maxTokens ?? 256,
+      'maxTokens': maxTokens ?? 2048,
     });
   }
 

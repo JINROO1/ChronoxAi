@@ -183,6 +183,57 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
     );
   }
 
+  Widget _outputConfigurationCard(ProviderSettings settings) {
+    const outputOptions = <int>[256, 512, 1024, 1536, 2048];
+    final selected = outputOptions.contains(settings.localMaxOutputTokens)
+        ? settings.localMaxOutputTokens
+        : 2048;
+    return Card(
+      color: ChronoxColors.backgroundElevated,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text('Salida del modelo local',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<int>(
+              value: selected,
+              decoration: const InputDecoration(
+                labelText: 'Máximo de tokens por respuesta',
+                border: OutlineInputBorder(),
+              ),
+              items: outputOptions
+                  .map((final tokens) => DropdownMenuItem<int>(
+                        value: tokens,
+                        child: Text(tokens == 2048
+                            ? '$tokens tokens · máximo del motor'
+                            : '$tokens tokens'),
+                      ))
+                  .toList(),
+              onChanged: _busy
+                  ? null
+                  : (final tokens) {
+                      if (tokens == null) return;
+                      ref.read(providerSettingsProvider.notifier).state =
+                          settings.copyWith(localMaxOutputTokens: tokens);
+                    },
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Un límite mayor permite respuestas más largas, pero puede aumentar el tiempo de generación y el uso de memoria. Se aplicará a las sesiones locales nuevas.',
+              style: TextStyle(
+                color: ChronoxColors.textMuted,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _diagnosticsCard() {
     final session = ref.watch(sessionProvider);
     final provider = session?.provider;
@@ -476,6 +527,8 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
               ),
           ],
           _contextConfigurationCard(settings),
+          const SizedBox(height: 8),
+          _outputConfigurationCard(settings),
           const SizedBox(height: 8),
           _diagnosticsCard(),
           const SizedBox(height: 8),

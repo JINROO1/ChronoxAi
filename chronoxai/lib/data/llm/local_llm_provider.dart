@@ -30,10 +30,15 @@ abstract interface class LocalInferenceEngine {
 /// Adapts a local inference engine to the same streaming contract as remote
 /// providers. It deliberately has no fallback path to a network provider.
 class LocalLlmProvider implements LlmProvider {
-  LocalLlmProvider(this.engine, {this.modelFileResolver});
+  LocalLlmProvider(
+    this.engine, {
+    this.modelFileResolver,
+    this.maxOutputTokens = 2048,
+  });
 
   final LocalInferenceEngine engine;
   final Future<File?> Function()? modelFileResolver;
+  final int maxOutputTokens;
   bool _generating = false;
 
   @override
@@ -103,7 +108,7 @@ class LocalLlmProvider implements LlmProvider {
             messages: request.messages,
             tools: const <Map<String, Object?>>[],
             temperature: temperature,
-            maxTokens: maxTokens,
+            maxTokens: (maxTokens ?? maxOutputTokens).clamp(1, 2048).toInt(),
           )) {
             if (token.isEmpty || controller.isClosed) continue;
             if (plainText) {

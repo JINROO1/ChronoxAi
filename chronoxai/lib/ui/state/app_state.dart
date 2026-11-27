@@ -47,6 +47,7 @@ class ProviderSettings {
     this.apiKey = '',
     this.mcpServerUrl = '',
     this.localContextTokens = 262144,
+    this.localMaxOutputTokens = 2048,
   });
 
   final ProviderKind kind;
@@ -55,6 +56,7 @@ class ProviderSettings {
   final String apiKey;
   final String mcpServerUrl;
   final int localContextTokens;
+  final int localMaxOutputTokens;
 
   bool get isConfigured =>
       model.trim().isNotEmpty &&
@@ -73,6 +75,7 @@ class ProviderSettings {
     final String? apiKey,
     final String? mcpServerUrl,
     final int? localContextTokens,
+    final int? localMaxOutputTokens,
   }) =>
       ProviderSettings(
         kind: kind ?? this.kind,
@@ -81,6 +84,8 @@ class ProviderSettings {
         apiKey: apiKey ?? this.apiKey,
         mcpServerUrl: mcpServerUrl ?? this.mcpServerUrl,
         localContextTokens: localContextTokens ?? this.localContextTokens,
+        localMaxOutputTokens:
+            localMaxOutputTokens ?? this.localMaxOutputTokens,
       );
 }
 
@@ -184,6 +189,8 @@ class ProviderSettingsNotifier extends StateNotifier<ProviderSettings> {
   static const String _kApiKey = 'provider.apiKey';
   static const String _kMcpServerUrl = 'mcp.serverUrl';
   static const String _kLocalContextTokens = 'provider.localContextTokens.v2';
+  static const String _kLocalMaxOutputTokens =
+      'provider.localMaxOutputTokens.v1';
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -199,6 +206,8 @@ class ProviderSettingsNotifier extends StateNotifier<ProviderSettings> {
       mcpServerUrl: prefs.getString(_kMcpServerUrl) ?? state.mcpServerUrl,
       localContextTokens:
           prefs.getInt(_kLocalContextTokens) ?? state.localContextTokens,
+      localMaxOutputTokens:
+          prefs.getInt(_kLocalMaxOutputTokens) ?? state.localMaxOutputTokens,
     );
   }
 
@@ -216,6 +225,8 @@ class ProviderSettingsNotifier extends StateNotifier<ProviderSettings> {
     await prefs.setString(_kApiKey, settings.apiKey);
     await prefs.setString(_kMcpServerUrl, settings.mcpServerUrl);
     await prefs.setInt(_kLocalContextTokens, settings.localContextTokens);
+    await prefs.setInt(
+        _kLocalMaxOutputTokens, settings.localMaxOutputTokens);
   }
 }
 
@@ -566,6 +577,7 @@ LlmProvider clientFromSettings(final ProviderSettings settings) =>
             contextSize: settings.localContextTokens,
           ),
           modelFileResolver: () => LocalModelStore().fileForId(settings.model),
+          maxOutputTokens: settings.localMaxOutputTokens,
         ),
     };
 

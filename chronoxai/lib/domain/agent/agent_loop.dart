@@ -523,8 +523,8 @@ class AgentLoop {
             reasoning:
                 reasoningBuffer.isEmpty ? null : reasoningBuffer.toString(),
             usage: usage,
-            stopReason: stopReason ??
-                (toolCalls.isNotEmpty ? 'tool_calls' : null),
+            stopReason:
+                stopReason ?? (toolCalls.isNotEmpty ? 'tool_calls' : null),
           ),
         );
       },
@@ -1349,7 +1349,8 @@ class _TextToolEnvelopeParser {
           if (finalizing) {
             _body!.write(_carry);
             _carry = '';
-            _calls.add(_invalidCall('La llamada de herramienta quedó incompleta.'));
+            _calls.add(
+                _invalidCall('La llamada de herramienta quedó incompleta.'));
             _insideCall = false;
             _body = null;
           }
@@ -1389,7 +1390,8 @@ class _TextToolEnvelopeParser {
           final isPartialOpen = _openTags.any((final tag) =>
               _carry.length < tag.length && tag.startsWith(_carry));
           if (isPartialOpen) {
-            _calls.add(_invalidCall('El marcador de herramienta quedó incompleto.'));
+            _calls.add(
+                _invalidCall('El marcador de herramienta quedó incompleto.'));
           } else {
             visible.add(_carry);
           }
@@ -1400,9 +1402,8 @@ class _TextToolEnvelopeParser {
 
       var possibleOpenSuffix = 0;
       for (final tag in _openTags) {
-        final limit = _carry.length < tag.length - 1
-            ? _carry.length
-            : tag.length - 1;
+        final limit =
+            _carry.length < tag.length - 1 ? _carry.length : tag.length - 1;
         for (var length = 1; length <= limit; length++) {
           if (length > possibleOpenSuffix &&
               _carry.endsWith(tag.substring(0, length))) {
@@ -1438,7 +1439,8 @@ class _TextToolEnvelopeParser {
     } on FormatException {
       // Report malformed content as an invalid tool request below.
     }
-    return _invalidCall('La llamada de herramienta no es válida o no está disponible.');
+    return _invalidCall(
+        'La llamada de herramienta no es válida o no está disponible.');
   }
 
   LlmToolCall _invalidCall(String message) => LlmToolCall(

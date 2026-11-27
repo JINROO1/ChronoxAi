@@ -247,7 +247,8 @@ void main() {
       registry.add(tool('list_dir', requiresApproval: false));
       final provider = FakeProvider(<LlmResponse>[
         const LlmResponse(
-          content: '<chronox-tool-call>{"name":"list_dir","arguments":{}}</chronox-tool-tool-call>',
+          content:
+              '<chronox-tool-call>{"name":"list_dir","arguments":{}}</chronox-tool-tool-call>',
         ),
         const LlmResponse(content: 'Listo.'),
       ]);

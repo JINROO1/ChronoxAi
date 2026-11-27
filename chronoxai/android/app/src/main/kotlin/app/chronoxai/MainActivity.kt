@@ -300,7 +300,7 @@ class MainActivity : FlutterActivity() {
                     val contentBytes = contents?.sumOf {
                         it.toByteArray(Charsets.UTF_8).size.toLong()
                     } ?: 0L
-                    if (maxTokens !in 1..2048 || !temperature.isFinite() || temperature !in 0f..2f) {
+                    if (maxTokens !in 1..32768 || !temperature.isFinite() || temperature !in 0f..2f) {
                         result.error("invalid_generation_options", "Límites de generación local inválidos.", null)
                     } else if (handle == 0L || roles == null || contents == null || roles.isEmpty() ||
                         roles.size != contents.size || roles.size > 128 || roles.any { it !in allowedRoles } ||

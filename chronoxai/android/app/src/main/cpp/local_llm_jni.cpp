@@ -1,6 +1,7 @@
 #include <jni.h>
 #include <llama.h>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstdint>
@@ -163,10 +164,20 @@ Java_app_chronoxai_MainActivity_nativeGenerate(JNIEnv *env, jobject, jlong handl
     const int32_t token_count = -llama_tokenize(session->vocab, prompt.c_str(),
                                                  static_cast<int32_t>(prompt.size()),
                                                  nullptr, 0, true, true);
-    if (token_count <= 0 || token_count + max_tokens >= llama_n_ctx(session->context)) {
+    if (token_count <= 0) {
+        throw_java(env, "No se pudo tokenizar la conversación.");
+        return;
+    }
+    const auto context_size = static_cast<int64_t>(llama_n_ctx(session->context));
+    const auto available_output_tokens = context_size - token_count - 1;
+    if (available_output_tokens <= 0) {
         throw_java(env, "El prompt excede el contexto local disponible.");
         return;
     }
+    // Respect the user's output cap while ensuring the prompt plus generation
+    // stays within the model's configured context window.
+    const auto effective_max_tokens = static_cast<jint>(
+        std::min<int64_t>(max_tokens, available_output_tokens));
     std::vector<llama_token> tokens(static_cast<size_t>(token_count));
     if (llama_tokenize(session->vocab, prompt.c_str(), static_cast<int32_t>(prompt.size()),
                        tokens.data(), token_count, true, true) < 0) {
@@ -204,7 +215,7 @@ Java_app_chronoxai_MainActivity_nativeGenerate(JNIEnv *env, jobject, jlong handl
     std::vector<char> piece(256);
     jint generated_tokens = 0;
     const auto generation_started = std::chrono::steady_clock::now();
-    for (jint index = 0; index < max_tokens && !session->cancelled.load(); ++index) {
+    for (jint index = 0; index < effective_max_tokens && !session->cancelled.load(); ++index) {
         const llama_token token = llama_sampler_sample(sampler, session->context, -1);
         if (llama_vocab_is_eog(session->vocab, token)) break;
         ++generated_tokens;
@@ -218,7 +229,7 @@ Java_app_chronoxai_MainActivity_nativeGenerate(JNIEnv *env, jobject, jlong handl
         if (written < 0) break;
         pending_utf8.append(piece.data(), static_cast<size_t>(written));
         emit_utf8(env, sink, on_token, pending_utf8, false);
-        if (env->ExceptionCheck() || index + 1 == max_tokens || session->cancelled.load()) break;
+        if (env->ExceptionCheck() || index + 1 == effective_max_tokens || session->cancelled.load()) break;
         auto next_batch = llama_batch_get_one(const_cast<llama_token *>(&token), 1);
         if (llama_decode(session->context, next_batch) != 0) break;
     }

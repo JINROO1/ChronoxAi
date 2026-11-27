@@ -120,8 +120,10 @@ void main() {
       expect(settings.localMaxOutputTokens, 2048);
       expect(settings.copyWith(localContextTokens: 262144).localContextTokens,
           262144);
-      expect(settings.copyWith(localMaxOutputTokens: 1024).localMaxOutputTokens,
-          1024);
+      expect(
+        settings.copyWith(localMaxOutputTokens: 32768).localMaxOutputTokens,
+        32768,
+      );
     });
 
     test('sin clave no está configurado', () {

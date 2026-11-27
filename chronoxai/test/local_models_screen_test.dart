@@ -134,7 +134,7 @@ void main() {
     expect(find.text('Salida del modelo local'), findsOneWidget);
     await tester.tap(find.byType(DropdownButtonFormField<int>).last);
     await tester.pumpAndSettle();
-    expect(find.text('2048 tokens · máximo del motor'), findsNWidgets(2));
+    expect(find.text('32768 tokens · máximo configurable'), findsNWidgets(2));
     await tester.tap(find.text('1024 tokens'));
     await pumpScreen(tester);
 

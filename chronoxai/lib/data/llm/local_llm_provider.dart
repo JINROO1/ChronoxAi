@@ -108,7 +108,7 @@ class LocalLlmProvider implements LlmProvider {
             messages: request.messages,
             tools: const <Map<String, Object?>>[],
             temperature: temperature,
-            maxTokens: (maxTokens ?? maxOutputTokens).clamp(1, 2048).toInt(),
+            maxTokens: (maxTokens ?? maxOutputTokens).clamp(1, 32768).toInt(),
           )) {
             if (token.isEmpty || controller.isClosed) continue;
             if (plainText) {

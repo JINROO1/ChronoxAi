@@ -89,14 +89,14 @@ void main() {
 
   test('allows configuring the local output token limit', () async {
     final engine = _FakeEngine();
-    final provider = LocalLlmProvider(engine, maxOutputTokens: 1024);
+    final provider = LocalLlmProvider(engine, maxOutputTokens: 32768);
 
     await provider.stream(
       messages: const <LlmMessage>[LlmMessage.user('Responde')],
       tools: const <Map<String, Object?>>[],
     ).toList();
 
-    expect(engine.receivedMaxTokens, 1024);
+    expect(engine.receivedMaxTokens, 32768);
   });
 
   test('converts a strict local tool envelope into a ToolCallChunk', () async {

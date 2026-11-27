@@ -184,7 +184,16 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
   }
 
   Widget _outputConfigurationCard(ProviderSettings settings) {
-    const outputOptions = <int>[256, 512, 1024, 1536, 2048];
+    const outputOptions = <int>[
+      256,
+      512,
+      1024,
+      2048,
+      4096,
+      8192,
+      16384,
+      32768,
+    ];
     final selected = outputOptions.contains(settings.localMaxOutputTokens)
         ? settings.localMaxOutputTokens
         : 2048;
@@ -207,8 +216,8 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
               items: outputOptions
                   .map((final tokens) => DropdownMenuItem<int>(
                         value: tokens,
-                        child: Text(tokens == 2048
-                            ? '$tokens tokens · máximo del motor'
+                        child: Text(tokens == 32768
+                            ? '$tokens tokens · máximo configurable'
                             : '$tokens tokens'),
                       ))
                   .toList(),
@@ -222,7 +231,7 @@ class _LocalModelsScreenState extends ConsumerState<LocalModelsScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Un límite mayor permite respuestas más largas, pero puede aumentar el tiempo de generación y el uso de memoria. Se aplicará a las sesiones locales nuevas.',
+              'Hasta 32768 tokens por respuesta. El límite efectivo también depende del contexto que quede libre; si no cabe el máximo elegido, el motor lo ajusta al espacio disponible. Los valores altos pueden tardar mucho y consumir bastante memoria. Se aplica a sesiones locales nuevas.',
               style: TextStyle(
                 color: ChronoxColors.textMuted,
                 fontSize: 12,

@@ -1,5 +1,6 @@
 import 'package:chronoxai/data/llm/local_model_store.dart';
 import 'package:chronoxai/ui/settings/local_models_screen.dart';
+import 'package:chronoxai/ui/state/app_state.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -113,7 +114,7 @@ void main() {
         .pumpWidget(buildScreen(availableBytes: 8 * 1024 * 1024 * 1024));
     await pumpScreen(tester);
     expect(find.text('Contexto del modelo local'), findsOneWidget);
-    await tester.tap(find.byType(DropdownButtonFormField<int>));
+    await tester.tap(find.byType(DropdownButtonFormField<int>).first);
     await tester.pumpAndSettle();
     expect(find.text('262144 tokens · máximo del modelo'), findsNWidgets(2));
     expect(find.text('65536 tokens'), findsOneWidget);
@@ -123,6 +124,24 @@ void main() {
         find.textContaining('Contexto seleccionado: 65536').first);
     expect(
         find.textContaining('Contexto seleccionado: 65536'), findsNWidgets(2));
+  });
+
+  testWidgets('exposes configurable local output token limit',
+      (final tester) async {
+    await tester
+        .pumpWidget(buildScreen(availableBytes: 8 * 1024 * 1024 * 1024));
+    await pumpScreen(tester);
+    expect(find.text('Salida del modelo local'), findsOneWidget);
+    await tester.tap(find.byType(DropdownButtonFormField<int>).last);
+    await tester.pumpAndSettle();
+    expect(find.text('2048 tokens · máximo del motor'), findsNWidgets(2));
+    await tester.tap(find.text('1024 tokens'));
+    await pumpScreen(tester);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(LocalModelsScreen)),
+    );
+    expect(container.read(providerSettingsProvider).localMaxOutputTokens, 1024);
   });
 
   testWidgets('shows pinned Qwen provenance and RAM caveat',

@@ -1,0 +1,47 @@
+name: chronoxai
+description: "Chronox AI — agente de codificación para Android con terminal Linux (proot) integrada."
+publish_to: "none"
+version: 0.2.0+2
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Estado
+  flutter_riverpod: ^2.5.1
+
+  # Red (API del LLM + descargas del runtime)
+  http: ^1.2.2
+
+  # Terminal: emulador VT + PTY nativo (Android soportado)
+  xterm: ^4.0.0
+  flutter_pty: ^0.4.0
+
+  # Rutas y almacenamiento
+  path_provider: ^2.1.4
+  path: ^1.9.0
+  shared_preferences: ^2.3.2
+
+  # Extracción de rootfs (tar.gz) en Dart puro
+  archive: ^3.6.1
+
+  # Hashing para verificar descargas
+  crypto: ^3.0.5
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/licenses/

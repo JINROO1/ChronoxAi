@@ -1,0 +1,562 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'arena/**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      build_apk:
+        description: 'Compilar y subir el APK (tarda ~10 min)'
+        type: boolean
+        default: false
+      offline_gate:
+        description: 'Verificar GGUF, inferencia host y compilación Android (sin emulador)'
+        type: boolean
+        default: false
+      runtime_arch:
+        description: 'Arquitectura del runtime Linux (arm64 para Android, x86_64 para CI desktop)'
+        type: choice
+        options: [arm64, x86_64]
+        default: arm64
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: '3.24.5'
+  # El proyecto Flutter vive en un subdirectorio.
+  PROJECT_DIR: chronoxai
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 0. Formato automático
+  #     No hay formateador de Dart disponible fuera de un SDK, así que CI lo
+  #     aplica y lo commitea él mismo. Con `--set-exit-if-changed` avisa, pero
+  #     en lugar de hacer fallar la build arregla el fichero: el objetivo es que
+  #     el repo quede formateado, no que el contribuidor adivine el estilo.
+  #     En pull requests NO commitea (sería escribir en una rama ajena).
+  # ---------------------------------------------------------------------------
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      # No se hace `pub get` aquí a propósito: `dart format` no resuelve
+      # imports, así que no necesita dependencias, y este job es el primero en
+      # arrancar. Pedirlas lo hacía fallar de vez en cuando contra el registro
+      # de pub mientras los demás jobs (con el mismo pubspec) sí resolvían.
+      - name: Aplicar formato
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          # La salida se publica como anotación porque los logs de Actions no
+          # siempre son accesibles; sin esto un fallo del formateador deja solo
+          # "exit code 65" y no se sabe qué fichero lo provocó.
+          set +e
+          dart format lib test > /tmp/fmt.txt 2>&1
+          estado=$?
+          cat /tmp/fmt.txt
+          if [ $estado -ne 0 ]; then
+            python3 - <<'PYINFO'
+          import os
+          ruta = '/tmp/fmt.txt'
+          texto = open(ruta, encoding='utf-8', errors='replace').read() if os.path.exists(ruta) else ''
+          lineas = [l for l in texto.splitlines() if l.strip()][:25] or ['(sin salida)']
+          for linea in lineas:
+              print('::error title=Error de formato::' + linea.replace('%', '%25').replace('\r', ''))
+          PYINFO
+            exit $estado
+          fi
+
+      - name: Commit si hubo cambios
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "Ya estaba formateado."
+            echo "### Formato: sin cambios" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git config user.name "chronox-format-bot"
+          git config user.email "bot@chronoxai.app"
+          git add -A
+          git commit -m "style: aplicar dart format"
+          git push
+          echo "### Formato: aplicado y commiteado" >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # 1. Análisis estático
+  # ---------------------------------------------------------------------------
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Publicar dependencias
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: flutter pub get
+
+      # El resultado se publica como ANOTACIONES (file/line/col) además de en el
+      # log: así el error aparece señalado en el diff del PR y se puede leer por
+      # API sin descargar el log completo.
+      - name: Análisis estático
+        id: analyze
+        continue-on-error: true
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          set +e
+          flutter analyze --fatal-infos > /tmp/analyze.txt 2>&1
+          rc=$?
+          cat /tmp/analyze.txt
+          # El script vive en tools/ci/ para no incrustar un heredoc dentro de
+          # un bloque YAML (las líneas del heredoc rompen la indentación).
+          python3 tools/ci/analyze_to_annotations.py /tmp/analyze.txt
+          {
+            echo "### Análisis estático"
+            echo ""
+            if [ $rc -eq 0 ]; then
+              echo "✅ Sin problemas."
+            else
+              echo '```'
+              tail -60 /tmp/analyze.txt
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $rc
+
+  # ---------------------------------------------------------------------------
+  # 2. Tests unitarios y de widget
+  # ---------------------------------------------------------------------------
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Publicar dependencias
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: flutter pub get
+
+      # SIN continue-on-error a propósito. Lo tenía, y eso hacía que el job
+      # saliera en verde aunque hubiera tests fallando: las anotaciones decían
+      # "Some tests failed" mientras el check aparecía como éxito. Un verde que
+      # no significa verde es peor que un rojo.
+      - name: Tests con cobertura
+        id: tests
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          set +e
+          flutter test --coverage --reporter expanded > /tmp/test.txt 2>&1
+          rc=$?
+          cat /tmp/test.txt
+          # Los fallos se publican como anotaciones para poder leerlos por API.
+          python3 tools/ci/test_to_annotations.py /tmp/test.txt
+          {
+            echo "### Tests"
+            echo ""
+            if [ $rc -eq 0 ]; then
+              echo "✅ Todos pasan."
+            else
+              echo '```'
+              grep -vE "^\s*$" /tmp/test.txt | tail -80
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $rc
+
+      - name: Resumen de cobertura
+        if: always()
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          if [ -f coverage/lcov.info ]; then
+            total=$(awk -F: '/^LF:/{lf+=$2} /^LH:/{lh+=$2} END {if (lf>0) printf "%.1f", 100*lh/lf; else print "0"}' coverage/lcov.info)
+            echo "### Cobertura: ${total}%" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: ${{ env.PROJECT_DIR }}/coverage/lcov.info
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # Gate offline Qwen: opt-in con [offline-gate] en el título del commit o PR.
+  # Descarga modelos solo a almacenamiento efímero, verifica tamaño/hash,
+  # ejecuta inferencia host con llama.cpp y cross-compila Android ARM64/API 28.
+  # No publica ni cachea pesos, y no afirma sustituir una prueba en teléfono.
+  # ---------------------------------------------------------------------------
+  offline-model-gate:
+    name: Offline Qwen model gate
+    if: >-
+      (github.event_name == 'push' && contains(github.event.head_commit.message, '[offline-gate]')) ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.title, '[offline-gate]')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.offline_gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/checkout@v5
+        with:
+          repository: ggml-org/llama.cpp
+          ref: 3ba1ce0e28d991800e1585b7d3533f77213939d6
+          path: llama.cpp
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'ndk;27.2.12479018 cmake;3.31.6'
+
+      - name: Descargar artefactos fijados y verificar bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/qwen-models"
+          cd "$RUNNER_TEMP/qwen-models"
+          curl --fail --location --retry 5 --retry-all-errors --continue-at - \
+            'https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/6ab461498e2023f6e3c1baea90a8f0fe38ab64d0/Qwen3.5-0.8B-Q4_K_M.gguf' \
+            --output Qwen3.5-0.8B-Q4_K_M.gguf
+          curl --fail --location --retry 5 --retry-all-errors --continue-at - \
+            'https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_K_M.gguf' \
+            --output Qwen3.5-2B-Q4_K_M.gguf
+          printf '%s  %s\n' \
+            'bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517' Qwen3.5-0.8B-Q4_K_M.gguf \
+            'aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223' Qwen3.5-2B-Q4_K_M.gguf | sha256sum --check
+          test "$(stat -c '%s' Qwen3.5-0.8B-Q4_K_M.gguf)" = 532517120
+          test "$(stat -c '%s' Qwen3.5-2B-Q4_K_M.gguf)" = 1280835840
+          curl --fail --location --retry 5 --retry-all-errors \
+            'https://huggingface.co/Qwen/Qwen3.5-0.8B/resolve/23eda19ab0239bc12350efba411911b8eb89f486/LICENSE' \
+            --output LICENSE-Qwen3.5-0.8B
+          curl --fail --location --retry 5 --retry-all-errors \
+            'https://huggingface.co/Qwen/Qwen3.5-2B/resolve/45d9965135a01c150160613080c4c3ec95fae9d5/LICENSE' \
+            --output LICENSE-Qwen3.5-2B
+          grep -q 'Apache License' LICENSE-Qwen3.5-0.8B
+          grep -q 'Apache License' LICENSE-Qwen3.5-2B
+          {
+            echo '### Offline Qwen artifacts'
+            echo '- Both pinned GGUF downloads passed exact byte-size and SHA-256 checks.'
+            echo '- Both upstream model licenses were fetched at fixed revisions and identify Apache License 2.0.'
+            sha256sum Qwen3.5-0.8B-Q4_K_M.gguf Qwen3.5-2B-Q4_K_M.gguf LICENSE-Qwen3.5-0.8B LICENSE-Qwen3.5-2B
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Compilar llama.cpp host runtime
+        shell: bash
+        run: |
+          set +e
+          {
+            cmake -S llama.cpp -B "$RUNNER_TEMP/llama-host" \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DGGML_NATIVE=OFF \
+              -DGGML_OPENMP=OFF \
+              -DGGML_LLAMAFILE=OFF \
+              -DLLAMA_CURL=OFF \
+              -DLLAMA_BUILD_TESTS=OFF \
+              -DLLAMA_BUILD_COMMON=ON \
+              -DLLAMA_BUILD_EXAMPLES=ON \
+              -DLLAMA_BUILD_SERVER=OFF &&
+            cmake --build "$RUNNER_TEMP/llama-host" --target llama-simple --parallel 2
+          } > "$RUNNER_TEMP/llama-host-build.log" 2>&1
+          rc=$?
+          cat "$RUNNER_TEMP/llama-host-build.log"
+          if [ "$rc" -ne 0 ]; then
+            python3 - "$RUNNER_TEMP/llama-host-build.log" <<'PY'
+          import sys
+          lines = open(sys.argv[1], encoding='utf-8', errors='replace').read().splitlines()[-25:]
+          detail = ' | '.join(line.replace('%', '%25').replace('\r', '') for line in lines)
+          print('::error title=llama.cpp host build failed::' + detail)
+          PY
+            exit "$rc"
+          fi
+
+      - name: Probar carga y generación de ambos GGUF
+        shell: bash
+        run: |
+          set -euo pipefail
+          for size in 0.8B 2B; do
+            model="$RUNNER_TEMP/qwen-models/Qwen3.5-${size}-Q4_K_M.gguf"
+            "$RUNNER_TEMP/llama-host/bin/llama-simple" \
+              -m "$model" -n 8 -ngl 0 \
+              'Responde en español con un saludo breve.' \
+              > "$RUNNER_TEMP/qwen-${size}.txt" 2> "$RUNNER_TEMP/qwen-${size}.log"
+            test -s "$RUNNER_TEMP/qwen-${size}.txt"
+            echo "### Qwen ${size}: carga y generación host OK" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Cross-compilar llama.cpp para Android ARM64 API 28
+        run: |
+          ndk="$ANDROID_HOME/ndk/27.2.12479018"
+          test -f "$ndk/build/cmake/android.toolchain.cmake"
+          cmake -S llama.cpp -B "$RUNNER_TEMP/llama-android-arm64" \
+            -DCMAKE_TOOLCHAIN_FILE="$ndk/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-28 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DGGML_NATIVE=OFF \
+            -DGGML_OPENMP=OFF \
+            -DGGML_LLAMAFILE=OFF \
+            -DLLAMA_CURL=OFF \
+            -DLLAMA_BUILD_TESTS=OFF \
+            -DLLAMA_BUILD_SERVER=OFF \
+            -DBUILD_SHARED_LIBS=ON
+          cmake --build "$RUNNER_TEMP/llama-android-arm64" --target llama --parallel 2
+          find "$RUNNER_TEMP/llama-android-arm64" -name 'libllama.so' -print -quit | grep .
+          echo '### Android target: llama.cpp ARM64/API 28 cross-build OK' >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # Validación del runtime Linux empaquetado
+  #     Comprueba que los binarios de proot existen, son AArch64 y están
+  #     alineados a 16 KB (si no, la app falla en Android 15+).
+  # ---------------------------------------------------------------------------
+  runtime:
+    name: Runtime Linux (proot)
+    runs-on: ubuntu-latest
+    env:
+      RUNTIME_ARCH: ${{ inputs.runtime_arch == 'x86_64' && 'x86_64' || 'aarch64' }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Instalar dependencias del script
+        run: sudo apt-get update && sudo apt-get install -y python3 xz-utils
+
+      - name: Descargar y validar el runtime
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          chmod +x tools/fetch_runtime.sh
+          ./tools/fetch_runtime.sh --abi "${RUNTIME_ARCH:-aarch64}"
+
+      - name: Revalidar ELF (alineación 16 KB + arquitectura)
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: ./tools/fetch_runtime.sh --check
+
+      - name: Resumen
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          {
+            echo "### Runtime empaquetado"
+            echo ""
+            echo '| Fichero | Tamaño |'
+            echo '|---|---|'
+            for f in android/app/src/main/jniLibs/arm64-v8a/*.so; do
+              echo "| $(basename "$f") | $(du -h "$f" | cut -f1) |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # 4. Build de release firmada
+  #     En push a main o en tag. Si no hay secretos de firma, compila con la
+  #     clave de debug y lo deja claro en el resumen (nunca finge que es una
+  #     release publicable).
+  #
+  #     También se puede pedir desde una rama de trabajo escribiendo [apk] en el
+  #     ASUNTO del commit. Hace falta porque `workflow_dispatch` solo existe si
+  #     la rama por defecto tiene este workflow, y main todavía no lo tiene: sin
+  #     esta vía no habría forma de comprobar el APK antes de integrar.
+  #
+  #     Se mira el asunto y no el cuerpo porque hay herramientas que reescriben
+  #     el cuerpo al crear el commit y el marcador se perdería en silencio.
+  # ---------------------------------------------------------------------------
+  build:
+    name: Build APK release
+    needs: [analyze, test]
+    env:
+      RUNTIME_ARCH: ${{ inputs.runtime_arch == 'x86_64' && 'x86_64' || 'aarch64' }}
+    if: >-
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))) ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/arena/') && contains(github.event.head_commit.message, '[apk]')) ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.title, '[apk]')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.build_apk)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-35 build-tools;35.0.0 ndk;27.2.12479018 cmake;3.22.1'
+
+      - name: Restaurar clave de firma
+        id: signing
+        working-directory: ${{ env.PROJECT_DIR }}
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::Sin secretos de firma: se usará la clave de DEBUG. El APK no sirve para actualizar versiones publicadas."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          mkdir -p android/keystore
+          echo "$KEYSTORE_BASE64" | base64 -d > android/keystore/chronoxai-release.jks
+          # <<- solo quita TABULACIONES, no espacios: el contenido se escribe
+          # con printf para que key.properties no quede con sangría (Properties
+          # de Java la trataría como parte del valor).
+          {
+            printf 'storePassword=%s\n' "$KEYSTORE_PASSWORD"
+            printf 'keyPassword=%s\n' "$KEY_PASSWORD"
+            printf 'keyAlias=%s\n' "$KEY_ALIAS"
+            printf 'storeFile=keystore/chronoxai-release.jks\n'
+          } > android/key.properties
+          chmod 600 android/key.properties
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Obtener runtime Linux
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          chmod +x tools/fetch_runtime.sh
+          # El APK declara ambas ABIs: recopila PRoot y su loader para las dos.
+          ./tools/fetch_runtime.sh --abi aarch64
+          ./tools/fetch_runtime.sh --abi x86_64
+
+      - name: Compilar APK
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          set +e
+          # Sin --split-per-abi: build.gradle ya fija `ndk.abiFilters`, y Gradle
+          # rechaza combinar abiFilters con splits ("Conflicting configuration").
+          # El APK único incluye las dos ABIs que declara el proyecto.
+          flutter build apk --release > /tmp/build.txt 2>&1
+          rc=$?
+          cat /tmp/build.txt
+          # El log de Actions no siempre se puede descargar: los errores de
+          # Gradle se publican como anotaciones para poder diagnosticarlos.
+          python3 tools/ci/gradle_to_annotations.py /tmp/build.txt
+          exit $rc
+
+      - name: Verificar PRoot y loader dentro del APK
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          python3 - <<'PY'
+          import glob, sys, zipfile
+          apks = glob.glob('build/app/outputs/flutter-apk/*-release.apk')
+          if not apks:
+              sys.exit('::error::No se generó ningún APK release')
+          required = {
+              f'lib/{abi}/{name}'
+              for abi in ('arm64-v8a', 'x86_64')
+              for name in (
+                  'libproot.so', 'libproot_loader.so', 'libtalloc.so',
+                  'libandroid-shmem.so', 'libchronox_local_llm.so', 'libllama.so',
+              )
+          }
+          for apk in apks:
+              with zipfile.ZipFile(apk) as bundle:
+                  entries = set(bundle.namelist())
+                  missing = sorted(required - entries)
+                  bundled_weights = sorted(
+                      item for item in entries
+                      if item.lower().endswith(('.gguf', '.litertlm'))
+                  )
+              if missing:
+                  for entry in missing:
+                      print(f'::error file={apk}::Falta {entry} en el APK')
+                  sys.exit(1)
+              if bundled_weights:
+                  for entry in bundled_weights:
+                      print(f'::error file={apk}::El peso no debe incluirse en el APK: {entry}')
+                  sys.exit(1)
+              print(f'::notice::Runtime PRoot y backend local presentes; sin pesos en {apk}')
+
+      - name: Comprobar que la clave restaurada es válida
+        if: steps.signing.outputs.signed == 'true'
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          test -s android/keystore/chronoxai-release.jks || {
+            echo "::error::El keystore restaurado está vacío. ¿Se codificó con 'base64 -w0'?"
+            exit 1
+          }
+          md5sum android/keystore/chronoxai-release.jks
+
+      - name: Verificar la firma
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
+          for apk in build/app/outputs/flutter-apk/*-release.apk; do
+            echo "== $(basename "$apk")"
+            "$APKSIGNER" verify --print-certs "$apk" | grep -E "SHA-256|Verifies" || true
+          done
+
+      - name: Sellar APK y registrar metadatos
+        working-directory: ${{ env.PROJECT_DIR }}
+        env:
+          SIGNED_WITH_RELEASE_KEY: ${{ steps.signing.outputs.signed }}
+        run: |
+          set -euo pipefail
+          cd build/app/outputs/flutter-apk
+          shopt -s nullglob
+          apks=(*-release.apk)
+          test "${#apks[@]}" -gt 0
+          sha256sum "${apks[@]}" > SHA256SUMS
+          {
+            echo "commit=${GITHUB_SHA}"
+            echo "workflow_run=${GITHUB_RUN_ID}"
+            echo "flutter=${FLUTTER_VERSION}"
+            echo "release_key=${SIGNED_WITH_RELEASE_KEY}"
+            echo "abi=arm64-v8a,x86_64"
+            echo "models_bundled=false"
+          } > BUILD-METADATA.txt
+          cat SHA256SUMS
+          cat BUILD-METADATA.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chronoxai-apk-${{ github.sha }}
+          path: |
+            ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/*-release.apk
+            ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/SHA256SUMS
+            ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/BUILD-METADATA.txt
+          retention-days: 30
+
+      - name: Publicar en la release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/*-release.apk
+          generate_release_notes: true
+          body_path: docs/RELEASE_NOTES.md
+
+      - name: Resumen
+        run: |
+          {
+            echo "### Build"
+            echo ""
+            echo "- Firmado con clave de release: **${{ steps.signing.outputs.signed }}**"
+            echo "- Runtime proot: empaquetado y validado (16 KB)"
+          } >> "$GITHUB_STEP_SUMMARY"

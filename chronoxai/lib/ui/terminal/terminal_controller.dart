@@ -66,7 +66,7 @@ class TerminalController extends ChangeNotifier {
     required this.runtime,
     this.workspaceDirectory,
     PtySession? session,
-  })  : _session = session {
+  }) : _session = session {
     _buffer = TerminalBuffer(columns: _columnas);
   }
 

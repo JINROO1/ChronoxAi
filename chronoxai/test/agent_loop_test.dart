@@ -1386,8 +1386,7 @@ void main() {
           policy.check(tool('bash', requiresApproval: true)).needsUser, isTrue);
     });
 
-    test('readOnly usa solo la lista blanca, no la declaración del plugin',
-        () {
+    test('readOnly usa solo la lista blanca, no la declaración del plugin', () {
       final policy = ApprovalPolicy(level: ApprovalLevel.readOnly);
 
       expect(
@@ -1395,9 +1394,7 @@ void main() {
         ApprovalDecision.allow,
       );
       expect(
-        policy
-            .check(tool('new_plugin_tool', requiresApproval: false))
-            .isDenied,
+        policy.check(tool('new_plugin_tool', requiresApproval: false)).isDenied,
         isTrue,
       );
     });

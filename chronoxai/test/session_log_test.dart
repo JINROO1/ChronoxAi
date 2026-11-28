@@ -39,7 +39,8 @@ void main() {
     });
 
     test('persiste el estado activo de plugins propio de la sesión', () async {
-      final log = await SessionLog.open(tempDir, 's1', modeId: WorkModes.standard);
+      final log =
+          await SessionLog.open(tempDir, 's1', modeId: WorkModes.standard);
       await log.append(
         const PluginStateEvent(pluginId: 'core-search', enabled: false),
       );
@@ -51,9 +52,15 @@ void main() {
       final reopened = await SessionLog.open(tempDir, 's1');
       final states = reopened.events.whereType<PluginStateEvent>().toList();
       expect(states, hasLength(2));
-      expect(states.lastWhere((final state) => state.pluginId == 'core-search').enabled,
+      expect(
+          states
+              .lastWhere((final state) => state.pluginId == 'core-search')
+              .enabled,
           isFalse);
-      expect(states.lastWhere((final state) => state.pluginId == 'core-fs').enabled,
+      expect(
+          states
+              .lastWhere((final state) => state.pluginId == 'core-fs')
+              .enabled,
           isTrue);
       await reopened.close();
     });

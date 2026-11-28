@@ -134,8 +134,10 @@ class ApprovalPolicy {
 
     switch (level) {
       case ApprovalLevel.readOnly:
-        // En solo lectura, todo lo que no esté en la lista blanca se rechaza.
-        if (readOnlyTools.contains(tool.name) || !tool.requiresApproval) {
+        // En solo lectura, la lista blanca es la única autoridad. No confíes en
+        // `requiresApproval`: un plugin nuevo puede declararlo `false` aunque
+        // su herramienta escriba o ejecute comandos.
+        if (readOnlyTools.contains(tool.name)) {
           return const ApprovalOutcome.allow();
         }
         return ApprovalOutcome.deny(

@@ -62,12 +62,16 @@ enum TerminalStatus {
 /// rootfs», «qué pasa cuando el proceso muere» y «qué se pinta» se puede probar
 /// sin un `BuildContext`.
 class TerminalController extends ChangeNotifier {
-  TerminalController({required this.runtime, PtySession? session})
-      : _session = session {
+  TerminalController({
+    required this.runtime,
+    this.workspaceDirectory,
+    PtySession? session,
+  })  : _session = session {
     _buffer = TerminalBuffer(columns: _columnas);
   }
 
   final LocalRuntime runtime;
+  final String? workspaceDirectory;
 
   PtySession? _session;
   late final TerminalBuffer _buffer;
@@ -128,6 +132,7 @@ class TerminalController extends ChangeNotifier {
 
     final comando = await runtime.interactiveCommand(
       workingDirectory: LocalRuntime.guestWorkspace,
+      workspaceDirectory: workspaceDirectory,
     );
 
     // El PTY nativo hace que bash detecte stdin como terminal real; ya no se

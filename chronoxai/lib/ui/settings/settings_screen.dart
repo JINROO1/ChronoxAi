@@ -956,21 +956,27 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
           shell: status.isReady
               ? ProotShellSeam(
                   runtime,
-                  defaultWorkingDirectory: widget.projectPath == null
-                      ? null
-                      : '/workspace/projects/${p.basename(widget.projectPath!)}',
+                  defaultWorkingDirectory: LocalRuntime.guestWorkspace,
+                  workspaceDirectory: widget.workspacePath,
                 )
               : UnavailableShellSeam(status),
           fileSystem: WorkspaceFileSystemSeam(
             hostWorkspace: widget.workspacePath ?? runtime.hostWorkspace,
           ),
-          terminals: ProotTerminalsSeam(runtime),
+          terminals: ProotTerminalsSeam(
+            runtime,
+            workspaceDirectory: widget.workspacePath,
+          ),
           workspaceDir:
               Directory(widget.workspacePath ?? runtime.hostWorkspace),
           mcpServerUrl: settings.mcpServerUrl,
           mcpServerEnvironments: mcpEnvironments,
-          startPluginProcess:
-              status.isReady ? runtime.startPluginProcess : null,
+          startPluginProcess: status.isReady
+              ? (final guestScript) => runtime.startPluginProcess(
+                    guestScript,
+                    workspaceDirectory: widget.workspacePath,
+                  )
+              : null,
           startMcpProcess: status.isReady
               ? (final command, final environment) async {
                   if (command.isNotEmpty && command.first == 'npm-package') {

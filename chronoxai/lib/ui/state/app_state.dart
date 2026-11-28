@@ -495,6 +495,7 @@ Future<SessionRuntime> startSession(
         ProjectInstructions.load(bootstrap.workspaceDir),
     loadProjectMemory: (final userInput) async =>
         projectMemory.contextFor(userInput),
+    loadSkills: () async => services.skills.values.toList(growable: false),
     hooks: hooks,
     llm: _ProviderAsSeam(bootstrap.provider),
     fileSystem: bootstrap.fileSystem,

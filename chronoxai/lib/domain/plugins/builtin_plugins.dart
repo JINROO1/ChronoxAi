@@ -318,15 +318,15 @@ ChronoxPlugin fsPlugin() => _FsPlugin(
 // core-search: política de búsqueda
 // ---------------------------------------------------------------------------
 
-/// No registra herramientas: ajusta cómo se comportan `glob` y `grep`.
+/// No registra herramientas: aporta pautas al modelo para usar `glob` y `grep`.
 ///
 /// Es el ejemplo más claro de "todo es un plugin": una capacidad puede ser una
-/// *política* y no solo código ejecutable. Al desmontarlo, los límites vuelven a
-/// su valor por defecto (composabilidad temporal).
+/// *skill* de contexto y no solo código ejecutable. Al desmontarlo, sus pautas
+/// desaparecen del prompt (composabilidad temporal).
 class _SearchPolicyPlugin extends ChronoxPlugin {
   _SearchPolicyPlugin();
 
-  /// Carpetas que nunca interesan al modelo y que quemarían contexto.
+  /// Carpetas que conviene evitar en búsquedas amplias para ahorrar contexto.
   static const List<String> defaultExcludes = <String>[
     '.git',
     'node_modules',
@@ -345,10 +345,11 @@ class _SearchPolicyPlugin extends ChronoxPlugin {
       PluginSkill(
         id: 'search-policy',
         name: 'Política de búsqueda',
-        instructions: 'Al buscar en el proyecto, ignora estas carpetas: '
-            '${defaultExcludes.join(", ")}. '
-            'Limita los resultados a 200 coincidencias y pide un patrón más '
-            'específico si hay más.',
+        instructions: 'Para ahorrar contexto, usa rutas y patrones específicos '
+            'que eviten estas carpetas en búsquedas amplias: '
+            '${defaultExcludes.join(", ")}. `grep` muestra como máximo 200 '
+            'coincidencias y `glob` hasta 500 rutas; divide la búsqueda por '
+            'directorios si necesitas cubrir más.',
       ),
     );
   }

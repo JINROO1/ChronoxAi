@@ -63,6 +63,22 @@ void main() {
       expect(await fs.exists('/workspace/src/b.dart'), isFalse);
     });
 
+    test('usa la raíz del proyecto como /workspace en una sesión de proyecto',
+        () async {
+      final project = Directory(p.join(workspace.path, 'projects', 'demo'));
+      await project.create(recursive: true);
+      final projectFs = WorkspaceFileSystemSeam(hostWorkspace: project.path);
+
+      await projectFs.writeFile('/workspace/lib/app.dart', 'void app() {}');
+
+      expect(
+        await File(p.join(project.path, 'lib', 'app.dart')).readAsString(),
+        'void app() {}',
+      );
+      expect(await projectFs.glob('/workspace/**/*.dart'),
+          <String>['/workspace/lib/app.dart']);
+    });
+
     test('crea los directorios intermedios al escribir', () async {
       await fs.writeFile('/workspace/a/b/c/d.txt', 'x');
       expect(

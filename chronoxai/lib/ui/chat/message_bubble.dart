@@ -340,9 +340,13 @@ class _Notice extends StatelessWidget {
 }
 
 /// Abre la consola interactiva completa, con pestañas para varios PTY.
-Future<void> openTerminalSheet(final BuildContext context) =>
+Future<void> openTerminalSheet(
+  final BuildContext context, {
+  final String? workspaceDirectory,
+}) =>
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) => const MultiTerminalScreen(),
+        builder: (_) =>
+            MultiTerminalScreen(workspaceDirectory: workspaceDirectory),
       ),
     );

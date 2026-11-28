@@ -13,7 +13,9 @@ import 'terminal_view.dart';
 /// Terminal interactiva a pantalla completa. Cada pestaña conserva su propio
 /// proceso PTY, por lo que pueden quedar shells/procesos abiertos en paralelo.
 class MultiTerminalScreen extends ConsumerStatefulWidget {
-  const MultiTerminalScreen({super.key});
+  const MultiTerminalScreen({super.key, this.workspaceDirectory});
+
+  final String? workspaceDirectory;
 
   @override
   ConsumerState<MultiTerminalScreen> createState() =>
@@ -54,7 +56,10 @@ class _MultiTerminalScreenState extends ConsumerState<MultiTerminalScreen> {
     try {
       final runtime = await ref.read(localRuntimeProvider.future);
       if (!mounted) return;
-      final terminal = TerminalController(runtime: runtime);
+      final terminal = TerminalController(
+        runtime: runtime,
+        workspaceDirectory: widget.workspaceDirectory,
+      );
       setState(() {
         _terminals.add(terminal);
         _selected = _terminals.length - 1;

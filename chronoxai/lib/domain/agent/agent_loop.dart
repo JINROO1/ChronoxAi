@@ -139,6 +139,7 @@ class AgentLoop {
     PlanHandler? planHandler,
     Future<String> Function()? loadProjectInstructions,
     Future<String> Function(String userInput)? loadProjectMemory,
+    Future<List<PluginSkill>> Function()? loadSkills,
     Duration subagentTimeout = const Duration(seconds: 60),
     HookRunner? hooks,
     LlmSeam? llm,
@@ -147,6 +148,7 @@ class AgentLoop {
         _planHandler = planHandler,
         _loadProjectInstructions = loadProjectInstructions,
         _loadProjectMemory = loadProjectMemory,
+        _loadSkills = loadSkills,
         _subagentTimeout = subagentTimeout,
         _hooks = hooks,
         _llm = llm,
@@ -164,14 +166,16 @@ class AgentLoop {
   PlanHandler? _planHandler;
   final Future<String> Function()? _loadProjectInstructions;
   final Future<String> Function(String userInput)? _loadProjectMemory;
+  final Future<List<PluginSkill>> Function()? _loadSkills;
   final Duration _subagentTimeout;
   final HookRunner? _hooks;
   final LlmSeam? _llm;
   final FileSystemSeam? _fileSystem;
 
-  /// Instrucciones del proyecto cargadas para el turno en curso.
+  /// Contexto opcional cargado para el turno en curso.
   String? _projectInstructions;
   String? _projectMemory;
+  List<PluginSkill> _activeSkills = const <PluginSkill>[];
 
   /// Permite a la UI enganchar su diálogo de aprobación después de construir.
   set approvalHandler(final ApprovalHandler? handler) =>
@@ -212,11 +216,18 @@ class AgentLoop {
     _cancelSignal = Completer<void>();
     _status = const AgentStatus(isRunning: true, activity: 'Pensando…');
 
-    // Las instrucciones del proyecto se cargan una vez por turno, no por
-    // paso: leer tres ficheros en cada iteración sería desperdicio, y si el
-    // usuario las edita a mitad de turno, el cambio entra en el siguiente.
-    final loader = _loadProjectInstructions;
-    _projectInstructions = loader == null ? null : await loader();
+    // Las instrucciones del proyecto y las skills activas se cargan una vez
+    // por turno, no por paso. Si cambian a mitad de turno, surten efecto en el
+    // siguiente y no hacen variar el contexto entre llamadas al modelo.
+    final instructionsLoader = _loadProjectInstructions;
+    try {
+      _projectInstructions =
+          instructionsLoader == null ? null : await instructionsLoader();
+    } catch (_) {
+      // Project guidance is optional context; a storage/loader failure must
+      // never leave the loop stuck in the running state.
+      _projectInstructions = null;
+    }
     _projectMemory = null;
     final memoryLoader = _loadProjectMemory;
     if (memoryLoader != null) {
@@ -227,6 +238,15 @@ class AgentLoop {
         // the user's task.
         _projectMemory = null;
       }
+    }
+    final skillsLoader = _loadSkills;
+    try {
+      _activeSkills = skillsLoader == null
+          ? const <PluginSkill>[]
+          : List<PluginSkill>.unmodifiable(await skillsLoader());
+    } catch (_) {
+      // A broken or unavailable plugin skill must not block the whole turn.
+      _activeSkills = const <PluginSkill>[];
     }
 
     final turnId = 'turn-${DateTime.now().microsecondsSinceEpoch}';
@@ -991,6 +1011,7 @@ class AgentLoop {
           log: log,
           projectInstructions: _projectInstructions,
           projectMemory: _projectMemory,
+          skills: _activeSkills,
         ),
       ),
     ];
@@ -1263,6 +1284,7 @@ class AgentLoop {
         compactThreshold: 0.75,
       ),
       modeId: modeId,
+      loadSkills: _loadSkills,
       llm: _llm,
     );
     try {

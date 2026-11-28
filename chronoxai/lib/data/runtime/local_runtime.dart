@@ -299,7 +299,10 @@ class LocalRuntime {
 
   /// Inicia un proceso persistente de plugin dentro del rootfs.
   /// Solo se permite ejecutar scripts bajo `/workspace/.chronox/plugins/`.
-  Future<Process> startPluginProcess(final String guestScript) async {
+  Future<Process> startPluginProcess(
+    final String guestScript, {
+    final String? workspaceDirectory,
+  }) async {
     final normalized = p.posix.normalize(guestScript);
     if (!normalized.startsWith('/workspace/.chronox/plugins/') ||
         normalized.contains('/../')) {
@@ -313,7 +316,10 @@ class LocalRuntime {
     if (!current.isReady) {
       throw StateError('No se puede iniciar un plugin: ${current.title}.');
     }
-    final config = await _config(workingDirectory: '/workspace');
+    final config = await _config(
+      workingDirectory: guestWorkspace,
+      workspaceDirectory: workspaceDirectory,
+    );
     final args = ProotCommandBuilder.build(
       config,
       inner: <String>[
@@ -521,9 +527,13 @@ class LocalRuntime {
   Future<ShellResult> run(
     final String command, {
     String? workingDirectory,
+    String? workspaceDirectory,
     Duration? timeout,
   }) async {
-    final config = await _config(workingDirectory: workingDirectory);
+    final config = await _config(
+      workingDirectory: workingDirectory,
+      workspaceDirectory: workspaceDirectory,
+    );
     final args = ProotCommandBuilder.build(
       config,
       inner: ProotCommandBuilder.commandShell(config, command),
@@ -575,7 +585,25 @@ class LocalRuntime {
   }
 
   /// Configuración de proot con los montajes del dispositivo.
-  Future<ProotConfig> _config({final String? workingDirectory}) async {
+  ///
+  /// En una sesión de proyecto, [workspaceDirectory] puede señalar la carpeta
+  /// del proyecto en el dispositivo para que `/workspace` signifique lo mismo
+  /// para las herramientas de archivos y para el shell.
+  Future<ProotConfig> _config({
+    final String? workingDirectory,
+    final String? workspaceDirectory,
+  }) async {
+    final workspaceRoot = p.normalize(p.absolute(paths.workspaceDir));
+    final selectedWorkspace = p.normalize(
+      p.absolute(workspaceDirectory ?? paths.workspaceDir),
+    );
+    if (selectedWorkspace != workspaceRoot &&
+        !p.isWithin(workspaceRoot, selectedWorkspace)) {
+      throw RuntimeException(
+        'El workspace seleccionado debe estar dentro de $workspaceRoot.',
+      );
+    }
+
     final facts = await this.facts();
     final nativeLibraryDir = facts.nativeLibraryDir;
     if (nativeLibraryDir == null) {
@@ -596,7 +624,7 @@ class LocalRuntime {
       const BindMount('/dev', '/dev'),
       const BindMount('/proc', '/proc'),
       const BindMount('/sys', '/sys'),
-      BindMount(paths.workspaceDir, guestWorkspace),
+      BindMount(selectedWorkspace, guestWorkspace),
       BindMount(paths.homeDir, '/root'),
       BindMount(paths.tempDir, '/tmp'),
     ];
@@ -635,8 +663,14 @@ PS1='\W\$ '
   }
 
   Future<({String binary, List<String> args, Map<String, String> env})>
-      interactiveCommand({final String? workingDirectory}) async {
-    final config = await _config(workingDirectory: workingDirectory);
+      interactiveCommand({
+    final String? workingDirectory,
+    final String? workspaceDirectory,
+  }) async {
+    final config = await _config(
+      workingDirectory: workingDirectory,
+      workspaceDirectory: workspaceDirectory,
+    );
     await _ensureTerminalBashrc();
     return (
       binary: config.prootBinary,
@@ -667,11 +701,13 @@ class ProotShellSeam implements ShellSeam {
     this.runtime, {
     this.policy = const SandboxPolicy(),
     this.defaultWorkingDirectory,
+    this.workspaceDirectory,
   });
 
   final LocalRuntime runtime;
   final SandboxPolicy policy;
   final String? defaultWorkingDirectory;
+  final String? workspaceDirectory;
 
   @override
   Future<ShellResult> run(
@@ -690,6 +726,7 @@ class ProotShellSeam implements ShellSeam {
     return runtime.run(
       command,
       workingDirectory: workingDirectory ?? defaultWorkingDirectory,
+      workspaceDirectory: workspaceDirectory,
       timeout: timeout,
     );
   }

@@ -280,7 +280,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           children: <Widget>[
             _SessionHeader(
               session: session,
-              onOpenTerminal: () => openTerminalSheet(context),
+              onOpenTerminal: () => openTerminalSheet(
+                context,
+                workspaceDirectory: session.workspaceDir.path,
+              ),
               onOpenSessions: () => showSessionsBrowser(context),
               onNewSession: () => showNewSessionDialog(context, ref),
               onQuickSettings: _quickSettings,

@@ -10,9 +10,10 @@ import 'runtime_process_journal.dart';
 /// Las sesiones usan el mismo PRoot, rootfs y /workspace que la terminal de UI,
 /// aunque cada terminal_open crea un proceso PTY independiente.
 class ProotTerminalsSeam implements TerminalsSeam {
-  ProotTerminalsSeam(this.runtime);
+  ProotTerminalsSeam(this.runtime, {this.workspaceDirectory});
 
   final LocalRuntime runtime;
+  final String? workspaceDirectory;
   final Map<String, _AgentTerminal> _sessions = <String, _AgentTerminal>{};
   int _nextId = 1;
 
@@ -24,6 +25,7 @@ class ProotTerminalsSeam implements TerminalsSeam {
     }
     final command = await runtime.interactiveCommand(
       workingDirectory: LocalRuntime.guestWorkspace,
+      workspaceDirectory: workspaceDirectory,
     );
     final journal = await RuntimeProcessJournal.open(runtime.paths.sessionsDir);
     final session = PtySession(

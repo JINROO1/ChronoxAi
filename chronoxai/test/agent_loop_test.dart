@@ -218,6 +218,7 @@ void main() {
     PlanHandler? planHandler,
     Future<String> Function()? loadProjectInstructions,
     Future<String> Function(String userInput)? loadProjectMemory,
+    Future<List<PluginSkill>> Function()? loadSkills,
     Duration subagentTimeout = const Duration(seconds: 60),
     HookRunner? hooks,
     AgentConfig config = const AgentConfig(),
@@ -235,6 +236,7 @@ void main() {
       planHandler: planHandler,
       loadProjectInstructions: loadProjectInstructions,
       loadProjectMemory: loadProjectMemory,
+      loadSkills: loadSkills,
       subagentTimeout: subagentTimeout,
       hooks: hooks,
       fileSystem: fileSystem,
@@ -303,6 +305,53 @@ void main() {
       ).runTurn('revisa el checkout');
 
       expect(requestedInput, 'revisa el checkout');
+    });
+
+    test('inyecta las skills montadas en el prompt de cada turno', () async {
+      var loads = 0;
+      final provider = FakeProvider(<LlmResponse>[
+        const LlmResponse(content: 'respuesta'),
+      ]);
+      final loop = makeLoop(
+        provider,
+        loadSkills: () async {
+          loads++;
+          return const <PluginSkill>[
+            PluginSkill(
+              id: 'search-policy',
+              name: 'Política de búsqueda',
+              instructions: 'Limita los resultados a 200 coincidencias.',
+            ),
+          ];
+        },
+      );
+
+      expect(await loop.runTurn('busca el símbolo'), 'completed');
+
+      expect(loads, 1);
+      expect(
+        provider.lastMessages!.first.content,
+        contains('Limita los resultados a 200 coincidencias.'),
+      );
+    });
+
+    test('si falla la carga de instrucciones el turno termina normalmente',
+        () async {
+      final provider = FakeProvider(<LlmResponse>[
+        const LlmResponse(content: 'respuesta'),
+      ]);
+      final loop = makeLoop(
+        provider,
+        loadProjectInstructions: () async =>
+            throw StateError('no se pudo leer el proyecto'),
+      );
+
+      expect(await loop.runTurn('continúa'), 'completed');
+      expect(loop.status.isRunning, isFalse);
+      expect(
+        provider.lastMessages!.first.content,
+        isNot(contains('no se pudo leer el proyecto')),
+      );
     });
 
     test('emite los fragmentos de texto para la UI', () async {
@@ -814,6 +863,49 @@ void main() {
       await loop.runTurn('lee');
       expect(asked, 0);
     });
+
+    test('readOnly deniega una herramienta nueva aunque no exija aprobación',
+        () async {
+      var executions = 0;
+      var asked = 0;
+      registry.add(
+        tool(
+          'plugin_write_without_approval',
+          requiresApproval: false,
+          result: () {
+            executions++;
+            return const ToolOutcome(content: 'escrito');
+          },
+        ),
+      );
+      final loop = makeLoop(
+        FakeProvider(<LlmResponse>[
+          const LlmResponse(
+            content: '',
+            toolCalls: <LlmToolCall>[
+              LlmToolCall(
+                id: 'c1',
+                name: 'plugin_write_without_approval',
+                arguments: <String, Object?>{},
+              ),
+            ],
+          ),
+        ]),
+        policy: ApprovalPolicy(level: ApprovalLevel.readOnly),
+        approvalHandler: (final _) async {
+          asked++;
+          return const ApprovalAnswer(approved: true);
+        },
+      );
+
+      expect(await loop.runTurn('intenta escribir'), 'rejected');
+      expect(executions, 0);
+      expect(asked, 0);
+      expect(
+        log.events.whereType<ToolResultEvent>().single.content,
+        contains('solo lectura'),
+      );
+    });
   });
 
   group('AgentLoop — reintentos', () {
@@ -1191,6 +1283,51 @@ void main() {
       expect(without, isNot(contains('Instrucciones del proyecto')));
     });
 
+    test('inyecta las skills activas y limita su presupuesto de contexto', () {
+      final base = PromptBuilder.build(
+        modeId: 'standard',
+        tools: const <PluginTool>[],
+      );
+      final prompt = PromptBuilder.build(
+        modeId: 'standard',
+        tools: const <PluginTool>[],
+        skills: <PluginSkill>[
+          PluginSkill(
+            id: 'z-skill',
+            name: 'Skill Z',
+            instructions: 'Limita las búsquedas a 200 coincidencias.',
+            examples: const <String>['grep por un símbolo concreto'],
+          ),
+          const PluginSkill(
+            id: 'a-skill',
+            name: 'Skill A',
+            instructions: 'Comprueba las rutas antes de editar.',
+          ),
+        ],
+      );
+
+      expect(prompt, contains('Skills activas de plugins'));
+      expect(prompt, contains('Limita las búsquedas a 200 coincidencias.'));
+      expect(prompt, contains('Ejemplo: grep por un símbolo concreto'));
+      expect(prompt, contains('Comprueba las rutas antes de editar.'));
+      expect(prompt.indexOf('Skill A'), lessThan(prompt.indexOf('Skill Z')));
+
+      final hugeInstructions = List<String>.filled(20000, 'x').join();
+      final huge = PromptBuilder.build(
+        modeId: 'standard',
+        tools: const <PluginTool>[],
+        skills: List<PluginSkill>.generate(
+          10,
+          (final index) => PluginSkill(
+            id: 'large-$index',
+            name: 'Large skill $index',
+            instructions: hugeInstructions,
+          ),
+        ),
+      );
+      expect(huge.length - base.length, lessThanOrEqualTo(4000));
+    });
+
     test('marca la memoria de proyecto como contexto no confiable', () {
       final prompt = PromptBuilder.build(
         modeId: 'standard',
@@ -1247,6 +1384,22 @@ void main() {
           isFalse);
       expect(
           policy.check(tool('bash', requiresApproval: true)).needsUser, isTrue);
+    });
+
+    test('readOnly usa solo la lista blanca, no la declaración del plugin',
+        () {
+      final policy = ApprovalPolicy(level: ApprovalLevel.readOnly);
+
+      expect(
+        policy.check(tool('read', requiresApproval: true)).decision,
+        ApprovalDecision.allow,
+      );
+      expect(
+        policy
+            .check(tool('new_plugin_tool', requiresApproval: false))
+            .isDenied,
+        isTrue,
+      );
     });
 
     test('yolo permite todo', () {

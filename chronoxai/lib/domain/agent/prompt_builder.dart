@@ -129,9 +129,7 @@ propia pantalla.
 
     final skillsSection = _skillsSection(skills);
     if (skillsSection.isNotEmpty) {
-      buffer
-        ..writeln()
-        ..writeln(skillsSection);
+      buffer.write(skillsSection);
     }
 
     if (projectMemory != null && projectMemory.trim().isNotEmpty) {
